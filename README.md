@@ -1,13 +1,16 @@
-# Testcontainers
+# TestcontainerEx
 
-[![Hex.pm](https://img.shields.io/hexpm/v/testcontainers.svg)](https://hex.pm/packages/testcontainers)
+[![Hex.pm](https://img.shields.io/hexpm/v/testcontainer_ex.svg)](https://hex.pm/packages/testcontainer_ex)
 
-> Testcontainers is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker container.
+> Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), add support for Podman and Minikube.
+
+> TestcontainerEx is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker or Podman container.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Podman Support](#podman-support)
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
 - [Contributing](#contributing)
@@ -18,19 +21,19 @@
 
 Before you begin, ensure you have met the following requirements:
 - You have installed the latest version of [Elixir](https://elixir-lang.org/install.html)
-- You have a Docker runtime installed
-- You are familiar with Elixir and Docker basics
+- You have a Docker or Podman runtime installed
+- You are familiar with Elixir and container basics
 
 ## Installation
 
-To add Testcontainers to your project, follow these steps:
+To add TestcontainerEx to your project, follow these steps:
 
-1. Add `testcontainers` to your list of dependencies in `mix.exs`:
+1. Add `testcontainer_ex` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:testcontainers, "~> X.XX", only: [:test, :dev]}
+    {:testcontainer_ex, "~> X.XX", only: [:test, :dev]}
   ]
 end
 ```
@@ -42,51 +45,51 @@ Replace X.XX with the current major and minor version.
 3. Add the following to test/test_helper.exs
 
 ```elixir
-Testcontainers.start_link()
+TestcontainerEx.start_link()
 ```
 
 ## Usage
 
-This section explains how to use the Testcontainers library in your own project.
+This section explains how to use the TestcontainerEx library in your own project.
 
 ### Basic usage
 
 You can use generic container api, where you have to define everything yourself:
 
 ```elixir
-{:ok, _} = Testcontainers.start_link()
-config = %Testcontainers.Container{image: "redis:5.0.3-alpine"}
-{:ok, container} = Testcontainers.start_container(config)
+{:ok, _} = TestcontainerEx.start_link()
+config = %TestcontainerEx.Container{image: "redis:5.0.3-alpine"}
+{:ok, container} = TestcontainerEx.start_container(config)
 ```
 
 Or you can use one of many predefined containers like `RedisContainer`, that has waiting strategies among other things defined up front with good defaults:
 
 ```elixir
-{:ok, _} = Testcontainers.start_link()
-config = Testcontainers.RedisContainer.new()
-{:ok, container} = Testcontainers.start_container(config)
+{:ok, _} = TestcontainerEx.start_link()
+config = TestcontainerEx.RedisContainer.new()
+{:ok, container} = TestcontainerEx.start_container(config)
 ```
 
 If you want to use a predefined container, such as `RedisContainer`, with an alternative image, for example, `valkey/valkey`, it's possible:
 
 ```elixir
-{:ok, _} = Testcontainers.start_link()
+{:ok, _} = TestcontainerEx.start_link()
 config =
-  Testcontainers.RedisContainer.new()
-  |> Testcontainers.RedisContainer.with_image("valkey/valkey:latest")
-  |> Testcontainers.RedisContainer.with_check_image("valkey/valkey")
-{:ok, container} = Testcontainers.start_container(config)
+  TestcontainerEx.RedisContainer.new()
+  |> TestcontainerEx.RedisContainer.with_image("valkey/valkey:latest")
+  |> TestcontainerEx.RedisContainer.with_check_image("valkey/valkey")
+{:ok, container} = TestcontainerEx.start_container(config)
 ```
 
 ### ExUnit tests
 
-Given you have added Testcontainers.start_link() to test_helper.exs:
+Given you have added TestcontainerEx.start_link() to test_helper.exs:
 
 ```elixir
 setup 
-  config = Testcontainers.RedisContainer.new()
-  {:ok, container} = Testcontainers.start_container(config)
-  ExUnit.Callbacks.on_exit(fn -> Testcontainers.stop_container(container.container_id) end)
+  config = TestcontainerEx.RedisContainer.new()
+  {:ok, container} = TestcontainerEx.start_container(config)
+  ExUnit.Callbacks.on_exit(fn -> TestcontainerEx.stop_container(container.container_id) end)
   {:ok, %{redis: container}}
 end
 ```
@@ -94,38 +97,38 @@ end
 there is a macro that can simplify this down to a oneliner:
 
 ```elixir
-import Testcontainers.ExUnit
+import TestcontainerEx.ExUnit
 
-container(:redis, Testcontainers.RedisContainer.new())
+container(:redis, TestcontainerEx.RedisContainer.new())
 ```
 
 ### Run tests in a Phoenix project (or any project for that matter)
 
-To run/wrap testcontainers around a project use the testcontainers.run task.
+To run/wrap testcontainer_ex around a project use the testcontainer_ex.run task.
 
-`mix testcontainers.run [sub_task] [--database postgres|mysql] [--db-volume VOLUME]`
+`mix testcontainer_ex.run [sub_task] [--database postgres|mysql] [--db-volume VOLUME]`
 
 to use postgres you can just run
 
-`mix testcontainers.run test` since postgres is default and test is the default sub-task.
+`mix testcontainer_ex.run test` since postgres is default and test is the default sub-task.
 
 #### Examples:
 
 ```bash
 # Run tests with PostgreSQL (default)
-MIX_ENV=test mix testcontainers.run test
+MIX_ENV=test mix testcontainer_ex.run test
 
 # Run tests with MySQL
-MIX_ENV=test mix testcontainers.run test --database mysql
+MIX_ENV=test mix testcontainer_ex.run test --database mysql
 
 # Run Phoenix server with PostgreSQL and persistent volume
-mix testcontainers.run phx.server --database postgres --db-volume my_postgres_data
+mix testcontainer_ex.run phx.server --database postgres --db-volume my_postgres_data
 
 # Run tests with MySQL and persistent volume
-MIX_ENV=test mix testcontainers.run test --database mysql --db-volume my_mysql_data
+MIX_ENV=test mix testcontainer_ex.run test --database mysql --db-volume my_mysql_data
 
 # Start Phoenix server with containerized DB (will keep running until stopped)
-mix testcontainers.run phx.server --database postgres --db-volume my_dev_data
+mix testcontainer_ex.run phx.server --database postgres --db-volume my_dev_data
 ```
 
 #### Persistent Volumes
@@ -139,7 +142,7 @@ This is particularly useful when you want to maintain database state across test
 
 #### Configuration (runtime.exs)
 
-Instead of editing dev.exs or test.exs, you can let testcontainers set `DATABASE_URL` and use it from `config/runtime.exs` for dev and test:
+Instead of editing dev.exs or test.exs, you can let testcontainer_ex set `DATABASE_URL` and use it from `config/runtime.exs` for dev and test:
 
 ```elixir
 # config/runtime.exs
@@ -159,55 +162,136 @@ This allows you to run your Phoenix server or tests with a containerized databas
 
 ```bash
 # Start Phoenix server with PostgreSQL container
-mix testcontainers.run phx.server --database postgres
+mix testcontainer_ex.run phx.server --database postgres
 
 # Start Phoenix server with MySQL container
-mix testcontainers.run phx.server --database mysql
+mix testcontainer_ex.run phx.server --database mysql
 
 # Start with persistent data
-mix testcontainers.run phx.server --database postgres --db-volume my_dev_data
+mix testcontainer_ex.run phx.server --database postgres --db-volume my_dev_data
 ```
 
-Activate reuse of database containers started by mix task with adding `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`. This is experimental.
+Activate reuse of database containers started by mix task with adding `testcontainer_ex.reuse.enable=true` in `~/.testcontainer_ex.properties`. This is experimental.
 
 You can pass arguments to the sub-task by appending them after `--`. For example, to pass arguments to mix test:
 
-`MIX_ENV=test mix testcontainers.run test -- --exclude flaky --stale`
+`MIX_ENV=test mix testcontainer_ex.run test -- --exclude flaky --stale`
 
 In the example above we are running tests while excluding flaky tests and using the --stale option.
 
 Note: MIX_ENV is not overridden by the run task. For tests, set it explicitly in the shell:
 
-`MIX_ENV=test mix testcontainers.run test`
+`MIX_ENV=test mix testcontainer_ex.run test`
 
 #### Backward Compatibility
 
-For backward compatibility, the old `mix testcontainers.test` task is still available and works exactly as before. It automatically delegates to `mix testcontainers.run test`, so existing scripts and workflows will continue to work without modification:
+For backward compatibility, the old `mix testcontainer_ex.test` task is still available and works exactly as before. It automatically delegates to `mix testcontainer_ex.run test`, so existing scripts and workflows will continue to work without modification:
 
 ```bash
 # These commands are equivalent:
-mix testcontainers.test --database mysql
-mix testcontainers.run test --database mysql
+mix testcontainer_ex.test --database mysql
+mix testcontainer_ex.run test --database mysql
 
 # Both support all the same options:
-mix testcontainers.test --database postgres --db-volume my_data
-mix testcontainers.run test --database postgres --db-volume my_data
+mix testcontainer_ex.test --database postgres --db-volume my_data
+mix testcontainer_ex.run test --database postgres --db-volume my_data
 ```
 
-While the old task will continue to work, we recommend updating to `mix testcontainers.run` for new projects as it provides more flexibility by allowing you to run any Mix task, not just tests.
+While the old task will continue to work, we recommend updating to `mix testcontainer_ex.run` for new projects as it provides more flexibility by allowing you to run any Mix task, not just tests.
 
 ### Logging
 
-Testcontainers use the standard Logger, see https://hexdocs.pm/logger/Logger.html.
+TestcontainerEx use the standard Logger, see https://hexdocs.pm/logger/Logger.html.
+
+## Podman Support
+
+TestcontainerEx Elixir supports [Podman](https://podman.io/) as a drop-in replacement for Docker. Podman is daemonless, rootless by default, and compatible with the Docker Engine API.
+
+### Quick Start with Podman
+
+1. **Install Podman** (4.0 or later recommended for `podman compose` support):
+
+   ```bash
+   # Fedora / RHEL
+   sudo dnf install podman
+
+   # Ubuntu
+   sudo apt-get install podman
+
+   # macOS
+   brew install podman
+   ```
+
+2. **Start the Podman socket** (required for the Docker-compatible API):
+
+   ```bash
+   # Rootless (recommended)
+   systemctl --user enable --now podman.socket
+
+   # Or set the socket path manually
+   export CONTAINER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+   ```
+
+3. **Run your tests** — everything else works the same as with Docker:
+
+   ```bash
+   MIX_ENV=test mix test
+   ```
+
+### Environment Variables
+
+Podman uses `CONTAINER_HOST` instead of `DOCKER_HOST`:
+
+| Variable | Description |
+|----------|-------------|
+| `CONTAINER_HOST` | Podman socket path, e.g. `unix:///run/user/1000/podman/podman.sock` |
+| `DOCKER_HOST` | Also supported for compatibility |
+
+Both `DOCKER_HOST` and `CONTAINER_HOST` are recognized. `DOCKER_HOST` is checked first, then `CONTAINER_HOST`.
+
+### Compose Support
+
+Docker Compose files work with Podman through `podman compose` (built into Podman 4+) or `podman-compose`. The compose provider is auto-detected:
+
+1. `CONTAINER_COMPOSE_PROVIDER` or `PODMAN_COMPOSE_PROVIDER` env var (highest priority)
+2. `podman compose` (if `podman` supports the `compose` subcommand)
+3. `docker` (default fallback)
+
+```bash
+# Use podman-compose explicitly
+export CONTAINER_COMPOSE_PROVIDER=podman-compose
+MIX_ENV=test mix test
+```
+
+### Rootless Podman with SELinux
+
+On distributions that enforce SELinux (e.g. Fedora), the Ryuk reaper container may be denied write access to the Podman socket unless it runs privileged. Enable it with:
+
+```bash
+# Environment variable
+export TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED=true
+
+# Or in ~/.testcontainer_ex.properties
+echo "ryuk.container.privileged=true" >> ~/.testcontainer_ex.properties
+```
+
+### Socket Paths
+
+The library automatically detects Podman sockets at these locations:
+
+- `$XDG_RUNTIME_DIR/podman/podman.sock` (rootless Podman)
+- `$XDG_RUNTIME_DIR/containers/podman.sock`
+- `$XDG_RUNTIME_DIR/docker.sock`
+- `/var/run/docker.sock` (rootful Podman with Docker compatibility)
 
 ## Configuration
 
 ### Pull policy
 
-By default, Testcontainers pulls an image only when it isn't already present in the local Docker daemon. This avoids Docker Hub rate limits on repeated test runs. The policy per container can be overridden:
+By default, TestcontainerEx pulls an image only when it isn't already present in the local Docker daemon. This avoids Docker Hub rate limits on repeated test runs. The policy per container can be overridden:
 
 ```elixir
-alias Testcontainers.{Container, PullPolicy}
+alias TestcontainerEx.{Container, PullPolicy}
 
 # pulled only if not present locally (default)
 %Container{image: "redis:7", pull_policy: PullPolicy.pull_if_missing()}
@@ -225,22 +309,22 @@ alias Testcontainers.{Container, PullPolicy}
 }
 ```
 
-The global default can also be set in `~/.testcontainers.properties` via `pull.policy` (`missing` — default, `always`, or `never`).
+The global default can also be set in `~/.testcontainer_ex.properties` via `pull.policy` (`missing` — default, `always`, or `never`).
 
 ### Naming containers
 
 Give a container a stable name so other containers on the same network can reference it by name:
 
 ```elixir
-Testcontainers.Container.new("postgres:16")
-|> Testcontainers.Container.with_name("my-postgres")
+TestcontainerEx.Container.new("postgres:16")
+|> TestcontainerEx.Container.with_name("my-postgres")
 ```
 
 The name is passed straight through to Docker's `/containers/create` as the `name` query parameter, so the usual Docker rules apply (must be unique on the daemon, `[a-zA-Z0-9][a-zA-Z0-9_.-]+`).
 
 ### Private registries
 
-If the image lives on a registry that requires authentication, Testcontainers automatically resolves credentials from the user's Docker config on image pull. The lookup order is:
+If the image lives on a registry that requires authentication, TestcontainerEx automatically resolves credentials from the user's Docker config on image pull. The lookup order is:
 
 1. `Container.auth` if set explicitly — always wins.
 2. The `auths` map in `$DOCKER_CONFIG/config.json` (or `~/.docker/config.json` if `DOCKER_CONFIG` is unset). The registry host of the image is matched against entries in the map.
@@ -256,31 +340,31 @@ docker login myregistry.example.com
 
 ### TLS-secured Docker hosts
 
-Testcontainers recognizes TLS-secured Docker daemons out of the box. Point it at one with:
+TestcontainerEx recognizes TLS-secured Docker daemons out of the box. Point it at one with:
 
 - `DOCKER_HOST=https://docker.example.internal:2376`, or
 - `DOCKER_HOST=tcp://docker.example.internal:2376` plus `DOCKER_TLS_VERIFY=1`.
 
 The client looks for `ca.pem`, `cert.pem`, and `key.pem` in the directory named by `DOCKER_CERT_PATH` (or `~/.docker` if unset); whichever files are present are used to build the SSL context, matching the Docker CLI's behavior. When `DOCKER_TLS_VERIFY` is unset, peer verification is disabled and a warning is logged.
 
-### Ryuk under SELinux / rootless Docker
+### Ryuk under SELinux / rootless Docker or Podman
 
-On distributions that enforce SELinux (for example Fedora), the Ryuk reaper container may be denied write access to the Docker socket unless it runs privileged. Enable it with either:
+On distributions that enforce SELinux (for example Fedora), the Ryuk reaper container may be denied write access to the Docker/Podman socket unless it runs privileged. This is especially common with rootless Podman. Enable it with either:
 
-- the `ryuk.container.privileged=true` property in `~/.testcontainers.properties`, or
+- the `ryuk.container.privileged=true` property in `~/.testcontainer_ex.properties`, or
 - the `TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED=true` environment variable (takes precedence over the property).
 
 Ryuk only runs privileged when one of these is set to `true` or `1`.
 
 ## API Documentation
 
-For more detailed information about the API, different container configurations, and advanced usage scenarios, please refer to the [API documentation](https://hexdocs.pm/testcontainers/api-reference.html).
+For more detailed information about the API, different container configurations, and advanced usage scenarios, please refer to the [API documentation](https://hexdocs.pm/testcontainer_ex/api-reference.html).
 
 ## Windows support
 
-### Testcontainers Desktop
+### TestcontainerEx Desktop
 
-This is the supported way to use Testcontainers Elixir on Windows. Download Testcontainers Desktop, install it and everything just works.
+This is the supported way to use TestcontainerEx Elixir on Windows. Download TestcontainerEx Desktop, install it and everything just works.
 
 ### Native
 You can run on windows natively with elixir and erlang. But its not really supported, but I have investigated and tried it out. These are my findings:
@@ -313,7 +397,7 @@ We welcome your contributions! Please see our contributing guidelines (TBD) for 
 
 ## License
 
-Testcontainers is available under the MIT license. See the LICENSE file for more info.
+TestcontainerEx is available under the MIT license. See the LICENSE file for more info.
 
 ## Contact
 
@@ -321,4 +405,4 @@ If you have any questions, issues, or want to contribute, feel free to contact u
 
 ---
 
-Thank you for using Testcontainers to test your Elixir applications!
+Thank you for using TestcontainerEx to test your Elixir applications!

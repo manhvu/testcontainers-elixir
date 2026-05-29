@@ -1,3 +1,3 @@
-Testcontainers.start_link()
+TestcontainerEx.start_link()
 
 ExUnit.start()

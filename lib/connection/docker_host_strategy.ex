@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defprotocol Testcontainers.DockerHostStrategy do
+defprotocol TestcontainerEx.DockerHostStrategy do
   @moduledoc false
 
   @doc "Executes the docker_host strategy"

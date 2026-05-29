@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.MinistackContainerTest do
+defmodule TestcontainerEx.Container.MinistackContainerTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.MinistackContainer
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.MinistackContainer
 
   @ministack_container MinistackContainer.new()
 
@@ -40,7 +40,7 @@ defmodule Testcontainers.Container.MinistackContainerTest do
     test "provides connection helpers", %{
       ministack: ministack
     } do
-      host = Testcontainers.get_host(ministack)
+      host = TestcontainerEx.get_host(ministack)
       port = MinistackContainer.port(ministack)
       conn_opts = MinistackContainer.connection_opts(ministack)
 

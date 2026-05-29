@@ -1,10 +1,10 @@
-defmodule Testcontainers.PullPolicy do
+defmodule TestcontainerEx.PullPolicy do
   @moduledoc """
   Pull policies that control whether an image is fetched from a remote registry
   before starting a container.
   """
 
-  alias Testcontainers.PullPolicy
+  alias TestcontainerEx.PullPolicy
 
   @type t :: %__MODULE__{
           always_pull: boolean() | nil,

@@ -2,10 +2,10 @@ defmodule Test.NginxContainer do
   @moduledoc false
   defstruct []
 
-  defimpl Testcontainers.ContainerBuilder do
-    alias Testcontainers.CommandWaitStrategy
-    alias Testcontainers.Docker
-    import Testcontainers.Container
+  defimpl TestcontainerEx.ContainerBuilder do
+    alias TestcontainerEx.CommandWaitStrategy
+    alias TestcontainerEx.Docker
+    import TestcontainerEx.Container
 
     @impl true
     def build(%Test.NginxContainer{}) do

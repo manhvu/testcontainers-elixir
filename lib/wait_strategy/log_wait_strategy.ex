@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.LogWaitStrategy do
+defmodule TestcontainerEx.LogWaitStrategy do
   @moduledoc """
   Considers the container as ready as soon as a specific log message is detected in the container's log stream.
   """
@@ -20,8 +20,8 @@ defmodule Testcontainers.LogWaitStrategy do
 
   # Private functions and implementations
 
-  defimpl Testcontainers.WaitStrategy do
-    alias Testcontainers.Docker
+  defimpl TestcontainerEx.WaitStrategy do
+    alias TestcontainerEx.Docker
 
     @impl true
     def wait_until_container_is_ready(wait_strategy, container, conn) do

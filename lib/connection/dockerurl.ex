@@ -1,4 +1,4 @@
-defmodule Testcontainers.DockerUrl do
+defmodule TestcontainerEx.DockerUrl do
   @moduledoc false
 
   @test_client Tesla.client([], Tesla.Adapter.Hackney)

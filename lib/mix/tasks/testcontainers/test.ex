@@ -1,10 +1,10 @@
-defmodule Mix.Tasks.Testcontainers.Test do
+defmodule Mix.Tasks.TestcontainerEx.Test do
   @moduledoc false
   use Mix.Task
 
-  @shortdoc "Runs mix test with Testcontainers (backward compatibility)"
+  @shortdoc "Runs mix test with TestcontainerEx (backward compatibility)"
 
   def run(args) do
-    Mix.Task.run("testcontainers.run", ["test" | args])
+    Mix.Task.run("testcontainer_ex.run", ["test" | args])
   end
 end

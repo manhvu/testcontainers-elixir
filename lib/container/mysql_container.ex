@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.MySqlContainer do
-  @behaviour Testcontainers.DatabaseBehaviour
+defmodule TestcontainerEx.MySqlContainer do
+  @behaviour TestcontainerEx.DatabaseBehaviour
   @moduledoc """
   Provides functionality for creating and managing MySQL container configurations.
   """
 
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.LogWaitStrategy
-  alias Testcontainers.MySqlContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.LogWaitStrategy
+  alias TestcontainerEx.MySqlContainer
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "mysql"
   @default_tag "8"
@@ -177,14 +177,14 @@ defmodule Testcontainers.MySqlContainer do
   @doc """
   Returns the port on the _host machine_ where the MySql container is listening.
   """
-  def port(%Container{} = container), do: Testcontainers.get_port(container, @default_port)
+  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
   @doc """
   Returns the connection parameters to connect to the database from the _host machine_.
   """
   def connection_parameters(%Container{} = container) do
     [
-      hostname: Testcontainers.get_host(container),
+      hostname: TestcontainerEx.get_host(container),
       port: port(container),
       username: container.environment[:MYSQL_USER],
       password: container.environment[:MYSQL_PASSWORD],

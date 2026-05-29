@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.CassandraContainer do
+defmodule TestcontainerEx.CassandraContainer do
   @moduledoc """
   Provides functionality for creating and managing Cassandra container configurations.
   """
 
-  alias Testcontainers.CassandraContainer
-  alias Testcontainers.CommandWaitStrategy
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
+  alias TestcontainerEx.CassandraContainer
+  alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "cassandra"
   @default_tag "3.11.2"
@@ -64,13 +64,13 @@ defmodule Testcontainers.CassandraContainer do
   @doc """
   Retrieves the port mapped by the Docker host for the Cassandra container.
   """
-  def port(%Container{} = container), do: Testcontainers.get_port(container, @default_port)
+  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
   @doc """
   Generates the connection URL for accessing the Cassandra service running within the container.
   """
   def connection_uri(%Container{} = container) do
-    "#{Testcontainers.get_host(container)}:#{port(container)}"
+    "#{TestcontainerEx.get_host(container)}:#{port(container)}"
   end
 
   defimpl ContainerBuilder do

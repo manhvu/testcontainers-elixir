@@ -1,6 +1,6 @@
-defmodule Testcontainers.HttpWaitStrategyTest do
-  alias Testcontainers.Container
-  alias Testcontainers.HttpWaitStrategy
+defmodule TestcontainerEx.HttpWaitStrategyTest do
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.HttpWaitStrategy
   use ExUnit.Case, async: true
 
   test "can wait for a http request and retrieve content" do
@@ -11,15 +11,15 @@ defmodule Testcontainers.HttpWaitStrategyTest do
       |> Container.with_exposed_port(port)
       |> Container.with_waiting_strategy(HttpWaitStrategy.new("/", port))
 
-    assert {:ok, container} = Testcontainers.start_container(config)
+    assert {:ok, container} = TestcontainerEx.start_container(config)
 
-    host = Testcontainers.get_host(container)
-    host_port = Testcontainers.get_port(container, port)
+    host = TestcontainerEx.get_host(container)
+    host_port = TestcontainerEx.get_port(container, port)
     url = ~c"http://#{host}:#{host_port}/"
     {:ok, {_status, _headers, body}} = :httpc.request(:get, {url, []}, [], [])
     assert to_string(body) =~ "Welcome to nginx!"
 
-    assert :ok = Testcontainers.stop_container(container.container_id)
+    assert :ok = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "can wait for a specific status code" do
@@ -30,8 +30,8 @@ defmodule Testcontainers.HttpWaitStrategyTest do
       |> Container.with_exposed_port(port)
       |> Container.with_waiting_strategy(HttpWaitStrategy.new("/", port, status_code: 200))
 
-    assert {:ok, container} = Testcontainers.start_container(config)
-    assert :ok = Testcontainers.stop_container(container.container_id)
+    assert {:ok, container} = TestcontainerEx.start_container(config)
+    assert :ok = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "fails when status code does not match" do
@@ -44,7 +44,7 @@ defmodule Testcontainers.HttpWaitStrategyTest do
         HttpWaitStrategy.new("/", port, status_code: 999, timeout: 5000, max_retries: 1)
       )
 
-    assert {:error, _, %HttpWaitStrategy{}} = Testcontainers.start_container(config)
+    assert {:error, _, %HttpWaitStrategy{}} = TestcontainerEx.start_container(config)
   end
 
   test "can use a custom match function" do
@@ -59,8 +59,8 @@ defmodule Testcontainers.HttpWaitStrategyTest do
         )
       )
 
-    assert {:ok, container} = Testcontainers.start_container(config)
-    assert :ok = Testcontainers.stop_container(container.container_id)
+    assert {:ok, container} = TestcontainerEx.start_container(config)
+    assert :ok = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "fails when custom match function returns false" do
@@ -77,6 +77,6 @@ defmodule Testcontainers.HttpWaitStrategyTest do
         )
       )
 
-    assert {:error, _, %HttpWaitStrategy{}} = Testcontainers.start_container(config)
+    assert {:error, _, %HttpWaitStrategy{}} = TestcontainerEx.start_container(config)
   end
 end

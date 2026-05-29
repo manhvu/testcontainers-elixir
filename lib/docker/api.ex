@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Docker.Api do
+defmodule TestcontainerEx.Docker.Api do
   @moduledoc """
-  Internal docker api. Only for direct use by `Testcontainers`
+  Internal docker api. Only for direct use by `TestcontainerEx`
   """
 
   alias DockerEngineAPI.Api
   alias DockerEngineAPI.Model.ExecConfig
   alias DockerEngineAPI.Model.HostConfig
-  alias Testcontainers.Container
+  alias TestcontainerEx.Container
 
   def get_container(container_id, conn)
       when is_binary(container_id) do
@@ -26,7 +26,7 @@ defmodule Testcontainers.Docker.Api do
   def get_container_by_hash(hash, conn) do
     filters_json =
       %{
-        "label" => ["#{Testcontainers.Constants.container_reuse_hash_label()}=#{hash}"]
+        "label" => ["#{TestcontainerEx.Constants.container_reuse_hash_label()}=#{hash}"]
       }
       |> Jason.encode!()
 

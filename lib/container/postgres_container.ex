@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.PostgresContainer do
-  @behaviour Testcontainers.DatabaseBehaviour
+defmodule TestcontainerEx.PostgresContainer do
+  @behaviour TestcontainerEx.DatabaseBehaviour
   @moduledoc """
   Provides functionality for creating and managing Postgres container configurations.
   """
 
-  alias Testcontainers.CommandWaitStrategy
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.PostgresContainer
+  alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.PostgresContainer
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "postgres"
   @default_tag "15-alpine"
@@ -177,14 +177,14 @@ defmodule Testcontainers.PostgresContainer do
   @doc """
   Returns the port on the _host machine_ where the Postgres container is listening.
   """
-  def port(%Container{} = container), do: Testcontainers.get_port(container, @default_port)
+  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
   @doc """
   Returns the connection parameters to connect to the database from the _host machine_.
   """
   def connection_parameters(%Container{} = container) do
     [
-      hostname: Testcontainers.get_host(container),
+      hostname: TestcontainerEx.get_host(container),
       port: port(container),
       username: container.environment[:POSTGRES_USER],
       password: container.environment[:POSTGRES_PASSWORD],

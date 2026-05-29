@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.ExUnit do
+defmodule TestcontainerEx.ExUnit do
   @moduledoc """
   Convenient macros to run containers within ExUnit tests.
   """
@@ -28,7 +28,7 @@ defmodule Testcontainers.ExUnit do
       defmodule MyTest do
         use ExUnit.Case
 
-        alias Testcontainers.Container
+        alias TestcontainerEx.Container
 
         container :my_container, %Container{image: "my_image"}
         # ...
@@ -39,7 +39,7 @@ defmodule Testcontainers.ExUnit do
       defmodule MySharedTest do
         use ExUnit.Case
 
-        alias Testcontainers.Container
+        alias TestcontainerEx.Container
 
         container :my_shared_container, %Container{image: "my_shared_image"}, shared: true
         # ...
@@ -54,8 +54,8 @@ defmodule Testcontainers.ExUnit do
   defmacro container(name, config, options \\ []) do
     run_block =
       quote do
-        {:ok, container} = Testcontainers.start_container(unquote(config))
-        ExUnit.Callbacks.on_exit(fn -> Testcontainers.stop_container(container.container_id) end)
+        {:ok, container} = TestcontainerEx.start_container(unquote(config))
+        ExUnit.Callbacks.on_exit(fn -> TestcontainerEx.stop_container(container.container_id) end)
         {:ok, %{unquote(name) => container}}
       end
 
@@ -86,7 +86,7 @@ defmodule Testcontainers.ExUnit do
   ## Parameters
 
     * `name`: The key that should be used to reference the compose environment in test cases.
-    * `config`: A `%Testcontainers.DockerCompose{}` struct with the compose configuration.
+    * `config`: A `%TestcontainerEx.DockerCompose{}` struct with the compose configuration.
     * `options`: Optional keyword list. Supports the following options:
       * `:shared` - If set to `true`, the compose environment is shared across all tests.
 
@@ -95,7 +95,7 @@ defmodule Testcontainers.ExUnit do
       defmodule MyComposeTest do
         use ExUnit.Case
 
-        alias Testcontainers.DockerCompose
+        alias TestcontainerEx.DockerCompose
 
         compose :my_env, DockerCompose.new("test/fixtures")
         # ...
@@ -104,8 +104,8 @@ defmodule Testcontainers.ExUnit do
   defmacro compose(name, config, options \\ []) do
     run_block =
       quote do
-        {:ok, env} = Testcontainers.start_compose(unquote(config))
-        ExUnit.Callbacks.on_exit(fn -> Testcontainers.stop_compose(env) end)
+        {:ok, env} = TestcontainerEx.start_compose(unquote(config))
+        ExUnit.Callbacks.on_exit(fn -> TestcontainerEx.stop_compose(env) end)
         {:ok, %{unquote(name) => env}}
       end
 

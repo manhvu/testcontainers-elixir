@@ -8,9 +8,9 @@ name: Elixir CI
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -36,50 +36,49 @@ jobs:
             otp: 26.2
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Install inotify-tools
-      run: sudo apt-get install -y inotify-tools
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: ${{ matrix.pair.elixir }} # [Required] Define the Elixir version
-        otp-version: ${{ matrix.pair.otp }}      # [Required] Define the Erlang/OTP version
-    - name: Restore dependencies cache
-      uses: actions/cache@v4
-      with:
-        path: deps
-        key: ${{ runner.os }}-${{ matrix.pair.otp }}-${{ matrix.pair.elixir }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
-    - name: Install dependencies
-      run: mix deps.get
-    - name: Run credo
-      run: mix credo --strict
-    - name: Run tests
-      run: MIX_ENV=test mix citest
-    - name: Verify version
-      run: |
-        mix run -e "if(Testcontainers.Constants.library_version() == Mix.Project.config()[:version], do: IO.puts("OK"), else: System.halt(\"version mismatch\"))"
+      - uses: actions/checkout@v4
+      - name: Install inotify-tools
+        run: sudo apt-get install -y inotify-tools
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.pair.elixir }} # [Required] Define the Elixir version
+          otp-version: ${{ matrix.pair.otp }} # [Required] Define the Erlang/OTP version
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-${{ matrix.pair.otp }}-${{ matrix.pair.elixir }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+      - name: Install dependencies
+        run: mix deps.get
+      - name: Run credo
+        run: mix credo --strict
+      - name: Run tests
+        run: MIX_ENV=test mix citest
+      - name: Verify version
+        run: |
+          mix run -e "if(TestcontainerEx.Constants.library_version() == Mix.Project.config()[:version], do: IO.puts("OK"), else: System.halt(\"version mismatch\"))"
 
   test_examples:
-
     name: Test example projects
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.18' # [Required] Define the Elixir version
-        otp-version: '27.2'      # [Required] Define the Erlang/OTP version
-    - name: Run example phoenix project tests
-      run: |
-       cd examples/phoenix_project
-       mix deps.get
-       MIX_ENV=test mix testcontainers.test
-       MIX_ENV=prod mix release
-    - name: Run example mix project tests
-      run: |
-        cd examples/mix_project
-        mix deps.get
-        mix test
+      - uses: actions/checkout@v4
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18" # [Required] Define the Elixir version
+          otp-version: "27.2" # [Required] Define the Erlang/OTP version
+      - name: Run example phoenix project tests
+        run: |
+          cd examples/phoenix_project
+          mix deps.get
+          MIX_ENV=test mix testcontainer_ex.test
+          MIX_ENV=prod mix release
+      - name: Run example mix project tests
+        run: |
+          cd examples/mix_project
+          mix deps.get
+          mix test

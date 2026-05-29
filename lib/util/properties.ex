@@ -1,8 +1,8 @@
-defmodule Testcontainers.Util.PropertiesParser do
+defmodule TestcontainerEx.Util.PropertiesParser do
   @moduledoc false
 
-  @user_file "~/.testcontainers.properties"
-  @project_file ".testcontainers.properties"
+  @user_file "~/.testcontainer_ex.properties"
+  @project_file ".testcontainer_ex.properties"
   @env_prefix "TESTCONTAINERS_"
 
   def read_property_file(file_path \\ @user_file) do
@@ -27,16 +27,16 @@ defmodule Testcontainers.Util.PropertiesParser do
   (highest to lowest):
 
   1. Environment variables (TESTCONTAINERS_* prefix)
-  2. User file (~/.testcontainers.properties)
-  3. Project file (.testcontainers.properties)
+  2. User file (~/.testcontainer_ex.properties)
+  3. Project file (.testcontainer_ex.properties)
 
   Environment variables are converted from TESTCONTAINERS_PROPERTY_NAME format
   to property.name format (uppercase to lowercase, underscores to dots, prefix removed).
 
   ## Options
 
-  - `:user_file` - path to user properties file (default: ~/.testcontainers.properties)
-  - `:project_file` - path to project properties file (default: .testcontainers.properties)
+  - `:user_file` - path to user properties file (default: ~/.testcontainer_ex.properties)
+  - `:project_file` - path to project properties file (default: .testcontainer_ex.properties)
   - `:env_prefix` - environment variable prefix (default: TESTCONTAINERS_)
 
   ## Returns

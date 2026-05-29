@@ -1,11 +1,66 @@
-defmodule Testcontainers.Compose.Cli do
+defmodule TestcontainerEx.Compose.Cli do
   @moduledoc """
   Subprocess wrapper for Docker Compose CLI interaction.
+
+  Supports both Docker and Podman compose providers. The compose command is
+  auto-detected in the following order:
+
+  1. `CONTAINER_COMPOSE_PROVIDER` / `PODMAN_COMPOSE_PROVIDER` env var
+  2. `podman compose` (podman 4+ built-in)
+  3. `docker` (default fallback)
   """
 
   require Logger
 
-  alias Testcontainers.DockerCompose
+  alias TestcontainerEx.DockerCompose
+
+  @doc """
+  Returns the compose command binary to use.
+
+  Auto-detects the available compose provider with the following precedence:
+
+  1. The `CONTAINER_COMPOSE_PROVIDER` or `PODMAN_COMPOSE_PROVIDER` environment variable.
+  2. `podman` if it supports the `compose` subcommand (podman 4+).
+  3. `docker` as the default fallback.
+
+  The result is cached after the first call.
+  """
+  def compose_command do
+    case :persistent_term.get(__MODULE__, nil) do
+      nil ->
+        cmd = detect_compose_command()
+        :persistent_term.put(__MODULE__, cmd)
+        cmd
+
+      cmd ->
+        cmd
+    end
+  end
+
+  defp detect_compose_command do
+    cond do
+      System.get_env("CONTAINER_COMPOSE_PROVIDER") ->
+        System.get_env("CONTAINER_COMPOSE_PROVIDER")
+
+      System.get_env("PODMAN_COMPOSE_PROVIDER") ->
+        System.get_env("PODMAN_COMPOSE_PROVIDER")
+
+      podman_compose_available?() ->
+        "podman"
+
+      true ->
+        "docker"
+    end
+  end
+
+  defp podman_compose_available? do
+    case System.cmd("podman", ["compose", "version"], stderr_to_stdout: true) do
+      {_, 0} -> true
+      _ -> false
+    end
+  rescue
+    ErlangError -> false
+  end
 
   @doc """
   Runs `docker compose up -d --wait` with the given compose configuration.
@@ -196,10 +251,11 @@ defmodule Testcontainers.Compose.Cli do
   defp execute(%DockerCompose{} = compose, args) do
     dir = resolve_directory(compose.filepath)
     env_vars = Enum.map(compose.env, fn {k, v} -> {to_string(k), to_string(v)} end)
+    cmd = compose_command()
 
-    Logger.debug("Running: docker #{Enum.join(args, " ")} in #{dir}")
+    Logger.debug("Running: #{cmd} #{Enum.join(args, " ")} in #{dir}")
 
-    System.cmd("docker", args, cd: dir, env: env_vars, stderr_to_stdout: true)
+    System.cmd(cmd, args, cd: dir, env: env_vars, stderr_to_stdout: true)
   end
 
   defp resolve_directory(filepath) do

@@ -1,9 +1,9 @@
-defmodule TestcontainersElixir.MixProject do
+defmodule TestcontainerExElixir.MixProject do
   use Mix.Project
 
-  @app :testcontainers
+  @app :testcontainer_ex
   @version "2.3.1"
-  @source_url "https://github.com/testcontainers/testcontainers-elixir"
+  @source_url "https://github.com/testcontainer_ex/testcontainer_ex-elixir"
 
   def project do
     [
@@ -11,7 +11,7 @@ defmodule TestcontainersElixir.MixProject do
       name: "#{@app}",
       version: @version,
       description:
-        "Testcontainers is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker container.",
+        "TestcontainerEx is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases or anything else that can run in a Docker/Podman container.",
       elixir: "~> 1.13",
       source_url: @source_url,
       homepage_url: @source_url,
@@ -27,7 +27,7 @@ defmodule TestcontainersElixir.MixProject do
         summary: [threshold: 50],
         ignore_modules: [
           TestHelper,
-          Inspect.Testcontainers.TestUser
+          Inspect.TestcontainerEx.TestUser
         ]
       ],
       elixirc_paths: elixirc_paths(Mix.env())
@@ -35,7 +35,7 @@ defmodule TestcontainersElixir.MixProject do
   end
 
   def cli do
-    [preferred_envs: [test: :test, citest: :test, "testcontainers.test": :test]]
+    [preferred_envs: [test: :test, citest: :test, "testcontainer_ex.test": :test]]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support", "docker_engine_api"]
@@ -87,7 +87,7 @@ defmodule TestcontainersElixir.MixProject do
     [
       setup: ["deps.get"],
       citest: ["test --exclude flaky --cover"],
-      "testcontainers.test": ["testcontainers.run test"]
+      "testcontainer_ex.test": ["testcontainer_ex.run test"]
     ]
   end
 end

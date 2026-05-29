@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.SeleniumContainerTest do
+defmodule TestcontainerEx.Container.SeleniumContainerTest do
   use ExUnit.Case, async: true
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.Container
-  alias Testcontainers.SeleniumContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.SeleniumContainer
 
   describe "with default configuration" do
     container(:selenium, SeleniumContainer.new())

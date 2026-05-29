@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.RedisContainer do
+defmodule TestcontainerEx.RedisContainer do
   @moduledoc """
   Provides functionality for creating and managing Redis container configurations.
   """
 
-  alias Testcontainers.CommandWaitStrategy
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.RedisContainer
+  alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.RedisContainer
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "redis"
   @default_tag "7.2-alpine"
@@ -124,7 +124,7 @@ defmodule Testcontainers.RedisContainer do
   @doc """
   Returns the port on the _host machine_ where the Redis container is listening.
   """
-  def port(%Container{} = container), do: Testcontainers.get_port(container, @default_port)
+  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
   @doc """
   Generates the connection URL for accessing the Redis service running within the container.
@@ -143,7 +143,7 @@ defmodule Testcontainers.RedisContainer do
   def connection_url(%Container{} = container) do
     password = container.environment[:REDIS_PASSWORD]
     auth_part = if password, do: ":#{password}@", else: ""
-    "redis://#{auth_part}#{Testcontainers.get_host(container)}:#{port(container)}/"
+    "redis://#{auth_part}#{TestcontainerEx.get_host(container)}:#{port(container)}/"
   end
 
   defimpl ContainerBuilder do

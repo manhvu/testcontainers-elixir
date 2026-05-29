@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.CassandraContainerTest do
+defmodule TestcontainerEx.Container.CassandraContainerTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
-  alias Testcontainers.CassandraContainer
+  import TestcontainerEx.ExUnit
+  alias TestcontainerEx.CassandraContainer
 
   @cassandra_container CassandraContainer.new()
 

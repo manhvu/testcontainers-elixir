@@ -1,6 +1,6 @@
 import Config
 
-config :testcontainers, enabled: true
+config :testcontainer_ex, enabled: true
 
 # Configure your database
 #

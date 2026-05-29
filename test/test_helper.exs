@@ -1,7 +1,7 @@
-Testcontainers.start_link()
+TestcontainerEx.start_link()
 
 exclude =
-  if Testcontainers.running_in_container?() do
+  if TestcontainerEx.running_in_container?() do
     [:dood_limitation]
   else
     []

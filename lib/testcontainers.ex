@@ -1,36 +1,36 @@
-defmodule Testcontainers do
+defmodule TestcontainerEx do
   use GenServer
 
   @moduledoc """
-  The main entry point into Testcontainers.
+  The main entry point into TestcontainerEx.
 
   This is a GenServer that needs to be started before anything can happen.
   """
 
   require Logger
 
-  alias Testcontainers.Compose.Cli, as: ComposeCli
-  alias Testcontainers.Compose.ComposeEnvironment
-  alias Testcontainers.Compose.ComposeService
-  alias Testcontainers.Connection
-  alias Testcontainers.Constants
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.CopyTo
-  alias Testcontainers.Docker.Api
-  alias Testcontainers.Docker.Auth, as: DockerAuth
-  alias Testcontainers.DockerCompose
-  alias Testcontainers.PullPolicy
-  alias Testcontainers.Util.PropertiesParser
-  alias Testcontainers.WaitStrategy
+  alias TestcontainerEx.Compose.Cli, as: ComposeCli
+  alias TestcontainerEx.Compose.ComposeEnvironment
+  alias TestcontainerEx.Compose.ComposeService
+  alias TestcontainerEx.Connection
+  alias TestcontainerEx.Constants
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.CopyTo
+  alias TestcontainerEx.Docker.Api
+  alias TestcontainerEx.Docker.Auth, as: DockerAuth
+  alias TestcontainerEx.DockerCompose
+  alias TestcontainerEx.PullPolicy
+  alias TestcontainerEx.Util.PropertiesParser
+  alias TestcontainerEx.WaitStrategy
 
-  import Testcontainers.Constants
-  import Testcontainers.Container, only: [os_type: 0]
+  import TestcontainerEx.Constants
+  import TestcontainerEx.Container, only: [os_type: 0]
 
   @timeout 300_000
 
   @doc """
-  Starts the Testcontainers application.
+  Starts the TestcontainerEx application.
 
   This will terminate when the calling process exits, for ex a task.
   """
@@ -39,7 +39,7 @@ defmodule Testcontainers do
   end
 
   @doc """
-  Starts the Testcontainers application.
+  Starts the TestcontainerEx application.
 
   This will NOT terminate when the calling process exits, for ex a task.
   """
@@ -67,13 +67,15 @@ defmodule Testcontainers do
     with {:ok, docker_hostname} <- get_docker_hostname(docker_host_url, conn, properties),
          use_container_ip <- should_use_container_ip?(docker_hostname),
          {:ok} <- start_reaper(conn, session_id, properties, docker_host, docker_hostname) do
+      engine = Constants.container_engine()
+
       if use_container_ip do
         Logger.info(
-          "Testcontainers initialized in container networking mode " <>
+          "TestcontainerEx initialized with #{engine} in container networking mode " <>
             "(using container IPs directly)"
         )
       else
-        Logger.info("Testcontainers initialized")
+        Logger.info("TestcontainerEx initialized with #{engine}")
       end
 
       {:ok,
@@ -160,8 +162,8 @@ defmodule Testcontainers do
   - `config`: A `%Container{}` struct containing the configuration settings for the container, such as the image to use, environment variables, bound ports, and volume bindings.
   ## Examples
 
-      iex> config = Testcontainers.MySqlContainer.new()
-      iex> {:ok, container} = Testcontainers.start_container(config)
+      iex> config = TestcontainerEx.MySqlContainer.new()
+      iex> {:ok, container} = TestcontainerEx.start_container(config)
 
   ## Returns
 
@@ -194,7 +196,7 @@ defmodule Testcontainers do
 
   ## Examples
 
-      :ok = Testcontainers.Connection.stop_container("my_container_id")
+      :ok = TestcontainerEx.Connection.stop_container("my_container_id")
   """
   def stop_container(container_id, name \\ __MODULE__) when is_binary(container_id) do
     wait_for_call({:stop_container, container_id}, name)
@@ -241,7 +243,7 @@ defmodule Testcontainers do
   ## Parameters
 
   - `network_name`: The name of the network to create.
-  - `name`: The name of the Testcontainers GenServer (defaults to `Testcontainers`).
+  - `name`: The name of the TestcontainerEx GenServer (defaults to `TestcontainerEx`).
 
   ## Returns
 
@@ -259,7 +261,7 @@ defmodule Testcontainers do
   ## Parameters
 
   - `network_name`: The name of the network to remove.
-  - `name`: The name of the Testcontainers GenServer (defaults to `Testcontainers`).
+  - `name`: The name of the TestcontainerEx GenServer (defaults to `TestcontainerEx`).
 
   ## Returns
 
@@ -453,7 +455,7 @@ defmodule Testcontainers do
   @doc false
   # Resolves whether Ryuk should run in privileged mode.
   #
-  # Mirrors testcontainers-dotnet: honors the `ryuk.container.privileged`
+  # Mirrors testcontainer_ex-dotnet: honors the `ryuk.container.privileged`
   # property and the `TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED` environment
   # variable. The environment variable takes precedence when both are set.
   # Values `"true"` and `"1"` are treated as truthy.
@@ -697,7 +699,7 @@ defmodule Testcontainers do
     ryuk_privileged = ryuk_privileged?(properties)
 
     ryuk_config =
-      Container.new("testcontainers/ryuk:#{Constants.ryuk_version()}")
+      Container.new("testcontainer_ex/ryuk:#{Constants.ryuk_version()}")
       |> Container.with_exposed_port(8080)
       |> then(&apply_docker_socket_volume_binding(&1, docker_host))
       |> Container.with_auto_remove(true)
@@ -803,13 +805,24 @@ defmodule Testcontainers do
   end
 
   defp register_ryuk_filter(value, socket) do
+    engine_label =
+      case container_engine() do
+        :podman ->
+          "label=io.container.manager=podman&"
+
+        _ ->
+          ""
+      end
+
     :gen_tcp.send(
       socket,
       "label=#{container_session_id_label()}=#{value}&" <>
         "label=#{container_version_label()}=#{library_version()}&" <>
         "label=#{container_lang_label()}=#{container_lang_value()}&" <>
         "label=#{container_label()}=#{true}&" <>
-        "label=#{container_reuse()}=#{false}\n"
+        "label=#{container_reuse()}=#{false}&" <>
+        engine_label <>
+        "\n"
     )
 
     case :gen_tcp.recv(socket, 0, 2_000) do
@@ -832,7 +845,7 @@ defmodule Testcontainers do
   defp track_result(_self_pid, _config_builder, _result), do: :ok
 
   defp start_and_wait(config_builder, state) do
-    case Testcontainers.ContainerBuilderHelper.build(config_builder, state) do
+    case TestcontainerEx.ContainerBuilderHelper.build(config_builder, state) do
       {:reuse, config, hash} ->
         case Api.get_container_by_hash(hash, state.conn) do
           {:error, :no_container} ->

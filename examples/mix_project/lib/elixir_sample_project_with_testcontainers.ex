@@ -1,6 +1,6 @@
-defmodule ElixirSampleProjectWithTestcontainers do
+defmodule ElixirSampleProjectWithTestcontainerEx do
   @moduledoc """
-  Documentation for `ElixirSampleProjectWithTestcontainers`.
+  Documentation for `ElixirSampleProjectWithTestcontainerEx`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule ElixirSampleProjectWithTestcontainers do
 
   ## Examples
 
-      iex> ElixirSampleProjectWithTestcontainers.hello()
+      iex> ElixirSampleProjectWithTestcontainerEx.hello()
       :world
 
   """

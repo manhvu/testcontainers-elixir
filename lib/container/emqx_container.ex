@@ -1,14 +1,14 @@
-defmodule Testcontainers.EmqxContainer do
+defmodule TestcontainerEx.EmqxContainer do
   @moduledoc """
   Provides functionality for creating and managing EMQX container configurations.
   """
 
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.EmqxContainer
-  alias Testcontainers.PortWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.EmqxContainer
+  alias TestcontainerEx.PortWaitStrategy
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "emqx"
   @default_tag "5.6.0"
@@ -102,13 +102,13 @@ defmodule Testcontainers.EmqxContainer do
   @doc """
   Returns the address on the _host machine_ where the Emqx container is listening.
   """
-  def host, do: Testcontainers.get_host()
+  def host, do: TestcontainerEx.get_host()
 
   @doc """
   Returns the port on the _host machine_ where the Emqx container is listening.
   """
   def mqtt_port(%Container{} = container),
-    do: Testcontainers.get_port(container, @default_mqtt_port)
+    do: TestcontainerEx.get_port(container, @default_mqtt_port)
 
   defimpl ContainerBuilder do
     import Container

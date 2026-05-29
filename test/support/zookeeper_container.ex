@@ -6,9 +6,9 @@ defmodule Test.ZookeeperContainer do
   """
   defstruct []
 
-  defimpl Testcontainers.ContainerBuilder do
-    alias Testcontainers.CommandWaitStrategy
-    import Testcontainers.Container
+  defimpl TestcontainerEx.ContainerBuilder do
+    alias TestcontainerEx.CommandWaitStrategy
+    import TestcontainerEx.Container
 
     @impl true
     def build(%Test.ZookeeperContainer{}) do

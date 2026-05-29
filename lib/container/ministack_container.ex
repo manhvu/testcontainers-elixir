@@ -1,12 +1,12 @@
-defmodule Testcontainers.MinistackContainer do
+defmodule TestcontainerEx.MinistackContainer do
   @moduledoc """
   Provides functionality for creating and managing Ministack container configurations.
   """
 
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.LogWaitStrategy
-  alias Testcontainers.MinistackContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.LogWaitStrategy
+  alias TestcontainerEx.MinistackContainer
 
   @default_image "ministackorg/ministack"
   @default_tag "1.3.42"
@@ -51,13 +51,13 @@ defmodule Testcontainers.MinistackContainer do
   @doc """
   Retrieves the port mapped by the Docker host for the Ministack container.
   """
-  def port(%Container{} = container), do: Testcontainers.get_port(container, @default_s3_port)
+  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_s3_port)
 
   @doc """
   Generates the connection URL for accessing the Ministack service running within the container.
   """
   def connection_url(%Container{} = container) do
-    "http://#{Testcontainers.get_host(container)}:#{port(container)}"
+    "http://#{TestcontainerEx.get_host(container)}:#{port(container)}"
   end
 
   @doc """
@@ -68,7 +68,7 @@ defmodule Testcontainers.MinistackContainer do
     [
       port: MinistackContainer.port(container),
       scheme: "http://",
-      host: Testcontainers.get_host(container),
+      host: TestcontainerEx.get_host(container),
       access_key_id: container.environment[:AWS_ACCESS_KEY_ID],
       secret_access_key: container.environment[:AWS_SECRET_ACCESS_KEY]
     ]

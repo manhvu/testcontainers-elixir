@@ -1,4 +1,4 @@
-defmodule Testcontainers.HttpWaitStrategy do
+defmodule TestcontainerEx.HttpWaitStrategy do
   @moduledoc """
   Considers the container as ready when a http request is successful.
   """
@@ -68,9 +68,9 @@ defmodule Testcontainers.HttpWaitStrategy do
 
   # Private functions and implementations
 
-  defimpl Testcontainers.WaitStrategy do
-    alias Testcontainers.Container
-    alias Testcontainers.HttpWaitStrategy
+  defimpl TestcontainerEx.WaitStrategy do
+    alias TestcontainerEx.Container
+    alias TestcontainerEx.HttpWaitStrategy
 
     @impl true
     def wait_until_container_is_ready(wait_strategy, container, _conn) do
@@ -141,9 +141,9 @@ defmodule Testcontainers.HttpWaitStrategy do
     end
 
     defp get_base_url(%HttpWaitStrategy{} = wait_strategy, %Container{} = container) do
-      port = Testcontainers.get_port(container, wait_strategy.port)
+      port = TestcontainerEx.get_port(container, wait_strategy.port)
 
-      "#{wait_strategy.protocol}://#{Testcontainers.get_host(container)}:#{port}/"
+      "#{wait_strategy.protocol}://#{TestcontainerEx.get_host(container)}:#{port}/"
     end
   end
 end

@@ -1,7 +1,7 @@
-defmodule Testcontainers.Docker.AuthTest do
+defmodule TestcontainerEx.Docker.AuthTest do
   use ExUnit.Case, async: true
 
-  alias Testcontainers.Docker.Auth
+  alias TestcontainerEx.Docker.Auth
 
   @fixture Path.expand("../fixtures/docker_config.json", __DIR__)
 
@@ -72,7 +72,7 @@ defmodule Testcontainers.Docker.AuthTest do
 
     test "returns nil when the config file is missing" do
       missing =
-        Path.join(System.tmp_dir!(), "testcontainers-missing-#{System.unique_integer()}.json")
+        Path.join(System.tmp_dir!(), "testcontainer_ex-missing-#{System.unique_integer()}.json")
 
       refute File.exists?(missing)
 
@@ -81,7 +81,7 @@ defmodule Testcontainers.Docker.AuthTest do
 
     test "returns nil when the config file is invalid JSON" do
       path =
-        Path.join(System.tmp_dir!(), "testcontainers-invalid-#{System.unique_integer()}.json")
+        Path.join(System.tmp_dir!(), "testcontainer_ex-invalid-#{System.unique_integer()}.json")
 
       File.write!(path, "this is not json")
 

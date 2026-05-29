@@ -1,10 +1,10 @@
-defmodule ElixirSampleProjectWithTestcontainersTest do
+defmodule ElixirSampleProjectWithTestcontainerExTest do
   use ExUnit.Case
-  doctest ElixirSampleProjectWithTestcontainers
-  import Testcontainers.ExUnit
+  doctest ElixirSampleProjectWithTestcontainerEx
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.Container
-  alias Testcontainers.MySqlContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.MySqlContainer
 
   container(:mysql, MySqlContainer.new(), shared: true)
 
@@ -13,6 +13,6 @@ defmodule ElixirSampleProjectWithTestcontainersTest do
   end
 
   test "greets the world" do
-    assert ElixirSampleProjectWithTestcontainers.hello() == :world
+    assert ElixirSampleProjectWithTestcontainerEx.hello() == :world
   end
 end

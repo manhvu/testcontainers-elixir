@@ -1,6 +1,6 @@
-defmodule Testcontainers.DatabaseBehaviour do
+defmodule TestcontainerEx.DatabaseBehaviour do
   @moduledoc """
-  A behaviour implemented by database containers used by `Testcontainers.Ecto`
+  A behaviour implemented by database containers used by `TestcontainerEx.Ecto`
   """
 
   @callback new() :: t()

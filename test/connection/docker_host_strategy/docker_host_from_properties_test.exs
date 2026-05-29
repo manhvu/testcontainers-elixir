@@ -1,12 +1,12 @@
-defmodule Testcontainers.Connection.DockerHostStrategy.DockerHostFromPropertiesTest do
+defmodule TestcontainerEx.Connection.DockerHostStrategy.DockerHostFromPropertiesTest do
   use ExUnit.Case, async: true
 
-  alias Testcontainers.DockerHostFromPropertiesStrategy
-  alias Testcontainers.DockerHostStrategyEvaluator
+  alias TestcontainerEx.DockerHostFromPropertiesStrategy
+  alias TestcontainerEx.DockerHostStrategyEvaluator
 
   describe "DockerHostFromPropertiesStrategy" do
     test "should return :econnrefused response if property file exist but is not an open url" do
-      properties_path = "test/fixtures/.testcontainers.properties"
+      properties_path = "test/fixtures/.testcontainer_ex.properties"
 
       strategy = %DockerHostFromPropertiesStrategy{
         key: "tc.host",
@@ -19,7 +19,7 @@ defmodule Testcontainers.Connection.DockerHostStrategy.DockerHostFromPropertiesT
     end
 
     test "should return property not found if property file doesn't exist" do
-      properties_path = "/some/nonexistent/place/.testcontainers.properties"
+      properties_path = "/some/nonexistent/place/.testcontainer_ex.properties"
 
       strategy = %DockerHostFromPropertiesStrategy{
         key: "tc.host",
@@ -32,7 +32,7 @@ defmodule Testcontainers.Connection.DockerHostStrategy.DockerHostFromPropertiesT
     end
 
     test "should return property not found it property does not exist" do
-      properties_path = "test/fixtures/.testcontainers.properties"
+      properties_path = "test/fixtures/.testcontainer_ex.properties"
 
       strategy = %DockerHostFromPropertiesStrategy{
         key: "invalid.host",

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.MinioContainerTest do
+defmodule TestcontainerEx.Container.MinioContainerTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
-  alias Testcontainers.MinioContainer
+  import TestcontainerEx.ExUnit
+  alias TestcontainerEx.MinioContainer
 
   @minio_container MinioContainer.new()
 

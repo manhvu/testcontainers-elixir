@@ -1,9 +1,9 @@
-defmodule Testcontainers.ContainerBuilderHelper do
+defmodule TestcontainerEx.ContainerBuilderHelper do
   @moduledoc false
-  import Testcontainers.Constants
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.Util.Hash
+  import TestcontainerEx.Constants
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Util.Hash
 
   def build(builder, state) when is_map(state) and is_struct(builder) do
     config =
@@ -12,7 +12,7 @@ defmodule Testcontainers.ContainerBuilderHelper do
       |> Container.with_label(container_label(), "#{true}")
 
     if config.reuse &&
-         ("true" == Map.get(state.properties, "testcontainers.reuse.enable", "false") ||
+         ("true" == Map.get(state.properties, "testcontainer_ex.reuse.enable", "false") ||
             config.force_reuse) do
       hash = Hash.struct_to_hash(config)
 

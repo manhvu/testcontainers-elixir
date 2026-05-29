@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.SeleniumContainer do
+defmodule TestcontainerEx.SeleniumContainer do
   @moduledoc """
   Work in progress. Not stable for use yet. Not yet documented for this very reason.
   Can use https://github.com/stuart/elixir-webdriver for client in tests
   """
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.LogWaitStrategy
-  alias Testcontainers.PortWaitStrategy
-  alias Testcontainers.SeleniumContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.LogWaitStrategy
+  alias TestcontainerEx.PortWaitStrategy
+  alias TestcontainerEx.SeleniumContainer
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "selenium/standalone-chrome"
   @default_tag "118.0"

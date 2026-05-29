@@ -1,7 +1,7 @@
-defmodule Testcontainers.Container.PutFileTest do
+defmodule TestcontainerEx.Container.PutFileTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
   container(:nginx, %Test.NginxContainer{})
 

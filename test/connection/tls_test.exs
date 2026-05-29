@@ -1,8 +1,8 @@
-defmodule Testcontainers.Connection.TlsTest do
+defmodule TestcontainerEx.Connection.TlsTest do
   # async: false because we mutate DOCKER_CERT_PATH / DOCKER_TLS_VERIFY
   use ExUnit.Case, async: false
 
-  alias Testcontainers.Connection
+  alias TestcontainerEx.Connection
 
   @fixture_dir Path.expand("../fixtures/docker_certs", __DIR__)
 

@@ -1,4 +1,4 @@
-defmodule Testcontainers.Util.ListFromDeepStruct do
+defmodule TestcontainerEx.Util.ListFromDeepStruct do
   @moduledoc false
   def from_deep_struct(%{} = map), do: convert(map)
 

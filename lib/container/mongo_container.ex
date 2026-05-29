@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.MongoContainer do
-  @behaviour Testcontainers.DatabaseBehaviour
+defmodule TestcontainerEx.MongoContainer do
+  @behaviour TestcontainerEx.DatabaseBehaviour
   @moduledoc """
   Provides functionality for creating and managing Mongo container configurations.
   """
 
-  alias Testcontainers.CommandWaitStrategy
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.MongoContainer
+  alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.MongoContainer
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "mongo"
   @default_tag "latest"
@@ -192,14 +192,14 @@ defmodule Testcontainers.MongoContainer do
   @doc """
   Returns the port on the _host machine_ where the Mongo container is listening.
   """
-  def port(%Container{} = container), do: Testcontainers.get_port(container, @default_port)
+  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
   @doc """
   Returns the connection parameters to connect to the database from the _host machine_.
   """
   def connection_parameters(%Container{} = container) do
     [
-      hostname: Testcontainers.get_host(container),
+      hostname: TestcontainerEx.get_host(container),
       port: port(container),
       username: container.environment[:MONGO_INITDB_ROOT_USERNAME],
       password: container.environment[:MONGO_INITDB_ROOT_PASSWORD],
@@ -224,7 +224,7 @@ defmodule Testcontainers.MongoContainer do
     database = Keyword.get(opts, :database, container.environment[:MONGO_INITDB_DATABASE])
     query_string = opts |> Keyword.get(:options, []) |> encode_query_string()
 
-    "#{protocol}://#{username}:#{password}@#{Testcontainers.get_host(container)}:#{port(container)}/#{database}#{query_string}"
+    "#{protocol}://#{username}:#{password}@#{TestcontainerEx.get_host(container)}:#{port(container)}/#{database}#{query_string}"
   end
 
   @doc """

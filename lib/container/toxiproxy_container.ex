@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.ToxiproxyContainer do
+defmodule TestcontainerEx.ToxiproxyContainer do
   @moduledoc """
   Provides functionality for creating and managing Toxiproxy container configurations.
 
@@ -8,10 +8,10 @@ defmodule Testcontainers.ToxiproxyContainer do
   with connections, but with support for randomized chaos and customization.
   """
 
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.HttpWaitStrategy
-  alias Testcontainers.ToxiproxyContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.HttpWaitStrategy
+  alias TestcontainerEx.ToxiproxyContainer
 
   @default_image "ghcr.io/shopify/toxiproxy"
   @default_tag "2.9.0"
@@ -80,7 +80,7 @@ defmodule Testcontainers.ToxiproxyContainer do
   Returns the mapped control port on the host for the running container.
   """
   def mapped_control_port(%Container{} = container) do
-    Testcontainers.get_port(container, @control_port)
+    TestcontainerEx.get_port(container, @control_port)
   end
 
   @doc """
@@ -92,7 +92,7 @@ defmodule Testcontainers.ToxiproxyContainer do
       |> then(&Application.put_env(:toxiproxy_ex, :host, &1))
   """
   def api_url(%Container{} = container) do
-    host = Testcontainers.get_host(container)
+    host = TestcontainerEx.get_host(container)
     port = mapped_control_port(container)
     "http://#{host}:#{port}"
   end
@@ -105,7 +105,7 @@ defmodule Testcontainers.ToxiproxyContainer do
 
   ## Example
 
-      {:ok, toxiproxy} = Testcontainers.start_container(ToxiproxyContainer.new())
+      {:ok, toxiproxy} = TestcontainerEx.start_container(ToxiproxyContainer.new())
       :ok = ToxiproxyContainer.configure_toxiproxy_ex(toxiproxy)
 
       # Now ToxiproxyEx will use this container
@@ -130,7 +130,7 @@ defmodule Testcontainers.ToxiproxyContainer do
   def create_proxy(%Container{} = container, name, upstream, opts \\ []) do
     listen_port = Keyword.get(opts, :listen_port, @first_proxy_port)
 
-    host = Testcontainers.get_host(container)
+    host = TestcontainerEx.get_host(container)
     api_port = mapped_control_port(container)
 
     :inets.start()
@@ -149,11 +149,11 @@ defmodule Testcontainers.ToxiproxyContainer do
     case httpc_request_with_retry(:post, {url, headers, ~c"application/json", body}) do
       {:ok, {{_, code, _}, _, _}} when code in [200, 201] ->
         # Return the mapped port on the host
-        {:ok, Testcontainers.get_port(container, listen_port)}
+        {:ok, TestcontainerEx.get_port(container, listen_port)}
 
       {:ok, {{_, 409, _}, _, _}} ->
         # Proxy already exists, return the port
-        {:ok, Testcontainers.get_port(container, listen_port)}
+        {:ok, TestcontainerEx.get_port(container, listen_port)}
 
       {:ok, {{_, code, _}, _, response_body}} ->
         {:error, {:http_error, code, response_body}}
@@ -193,7 +193,7 @@ defmodule Testcontainers.ToxiproxyContainer do
   Deletes a proxy from Toxiproxy.
   """
   def delete_proxy(%Container{} = container, name) do
-    host = Testcontainers.get_host(container)
+    host = TestcontainerEx.get_host(container)
     api_port = mapped_control_port(container)
 
     :inets.start()
@@ -212,7 +212,7 @@ defmodule Testcontainers.ToxiproxyContainer do
   Resets Toxiproxy, removing all toxics and re-enabling all proxies.
   """
   def reset(%Container{} = container) do
-    host = Testcontainers.get_host(container)
+    host = TestcontainerEx.get_host(container)
     api_port = mapped_control_port(container)
 
     :inets.start()
@@ -232,7 +232,7 @@ defmodule Testcontainers.ToxiproxyContainer do
   Returns a map of proxy names to their configurations.
   """
   def list_proxies(%Container{} = container) do
-    host = Testcontainers.get_host(container)
+    host = TestcontainerEx.get_host(container)
     api_port = mapped_control_port(container)
 
     :inets.start()

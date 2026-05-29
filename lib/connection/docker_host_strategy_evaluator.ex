@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.DockerHostStrategyEvaluator do
+defmodule TestcontainerEx.DockerHostStrategyEvaluator do
   @moduledoc false
 
   def run_strategies(strategies, input) do
     Enum.reduce_while(strategies, [], fn strategy, acc ->
-      case Testcontainers.DockerHostStrategy.execute(strategy, input) do
+      case TestcontainerEx.DockerHostStrategy.execute(strategy, input) do
         {:ok, _result} = success ->
           {:halt, success}
 

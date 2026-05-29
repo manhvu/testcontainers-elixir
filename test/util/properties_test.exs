@@ -1,7 +1,7 @@
-defmodule Testcontainers.Util.PropertiesParserTest do
+defmodule TestcontainerEx.Util.PropertiesParserTest do
   use ExUnit.Case, async: false
 
-  alias Testcontainers.Util.PropertiesParser
+  alias TestcontainerEx.Util.PropertiesParser
 
   describe "read_property_sources/0" do
     test "returns empty map when no files or env vars exist" do
@@ -56,7 +56,7 @@ defmodule Testcontainers.Util.PropertiesParserTest do
   describe "read_property_file/1" do
     test "reads properties from specified file" do
       {:ok, props} =
-        PropertiesParser.read_property_file("test/fixtures/.testcontainers.properties")
+        PropertiesParser.read_property_file("test/fixtures/.testcontainer_ex.properties")
 
       assert is_map(props)
       assert props["tc.host"] == "tcp://localhost:9999"
@@ -64,7 +64,7 @@ defmodule Testcontainers.Util.PropertiesParserTest do
 
     test "returns empty map for nonexistent file" do
       {:ok, props} =
-        PropertiesParser.read_property_file("/nonexistent/path/.testcontainers.properties")
+        PropertiesParser.read_property_file("/nonexistent/path/.testcontainer_ex.properties")
 
       assert props == %{}
     end

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.Container.PostgresContainerTest do
+defmodule TestcontainerEx.Container.PostgresContainerTest do
   use ExUnit.Case, async: true
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.PostgresContainer
+  alias TestcontainerEx.PostgresContainer
 
   describe "with default configuration" do
     container(:postgres, PostgresContainer.new())

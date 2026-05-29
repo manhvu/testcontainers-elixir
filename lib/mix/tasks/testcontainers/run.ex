@@ -1,19 +1,19 @@
-defmodule Mix.Tasks.Testcontainers.Run do
+defmodule Mix.Tasks.TestcontainerEx.Run do
   use Mix.Task
-  alias Testcontainers.MySqlContainer
-  alias Testcontainers.PostgresContainer
+  alias TestcontainerEx.MySqlContainer
+  alias TestcontainerEx.PostgresContainer
 
   @shortdoc "Runs a Mix sub-task (test, phx.server, etc) with a database container"
   @moduledoc """
   Usage:
-    mix testcontainers.run [sub_task] [--database DB] [--db-volume VOLUME] [sub_task_args...]
+    mix testcontainer_ex.run [sub_task] [--database DB] [--db-volume VOLUME] [sub_task_args...]
 
   Examples:
-    mix testcontainers.run test --database postgres
-    mix testcontainers.run phx.server --database mysql
-    mix testcontainers.run test --database postgres --db-volume my_postgres_data
-    mix testcontainers.run phx.server --db-volume my_postgres_data
-    mix testcontainers.run some.custom.server
+    mix testcontainer_ex.run test --database postgres
+    mix testcontainer_ex.run phx.server --database mysql
+    mix testcontainer_ex.run test --database postgres --db-volume my_postgres_data
+    mix testcontainer_ex.run phx.server --db-volume my_postgres_data
+    mix testcontainer_ex.run some.custom.server
   """
 
   def run(args) do
@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Testcontainers.Run do
       {:ok, _} = Application.ensure_all_started(app)
     end)
 
-    {:ok, _} = Testcontainers.start()
+    {:ok, _} = TestcontainerEx.start()
 
     {opts, rest_args, _} =
       OptionParser.parse(args,
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Testcontainers.Run do
           |> maybe_with_host_port(host_port, PostgresContainer.default_port(), PostgresContainer)
           |> maybe_with_persistent_volume(db_volume, PostgresContainer)
 
-        {:ok, container} = Testcontainers.start_container(container_def)
+        {:ok, container} = TestcontainerEx.start_container(container_def)
         port = PostgresContainer.port(container)
         {container, create_env(container, port)}
 
@@ -87,7 +87,7 @@ defmodule Mix.Tasks.Testcontainers.Run do
           |> maybe_with_host_port(host_port, MySqlContainer.default_port(), MySqlContainer)
           |> maybe_with_persistent_volume(db_volume, MySqlContainer)
 
-        {:ok, container} = Testcontainers.start_container(container_def)
+        {:ok, container} = TestcontainerEx.start_container(container_def)
         port = MySqlContainer.port(container)
         {container, create_env(container, port)}
 
@@ -110,11 +110,11 @@ defmodule Mix.Tasks.Testcontainers.Run do
 
   defp create_env(container, port) do
     [
-      {"DATABASE_URL", "ecto://test:test@#{Testcontainers.get_host(container)}:#{port}/test"},
+      {"DATABASE_URL", "ecto://test:test@#{TestcontainerEx.get_host(container)}:#{port}/test"},
       # for backward compability, will be removed in future releases
       {"DB_USER", "test"},
       {"DB_PASSWORD", "test"},
-      {"DB_HOST", Testcontainers.get_host(container)},
+      {"DB_HOST", TestcontainerEx.get_host(container)},
       {"DB_PORT", Integer.to_string(port)}
     ]
   end

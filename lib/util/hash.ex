@@ -1,6 +1,6 @@
-defmodule Testcontainers.Util.Hash do
+defmodule TestcontainerEx.Util.Hash do
   @moduledoc false
-  alias Testcontainers.Util.ListFromDeepStruct
+  alias TestcontainerEx.Util.ListFromDeepStruct
 
   def struct_to_hash(struct) when is_struct(struct) do
     struct

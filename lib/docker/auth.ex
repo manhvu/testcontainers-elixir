@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Docker.Auth do
+defmodule TestcontainerEx.Docker.Auth do
   @moduledoc """
   Resolves Docker registry credentials from the user's Docker config file
   (typically `~/.docker/config.json`) and returns a ready-to-send
@@ -83,7 +83,7 @@ defmodule Testcontainers.Docker.Auth do
     else
       {:error, reason} ->
         Logger.debug(
-          "Testcontainers.Docker.Auth: could not read Docker config at #{path}: #{inspect(reason)}"
+          "TestcontainerEx.Docker.Auth: could not read Docker config at #{path}: #{inspect(reason)}"
         )
 
         :error
@@ -168,7 +168,7 @@ defmodule Testcontainers.Docker.Auth do
     else
       _ ->
         Logger.debug(
-          "Testcontainers.Docker.Auth: could not decode auth entry for #{server_address}"
+          "TestcontainerEx.Docker.Auth: could not decode auth entry for #{server_address}"
         )
 
         nil
@@ -208,14 +208,14 @@ defmodule Testcontainers.Docker.Auth do
     cond do
       Map.has_key?(config, "credsStore") ->
         Logger.debug(
-          "Testcontainers.Docker.Auth: credsStore present in Docker config; " <>
+          "TestcontainerEx.Docker.Auth: credsStore present in Docker config; " <>
             "credential helpers are not supported, returning nil for #{registry}"
         )
 
       is_map(Map.get(config, "credHelpers")) and
           Map.has_key?(config["credHelpers"], registry) ->
         Logger.debug(
-          "Testcontainers.Docker.Auth: credHelpers entry for #{registry} present; " <>
+          "TestcontainerEx.Docker.Auth: credHelpers entry for #{registry} present; " <>
             "credential helpers are not supported, returning nil"
         )
 

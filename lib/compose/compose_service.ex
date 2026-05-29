@@ -1,4 +1,4 @@
-defmodule Testcontainers.Compose.ComposeService do
+defmodule TestcontainerEx.Compose.ComposeService do
   @moduledoc """
   A lightweight struct representing a service within a Docker Compose environment.
   """

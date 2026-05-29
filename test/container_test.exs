@@ -1,10 +1,10 @@
-defmodule Testcontainers.ContainerTest do
+defmodule TestcontainerEx.ContainerTest do
   use ExUnit.Case, async: true
 
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.PostgresContainer
-  alias Testcontainers.Util.Hash
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.PostgresContainer
+  alias TestcontainerEx.Util.Hash
 
   describe "with reuse" do
     test "sets reuse to true" do

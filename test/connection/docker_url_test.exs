@@ -1,8 +1,8 @@
-defmodule Testcontainers.DockerUrlTest do
+defmodule TestcontainerEx.DockerUrlTest do
   # async: false because we mutate DOCKER_TLS_VERIFY
   use ExUnit.Case, async: false
 
-  alias Testcontainers.DockerUrl
+  alias TestcontainerEx.DockerUrl
 
   setup do
     original = System.get_env("DOCKER_TLS_VERIFY")

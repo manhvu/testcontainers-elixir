@@ -1,4 +1,4 @@
-defmodule Testcontainers.RabbitMQContainer do
+defmodule TestcontainerEx.RabbitMQContainer do
   @moduledoc """
   Provides functionality for creating and managing RabbitMQ container configurations.
 
@@ -7,12 +7,12 @@ defmodule Testcontainers.RabbitMQContainer do
 
   NOTE: Currently untested, any developer who tries to add improvements on this container should consider moving this container implementation to a separate Elixir package.
   """
-  alias Testcontainers.CommandWaitStrategy
-  alias Testcontainers.Container
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.RabbitMQContainer
+  alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.RabbitMQContainer
 
-  import Testcontainers.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container, only: [is_valid_image: 1]
 
   @default_image "rabbitmq"
   @default_tag "3-alpine"
@@ -189,7 +189,7 @@ defmodule Testcontainers.RabbitMQContainer do
   """
   def port(%Container{} = container),
     do:
-      Testcontainers.get_port(
+      TestcontainerEx.get_port(
         container,
         String.to_integer(container.environment[:RABBITMQ_NODE_PORT])
       )
@@ -212,7 +212,7 @@ defmodule Testcontainers.RabbitMQContainer do
       "amqp://guest:guest@localhost:32768/vhost"
   """
   def connection_url(%Container{} = container) do
-    "amqp://#{container.environment[:RABBITMQ_DEFAULT_USER]}:#{container.environment[:RABBITMQ_DEFAULT_PASS]}@#{Testcontainers.get_host(container)}:#{port(container)}#{virtual_host_segment(container)}"
+    "amqp://#{container.environment[:RABBITMQ_DEFAULT_USER]}:#{container.environment[:RABBITMQ_DEFAULT_PASS]}@#{TestcontainerEx.get_host(container)}:#{port(container)}#{virtual_host_segment(container)}"
   end
 
   @doc """
@@ -235,7 +235,7 @@ defmodule Testcontainers.RabbitMQContainer do
   """
   def connection_parameters(%Container{} = container) do
     [
-      host: Testcontainers.get_host(container),
+      host: TestcontainerEx.get_host(container),
       port: port(container),
       username: container.environment[:RABBITMQ_DEFAULT_USER],
       password: container.environment[:RABBITMQ_DEFAULT_PASS],

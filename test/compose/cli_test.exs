@@ -1,8 +1,8 @@
-defmodule Testcontainers.Compose.CliTest do
+defmodule TestcontainerEx.Compose.CliTest do
   use ExUnit.Case, async: true
 
-  alias Testcontainers.Compose.Cli
-  alias Testcontainers.DockerCompose
+  alias TestcontainerEx.Compose.Cli
+  alias TestcontainerEx.DockerCompose
 
   describe "build_up_args/1" do
     test "builds basic up args" do

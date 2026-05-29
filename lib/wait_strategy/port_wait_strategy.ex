@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.PortWaitStrategy do
+defmodule TestcontainerEx.PortWaitStrategy do
   @moduledoc """
   Considers the container as ready when it successfully accepts connections on the specified port.
   """
@@ -20,11 +20,11 @@ defmodule Testcontainers.PortWaitStrategy do
 
   # Private functions and implementations
 
-  defimpl Testcontainers.WaitStrategy do
+  defimpl TestcontainerEx.WaitStrategy do
     @impl true
     def wait_until_container_is_ready(wait_strategy, container, _conn) do
-      host = Testcontainers.get_host(container)
-      host_port = Testcontainers.get_port(container, wait_strategy.port)
+      host = TestcontainerEx.get_host(container)
+      host_port = TestcontainerEx.get_port(container, wait_strategy.port)
 
       case {host, host_port} do
         {_, nil} -> {:error, :port_not_mapped, wait_strategy}

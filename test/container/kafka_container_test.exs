@@ -1,8 +1,8 @@
-defmodule Testcontainers.Container.KafkaContainerTest do
+defmodule TestcontainerEx.Container.KafkaContainerTest do
   use ExUnit.Case, async: false
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.KafkaContainer
+  alias TestcontainerEx.KafkaContainer
 
   describe "new/0" do
     test "creates a new KafkaContainer struct with default configurations" do
@@ -136,7 +136,7 @@ defmodule Testcontainers.Container.KafkaContainerTest do
     test "provides a ready-to-use kafka container", %{kafka: kafka} do
       worker_name = :worker
       topic_name = "test_topic"
-      uris = [{Testcontainers.get_host(kafka), Testcontainers.get_port(kafka, 9092)}]
+      uris = [{TestcontainerEx.get_host(kafka), TestcontainerEx.get_port(kafka, 9092)}]
 
       {:ok, pid} = KafkaEx.create_worker(:worker, uris: uris, consumer_group: "kafka_ex")
       on_exit(fn -> :ok = KafkaEx.stop_worker(pid) end)
@@ -158,7 +158,7 @@ defmodule Testcontainers.Container.KafkaContainerTest do
     test "creates topics automatically", %{kafka: kafka} do
       worker_name = :auto_worker
       topic_name = "auto_topic"
-      uris = [{Testcontainers.get_host(kafka), Testcontainers.get_port(kafka, 9092)}]
+      uris = [{TestcontainerEx.get_host(kafka), TestcontainerEx.get_port(kafka, 9092)}]
 
       {:ok, pid} = KafkaEx.create_worker(worker_name, uris: uris, consumer_group: "kafka_ex")
       on_exit(fn -> :ok = KafkaEx.stop_worker(pid) end)

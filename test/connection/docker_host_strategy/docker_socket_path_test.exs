@@ -1,8 +1,8 @@
-defmodule Testcontainers.Connection.DockerHostStrategy.DockerSocketPathTest do
+defmodule TestcontainerEx.Connection.DockerHostStrategy.DockerSocketPathTest do
   use ExUnit.Case, async: true
 
-  alias Testcontainers.DockerHostStrategyEvaluator
-  alias Testcontainers.DockerSocketPathStrategy
+  alias TestcontainerEx.DockerHostStrategyEvaluator
+  alias TestcontainerEx.DockerSocketPathStrategy
 
   describe "DockerSocketPathStrategy" do
     test "should return :enoent if docker socket exists but is not a real socket" do

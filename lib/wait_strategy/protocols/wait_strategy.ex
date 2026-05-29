@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defprotocol Testcontainers.WaitStrategy do
+defprotocol TestcontainerEx.WaitStrategy do
   @moduledoc """
-  Defines the protocol/interface for the wait strategies in `Testcontainers`
+  Defines the protocol/interface for the wait strategies in `TestcontainerEx`
   """
-  alias Testcontainers.Container
+  alias TestcontainerEx.Container
 
   @spec wait_until_container_is_ready(t(), Container.t(), Tesla.Env.client()) ::
           :ok | {:error, atom()}

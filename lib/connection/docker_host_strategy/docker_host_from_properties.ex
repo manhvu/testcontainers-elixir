@@ -1,12 +1,12 @@
-defmodule Testcontainers.DockerHostFromPropertiesStrategy do
+defmodule TestcontainerEx.DockerHostFromPropertiesStrategy do
   @moduledoc false
 
   @enforce_keys [:key]
-  defstruct key: nil, filename: "~/.testcontainers.properties"
+  defstruct key: nil, filename: "~/.testcontainer_ex.properties"
 
-  defimpl Testcontainers.DockerHostStrategy do
-    alias Testcontainers.DockerUrl
-    alias Testcontainers.Util.PropertiesParser
+  defimpl TestcontainerEx.DockerHostStrategy do
+    alias TestcontainerEx.DockerUrl
+    alias TestcontainerEx.Util.PropertiesParser
 
     def execute(strategy, _input) do
       with {:ok, properties} <- PropertiesParser.read_property_file(strategy.filename),

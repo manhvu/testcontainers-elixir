@@ -41,7 +41,7 @@
       pkgs = nixpkgsFor system;
     in {
       default = pkgs.beamPackages.mixRelease {
-        pname = "testcontainers-elixir-lib";
+        pname = "testcontainer_ex-elixir-lib";
         src = ./.;
         version = "0.1.0";
       };

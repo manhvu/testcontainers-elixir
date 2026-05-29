@@ -1,16 +1,16 @@
 defmodule Hello.DockerComposeTest do
   use ExUnit.Case, async: false
 
-  alias Testcontainers.DockerCompose
-  alias Testcontainers.Compose.ComposeEnvironment
+  alias TestcontainerEx.DockerCompose
+  alias TestcontainerEx.Compose.ComposeEnvironment
 
   @compose_path Path.expand("../docker-compose.yml", __DIR__)
 
   describe "multi-service compose" do
     setup do
       compose = DockerCompose.new(@compose_path)
-      {:ok, env} = Testcontainers.start_compose(compose)
-      on_exit(fn -> Testcontainers.stop_compose(env) end)
+      {:ok, env} = TestcontainerEx.start_compose(compose)
+      on_exit(fn -> TestcontainerEx.stop_compose(env) end)
       %{env: env}
     end
 
@@ -57,10 +57,10 @@ end
 defmodule Hello.DockerComposeSharedTest do
   use ExUnit.Case, async: false
 
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.DockerCompose
-  alias Testcontainers.Compose.ComposeEnvironment
+  alias TestcontainerEx.DockerCompose
+  alias TestcontainerEx.Compose.ComposeEnvironment
 
   @compose_path Path.expand("../docker-compose.yml", __DIR__)
 
@@ -105,10 +105,10 @@ end
 defmodule Hello.DockerComposePerTestTest do
   use ExUnit.Case, async: false
 
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.DockerCompose
-  alias Testcontainers.Compose.ComposeEnvironment
+  alias TestcontainerEx.DockerCompose
+  alias TestcontainerEx.Compose.ComposeEnvironment
 
   @compose_path Path.expand("../docker-compose.yml", __DIR__)
 

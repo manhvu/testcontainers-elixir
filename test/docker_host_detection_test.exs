@@ -1,4 +1,4 @@
-defmodule Testcontainers.DockerHostDetectionTest do
+defmodule TestcontainerEx.DockerHostDetectionTest do
   use ExUnit.Case, async: true
 
   describe "parse_gateway_from_proc_route/1" do
@@ -9,7 +9,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       eth0\t0002A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0
       """
 
-      assert {:ok, "192.168.2.1"} = Testcontainers.parse_gateway_from_proc_route(content)
+      assert {:ok, "192.168.2.1"} = TestcontainerEx.parse_gateway_from_proc_route(content)
     end
 
     test "parses another gateway address" do
@@ -18,7 +18,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       eth0\t00000000\t0100000A\t0003\t0\t0\t0\t00000000\t0\t0\t0
       """
 
-      assert {:ok, "10.0.0.1"} = Testcontainers.parse_gateway_from_proc_route(content)
+      assert {:ok, "10.0.0.1"} = TestcontainerEx.parse_gateway_from_proc_route(content)
     end
 
     test "returns error when no default route exists" do
@@ -27,11 +27,11 @@ defmodule Testcontainers.DockerHostDetectionTest do
       eth0\t0002A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0
       """
 
-      assert {:error, :no_default_route} = Testcontainers.parse_gateway_from_proc_route(content)
+      assert {:error, :no_default_route} = TestcontainerEx.parse_gateway_from_proc_route(content)
     end
 
     test "returns error for empty content" do
-      assert {:error, :no_default_route} = Testcontainers.parse_gateway_from_proc_route("")
+      assert {:error, :no_default_route} = TestcontainerEx.parse_gateway_from_proc_route("")
     end
   end
 
@@ -41,7 +41,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       File.write!(tmp_path, "")
 
       try do
-        assert Testcontainers.running_in_container?(tmp_path, "/nonexistent/cgroup")
+        assert TestcontainerEx.running_in_container?(tmp_path, "/nonexistent/cgroup")
       after
         File.rm(tmp_path)
       end
@@ -56,7 +56,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       """)
 
       try do
-        assert Testcontainers.running_in_container?("/nonexistent/dockerenv", tmp_path)
+        assert TestcontainerEx.running_in_container?("/nonexistent/dockerenv", tmp_path)
       after
         File.rm(tmp_path)
       end
@@ -70,7 +70,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       """)
 
       try do
-        assert Testcontainers.running_in_container?("/nonexistent/dockerenv", tmp_path)
+        assert TestcontainerEx.running_in_container?("/nonexistent/dockerenv", tmp_path)
       after
         File.rm(tmp_path)
       end
@@ -84,7 +84,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       """)
 
       try do
-        assert Testcontainers.running_in_container?("/nonexistent/dockerenv", tmp_path)
+        assert TestcontainerEx.running_in_container?("/nonexistent/dockerenv", tmp_path)
       after
         File.rm(tmp_path)
       end
@@ -98,14 +98,14 @@ defmodule Testcontainers.DockerHostDetectionTest do
       """)
 
       try do
-        assert Testcontainers.running_in_container?("/nonexistent/dockerenv", tmp_path)
+        assert TestcontainerEx.running_in_container?("/nonexistent/dockerenv", tmp_path)
       after
         File.rm(tmp_path)
       end
     end
 
     test "returns false when neither dockerenv nor cgroup exist" do
-      refute Testcontainers.running_in_container?("/nonexistent/dockerenv", "/nonexistent/cgroup")
+      refute TestcontainerEx.running_in_container?("/nonexistent/dockerenv", "/nonexistent/cgroup")
     end
 
     test "returns false when cgroup exists but has no container patterns" do
@@ -117,7 +117,7 @@ defmodule Testcontainers.DockerHostDetectionTest do
       """)
 
       try do
-        refute Testcontainers.running_in_container?("/nonexistent/dockerenv", tmp_path)
+        refute TestcontainerEx.running_in_container?("/nonexistent/dockerenv", tmp_path)
       after
         File.rm(tmp_path)
       end

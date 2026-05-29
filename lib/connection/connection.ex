@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Connection do
+defmodule TestcontainerEx.Connection do
   @moduledoc false
 
   require Logger
 
   alias DockerEngineAPI.Connection
-  alias Testcontainers.Constants
-  alias Testcontainers.DockerHostFromEnvStrategy
-  alias Testcontainers.DockerHostFromPropertiesStrategy
-  alias Testcontainers.DockerHostStrategyEvaluator
-  alias Testcontainers.DockerSocketPathStrategy
-  alias Testcontainers.DockerUrl
+  alias TestcontainerEx.Constants
+  alias TestcontainerEx.ContainerHostFromEnvStrategy
+  alias TestcontainerEx.DockerHostFromEnvStrategy
+  alias TestcontainerEx.DockerHostFromPropertiesStrategy
+  alias TestcontainerEx.DockerHostStrategyEvaluator
+  alias TestcontainerEx.DockerSocketPathStrategy
+  alias TestcontainerEx.DockerUrl
 
   @timeout 300_000
 
@@ -108,6 +109,7 @@ defmodule Testcontainers.Connection do
       %DockerHostFromPropertiesStrategy{key: "tc.host"},
       %DockerHostFromPropertiesStrategy{key: "docker.host"},
       %DockerHostFromEnvStrategy{},
+      %ContainerHostFromEnvStrategy{},
       %DockerSocketPathStrategy{}
     ]
 

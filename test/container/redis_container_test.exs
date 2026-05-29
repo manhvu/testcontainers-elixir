@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.Container.RedisContainerTest do
+defmodule TestcontainerEx.Container.RedisContainerTest do
   use ExUnit.Case, async: true
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.RedisContainer
+  alias TestcontainerEx.RedisContainer
 
   describe "with default configuration" do
     container(:redis, RedisContainer.new())

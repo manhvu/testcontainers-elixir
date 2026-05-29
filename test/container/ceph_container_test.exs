@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.CephContainerTest do
+defmodule TestcontainerEx.Container.CephContainerTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
-  alias Testcontainers.CephContainer
+  import TestcontainerEx.ExUnit
+  alias TestcontainerEx.CephContainer
 
   @ceph_container CephContainer.new()
 

@@ -1,10 +1,10 @@
-defmodule Testcontainers.Compose.ComposeIntegrationTest do
+defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
   use ExUnit.Case, async: false
 
   @moduletag :integration
 
-  alias Testcontainers.Compose.ComposeEnvironment
-  alias Testcontainers.DockerCompose
+  alias TestcontainerEx.Compose.ComposeEnvironment
+  alias TestcontainerEx.DockerCompose
 
   @fixtures_path Path.expand("../fixtures", __DIR__)
 
@@ -12,7 +12,7 @@ defmodule Testcontainers.Compose.ComposeIntegrationTest do
     test "starts and stops a compose environment with redis" do
       compose = DockerCompose.new(@fixtures_path)
 
-      {:ok, env} = Testcontainers.start_compose(compose)
+      {:ok, env} = TestcontainerEx.start_compose(compose)
 
       assert %ComposeEnvironment{} = env
       assert is_binary(env.project_name)
@@ -41,7 +41,7 @@ defmodule Testcontainers.Compose.ComposeIntegrationTest do
       :gen_tcp.close(conn)
 
       # Stop the compose environment
-      assert :ok = Testcontainers.stop_compose(env)
+      assert :ok = TestcontainerEx.stop_compose(env)
     end
   end
 end

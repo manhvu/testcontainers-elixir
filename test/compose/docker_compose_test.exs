@@ -1,7 +1,7 @@
-defmodule Testcontainers.DockerComposeTest do
+defmodule TestcontainerEx.DockerComposeTest do
   use ExUnit.Case, async: true
 
-  alias Testcontainers.DockerCompose
+  alias TestcontainerEx.DockerCompose
 
   describe "new/1" do
     test "creates a new DockerCompose with filepath" do
@@ -58,7 +58,7 @@ defmodule Testcontainers.DockerComposeTest do
 
   describe "with_wait_strategy/3" do
     test "adds a wait strategy for a service" do
-      strategy = %Testcontainers.CommandWaitStrategy{command: ["echo", "ok"]}
+      strategy = %TestcontainerEx.CommandWaitStrategy{command: ["echo", "ok"]}
 
       compose =
         DockerCompose.new("/tmp/test")
@@ -69,8 +69,8 @@ defmodule Testcontainers.DockerComposeTest do
     end
 
     test "accumulates wait strategies for the same service" do
-      strategy1 = %Testcontainers.CommandWaitStrategy{command: ["echo", "1"]}
-      strategy2 = %Testcontainers.CommandWaitStrategy{command: ["echo", "2"]}
+      strategy1 = %TestcontainerEx.CommandWaitStrategy{command: ["echo", "1"]}
+      strategy2 = %TestcontainerEx.CommandWaitStrategy{command: ["echo", "2"]}
 
       compose =
         DockerCompose.new("/tmp/test")

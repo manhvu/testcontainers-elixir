@@ -1,9 +1,9 @@
-defmodule Testcontainers.Container.EmqxContainerTest do
+defmodule TestcontainerEx.Container.EmqxContainerTest do
   use ExUnit.Case, async: true
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.Container.EmqxContainerTest
-  alias Testcontainers.EmqxContainer
+  alias TestcontainerEx.Container.EmqxContainerTest
+  alias TestcontainerEx.EmqxContainer
 
   describe "with default and minimal configuration" do
     container(:emqx, EmqxContainer.new())

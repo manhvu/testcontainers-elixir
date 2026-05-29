@@ -1,9 +1,9 @@
-defmodule Testcontainers.Compose.ComposeEnvironment do
+defmodule TestcontainerEx.Compose.ComposeEnvironment do
   @moduledoc """
   Represents the started state of a Docker Compose environment.
   """
 
-  alias Testcontainers.Compose.ComposeService
+  alias TestcontainerEx.Compose.ComposeService
 
   defstruct [:compose, :project_name, :docker_host, services: %{}]
 

@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.DockerSocketPathStrategy do
+defmodule TestcontainerEx.DockerSocketPathStrategy do
   @moduledoc false
 
   require Logger
 
   defstruct socket_paths: []
 
-  defimpl Testcontainers.DockerHostStrategy do
-    alias Testcontainers.DockerUrl
+  defimpl TestcontainerEx.DockerHostStrategy do
+    alias TestcontainerEx.DockerUrl
 
     defp default_socket_paths do
       [
@@ -22,6 +22,7 @@ defmodule Testcontainers.DockerSocketPathStrategy do
           path ->
             [
               "#{path}/podman/podman.sock",
+              "#{path}/containers/podman.sock",
               "#{path}/docker.sock"
             ]
         end

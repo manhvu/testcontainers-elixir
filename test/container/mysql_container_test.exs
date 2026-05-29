@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.Container.MySqlContainerTest do
+defmodule TestcontainerEx.Container.MySqlContainerTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.MySqlContainer
+  alias TestcontainerEx.MySqlContainer
 
   describe "with default configuration" do
     @mysql_container MySqlContainer.new()

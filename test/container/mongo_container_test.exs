@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.MongoContainerTest do
+defmodule TestcontainerEx.Container.MongoContainerTest do
   use ExUnit.Case, async: true
 
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.CommandWaitStrategy
-  alias Testcontainers.ContainerBuilder
-  alias Testcontainers.MongoContainer
+  alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.MongoContainer
 
   describe "new/0 and builder options" do
     test "returns default mongo configuration" do
@@ -66,7 +66,7 @@ defmodule Testcontainers.Container.MongoContainerTest do
 
     test "returns connection parameters", %{mongo: mongo} do
       params = MongoContainer.connection_parameters(mongo)
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
 
       assert params[:hostname] == host
@@ -77,14 +77,14 @@ defmodule Testcontainers.Container.MongoContainerTest do
     end
 
     test "returns default database urls", %{mongo: mongo} do
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
       assert MongoContainer.mongo_url(mongo) == "mongodb://test:test@#{host}:#{port}/test"
       assert MongoContainer.database_url(mongo) == "mongodb://test:test@#{host}:#{port}/test"
     end
 
     test "returns mongo url with custom database", %{mongo: mongo} do
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
 
       assert MongoContainer.mongo_url(mongo, database: "foo") ==
@@ -92,7 +92,7 @@ defmodule Testcontainers.Container.MongoContainerTest do
     end
 
     test "returns mongo url with custom protocol", %{mongo: mongo} do
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
 
       assert MongoContainer.mongo_url(mongo, protocol: "mongodb2") ==
@@ -100,7 +100,7 @@ defmodule Testcontainers.Container.MongoContainerTest do
     end
 
     test "returns mongo url with custom username", %{mongo: mongo} do
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
 
       assert MongoContainer.mongo_url(mongo, username: "foo") ==
@@ -108,7 +108,7 @@ defmodule Testcontainers.Container.MongoContainerTest do
     end
 
     test "returns mongo url with custom password", %{mongo: mongo} do
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
 
       assert MongoContainer.mongo_url(mongo, password: "bar") ==
@@ -116,7 +116,7 @@ defmodule Testcontainers.Container.MongoContainerTest do
     end
 
     test "returns mongo url with custom query options", %{mongo: mongo} do
-      host = Testcontainers.get_host(mongo)
+      host = TestcontainerEx.get_host(mongo)
       port = MongoContainer.port(mongo)
 
       assert MongoContainer.mongo_url(mongo, options: [replicaSet: "rs0"]) ==

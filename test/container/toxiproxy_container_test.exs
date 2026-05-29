@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT
-defmodule Testcontainers.Container.ToxiproxyContainerTest do
+defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
   use ExUnit.Case, async: true
-  import Testcontainers.ExUnit
+  import TestcontainerEx.ExUnit
 
-  alias Testcontainers.Container
-  alias Testcontainers.ToxiproxyContainer
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.ToxiproxyContainer
 
   describe "new/0" do
     test "creates a new ToxiproxyContainer struct with default configurations" do
@@ -118,8 +118,8 @@ defmodule Testcontainers.Container.ToxiproxyContainerTest do
     test "can access toxiproxy API", %{toxiproxy: toxiproxy} do
       :inets.start()
 
-      host = Testcontainers.get_host(toxiproxy)
-      port = Testcontainers.get_port(toxiproxy, ToxiproxyContainer.control_port())
+      host = TestcontainerEx.get_host(toxiproxy)
+      port = TestcontainerEx.get_port(toxiproxy, ToxiproxyContainer.control_port())
       url = ~c"http://#{host}:#{port}/version"
 
       {:ok, {{_, 200, _}, _, body}} = :httpc.request(:get, {url, []}, [], [])
@@ -223,10 +223,10 @@ defmodule Testcontainers.Container.ToxiproxyContainerTest do
     setup do
       # Create a unique network for container communication
       network_name = "toxiproxy-integration-#{:rand.uniform(100_000)}"
-      {:ok, _} = Testcontainers.create_network(network_name)
+      {:ok, _} = TestcontainerEx.create_network(network_name)
 
       on_exit(fn ->
-        Testcontainers.remove_network(network_name)
+        TestcontainerEx.remove_network(network_name)
       end)
 
       {:ok, network_name: network_name}
@@ -234,8 +234,8 @@ defmodule Testcontainers.Container.ToxiproxyContainerTest do
 
     @tag :dood_limitation
     test "can proxy and inject faults into Redis traffic", %{network_name: network_name} do
-      alias Testcontainers.ContainerBuilder
-      alias Testcontainers.RedisContainer
+      alias TestcontainerEx.ContainerBuilder
+      alias TestcontainerEx.RedisContainer
 
       # Start Redis on the network
       redis_config =
@@ -244,7 +244,7 @@ defmodule Testcontainers.Container.ToxiproxyContainerTest do
         |> Container.with_network(network_name)
         |> Container.with_hostname("redis")
 
-      {:ok, redis} = Testcontainers.start_container(redis_config)
+      {:ok, redis} = TestcontainerEx.start_container(redis_config)
 
       # Start Toxiproxy on the same network
       toxiproxy_config =
@@ -253,7 +253,7 @@ defmodule Testcontainers.Container.ToxiproxyContainerTest do
         |> Container.with_network(network_name)
         |> Container.with_hostname("toxiproxy")
 
-      {:ok, toxiproxy} = Testcontainers.start_container(toxiproxy_config)
+      {:ok, toxiproxy} = TestcontainerEx.start_container(toxiproxy_config)
 
       # Create proxy from Toxiproxy to Redis
       {:ok, proxy_port} =
@@ -268,7 +268,7 @@ defmodule Testcontainers.Container.ToxiproxyContainerTest do
       :ok = ToxiproxyContainer.configure_toxiproxy_ex(toxiproxy)
 
       # Connect to Redis through the proxy
-      host = Testcontainers.get_host()
+      host = TestcontainerEx.get_host()
       {:ok, conn} = Redix.start_link(host: host, port: proxy_port)
 
       # Verify normal operation through proxy

@@ -1,4 +1,4 @@
-defmodule Testcontainers.KafkaContainer do
+defmodule TestcontainerEx.KafkaContainer do
   @moduledoc """
   Provides functionality for creating and managing Kafka container configurations.
 
@@ -8,7 +8,7 @@ defmodule Testcontainers.KafkaContainer do
   ## Example
 
       config = KafkaContainer.new()
-      {:ok, container} = Testcontainers.start_container(config)
+      {:ok, container} = TestcontainerEx.start_container(config)
 
       # Get the bootstrap server address
       bootstrap_servers = KafkaContainer.bootstrap_servers(container)
@@ -19,7 +19,7 @@ defmodule Testcontainers.KafkaContainer do
         KafkaContainer.new()
         |> KafkaContainer.with_topics(["my-topic", "other-topic"])
 
-      {:ok, container} = Testcontainers.start_container(config)
+      {:ok, container} = TestcontainerEx.start_container(config)
 
   ## Note on Port Binding
 
@@ -31,10 +31,10 @@ defmodule Testcontainers.KafkaContainer do
   If you need to use a specific port, you can set it with `with_kafka_port/2`.
   """
 
-  alias Testcontainers.Container
-  alias Testcontainers.Docker
-  alias Testcontainers.KafkaContainer
-  alias Testcontainers.LogWaitStrategy
+  alias TestcontainerEx.Container
+  alias TestcontainerEx.Docker
+  alias TestcontainerEx.KafkaContainer
+  alias TestcontainerEx.LogWaitStrategy
 
   @default_image "apache/kafka"
   @default_tag "3.9.0"
@@ -158,23 +158,23 @@ defmodule Testcontainers.KafkaContainer do
   Returns the bootstrap servers string for connecting to the Kafka container.
   """
   def bootstrap_servers(%Container{} = container) do
-    port = Testcontainers.get_port(container, @default_internal_kafka_port)
-    "#{Testcontainers.get_host(container)}:#{port}"
+    port = TestcontainerEx.get_port(container, @default_internal_kafka_port)
+    "#{TestcontainerEx.get_host(container)}:#{port}"
   end
 
   @doc """
   Returns the port on the host machine where the Kafka container is listening.
   """
   def port(%Container{} = container),
-    do: Testcontainers.get_port(container, @default_internal_kafka_port)
+    do: TestcontainerEx.get_port(container, @default_internal_kafka_port)
 
-  defimpl Testcontainers.ContainerBuilder do
+  defimpl TestcontainerEx.ContainerBuilder do
     import Container
 
     @impl true
     @spec build(KafkaContainer.t()) :: Container.t()
     def build(%KafkaContainer{} = config) do
-      host = Testcontainers.get_host()
+      host = TestcontainerEx.get_host()
 
       new(config.image)
       |> with_fixed_port(config.internal_kafka_port, config.kafka_port)

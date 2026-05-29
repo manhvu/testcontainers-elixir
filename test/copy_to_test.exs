@@ -1,5 +1,5 @@
 defmodule CopyToTest do
-  alias Testcontainers.HttpWaitStrategy
+  alias TestcontainerEx.HttpWaitStrategy
   use ExUnit.Case, async: true
 
   test "copy contents to target" do
@@ -7,18 +7,18 @@ defmodule CopyToTest do
     contents = "Hello there"
 
     config =
-      %Testcontainers.Container{image: "nginx:alpine"}
-      |> Testcontainers.Container.with_exposed_port(port)
-      |> Testcontainers.Container.with_waiting_strategy(HttpWaitStrategy.new("/hello.txt", port))
-      |> Testcontainers.Container.with_copy_to("/usr/share/nginx/html/hello.txt", contents)
+      %TestcontainerEx.Container{image: "nginx:alpine"}
+      |> TestcontainerEx.Container.with_exposed_port(port)
+      |> TestcontainerEx.Container.with_waiting_strategy(HttpWaitStrategy.new("/hello.txt", port))
+      |> TestcontainerEx.Container.with_copy_to("/usr/share/nginx/html/hello.txt", contents)
 
-    assert {:ok, container} = Testcontainers.start_container(config)
+    assert {:ok, container} = TestcontainerEx.start_container(config)
 
-    host = Testcontainers.get_host(container)
-    mapped_port = Testcontainers.get_port(container, port)
+    host = TestcontainerEx.get_host(container)
+    mapped_port = TestcontainerEx.get_port(container, port)
     {:ok, %{body: body}} = Tesla.get("http://#{host}:#{mapped_port}/hello.txt")
 
     assert contents == body
-    assert :ok = Testcontainers.stop_container(container.container_id)
+    assert :ok = TestcontainerEx.stop_container(container.container_id)
   end
 end

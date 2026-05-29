@@ -1,6 +1,6 @@
-defmodule Testcontainers.CopyTo do
+defmodule TestcontainerEx.CopyTo do
   @moduledoc false
-  alias Testcontainers.Docker
+  alias TestcontainerEx.Docker
 
   @doc """
   Copy a string of contents into a file at target

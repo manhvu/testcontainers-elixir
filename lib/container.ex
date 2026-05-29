@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
 # Modified by: Jarl André Hübenthal @ 2023
-defmodule Testcontainers.Container do
+defmodule TestcontainerEx.Container do
   @moduledoc """
   A struct with builder functions for creating a definition of a container.
   """
@@ -124,7 +124,7 @@ defmodule Testcontainers.Container do
 
   @doc """
   Adds a fixed _port_ to be exposed on the _container_.
-  This approach to managing ports is not recommended by Testcontainers.
+  This approach to managing ports is not recommended by TestcontainerEx.
   Use at your own risk.
   """
   def with_fixed_port(%__MODULE__{} = config, port, host_port \\ nil)
@@ -354,21 +354,21 @@ defmodule Testcontainers.Container do
     * `TestContainers.PullPolicy.never_pull()` - does not pull images, use when working with local images
     * `TestContainers.PullPolicy.pull_condition(expr)` - pulls image if expression returns `true`
   """
-  def with_pull_policy(%__MODULE__{} = container, %Testcontainers.PullPolicy{} = pull_policy) do
+  def with_pull_policy(%__MODULE__{} = container, %TestcontainerEx.PullPolicy{} = pull_policy) do
     %{container | pull_policy: pull_policy}
   end
 
-  defimpl Testcontainers.ContainerBuilder do
+  defimpl TestcontainerEx.ContainerBuilder do
     @impl true
-    def build(%Testcontainers.Container{} = config) do
-      Testcontainers.Container.valid_image!(config)
+    def build(%TestcontainerEx.Container{} = config) do
+      TestcontainerEx.Container.valid_image!(config)
     end
 
     @doc """
     Do stuff after container has started.
     """
     @impl true
-    @spec after_start(Testcontainers.Container.t(), Testcontainers.Container.t(), Tesla.Env.t()) ::
+    @spec after_start(TestcontainerEx.Container.t(), TestcontainerEx.Container.t(), Tesla.Env.t()) ::
             :ok
     def after_start(_config, _container, _conn), do: :ok
   end

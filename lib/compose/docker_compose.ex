@@ -1,4 +1,4 @@
-defmodule Testcontainers.DockerCompose do
+defmodule TestcontainerEx.DockerCompose do
   @moduledoc """
   A struct with builder functions for creating a Docker Compose configuration.
   """
