@@ -15,6 +15,7 @@ defmodule TestcontainerEx.DockerSocketPathStrategy do
         Path.expand("~/.docker/run/docker.sock"),
         Path.expand("~/.docker/desktop/docker.sock")
       ] ++
+        minikube_socket_paths() ++
         case System.get_env("XDG_RUNTIME_DIR") do
           nil ->
             []
@@ -26,6 +27,21 @@ defmodule TestcontainerEx.DockerSocketPathStrategy do
               "#{path}/docker.sock"
             ]
         end
+    end
+
+    # minikube with the none driver uses the host's Docker socket directly.
+    # With the docker driver, the socket is inside the VM and accessed via TCP,
+    # but when running inside a minikube pod, the in-pod socket path may be
+    # mounted at the standard location or at a custom path.
+    defp minikube_socket_paths do
+      [
+        # minikube none-driver: standard host socket (already listed above)
+        # minikube docker-driver: socket inside the VM
+        "/var/run/minikube/docker.sock",
+        # minikube pod mount (when Docker socket is mounted into a pod)
+        "/var/run/minikube.sock"
+      ]
+      |> Enum.filter(&File.exists?/1)
     end
 
     def execute(strategy, _input) do

@@ -11,6 +11,7 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [Podman Support](#podman-support)
+- [Minikube Support](#minikube-support)
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
 - [Contributing](#contributing)
@@ -283,6 +284,69 @@ The library automatically detects Podman sockets at these locations:
 - `$XDG_RUNTIME_DIR/containers/podman.sock`
 - `$XDG_RUNTIME_DIR/docker.sock`
 - `/var/run/docker.sock` (rootful Podman with Docker compatibility)
+
+## Minikube Support
+
+TestcontainerEx works with [minikube](https://minikube.sigs.k8s.io/)'s Docker daemon. Minikube runs a Docker (or Podman) daemon inside a VM, and TestcontainerEx can connect to it via TCP with TLS.
+
+### Quick Start with Minikube
+
+1. **Start minikube** (Docker driver):
+
+   ```bash
+   minikube start --driver=docker
+   ```
+
+2. **Point TestcontainerEx at minikube's Docker daemon:**
+
+   ```bash
+   eval $(minikube docker-env)
+   MIX_ENV=test mix test
+   ```
+
+   The `minikube docker-env` command sets `DOCKER_HOST`, `DOCKER_CERT_PATH`, and
+   `DOCKER_TLS_VERIFY` environment variables. TestcontainerEx reads all of these
+   automatically.
+
+3. **Or use the none driver** (runs directly on the host):
+
+   ```bash
+   minikube start --driver=none
+   MIX_ENV=test mix test
+   ```
+
+   With the none driver, minikube uses the host's Docker socket directly, so no
+   extra configuration is needed.
+
+### Auto-Detection
+
+TestcontainerEx automatically detects a minikube environment by checking for:
+
+- The `MINIKUBE_ACTIVE_DOCKERD` environment variable
+- The `MINIKUBE_PROFILE` environment variable
+- A `DOCKER_HOST` value in the `192.168.49.0/24` subnet (minikube's default)
+- The presence of the `minikube` binary (evaluates `minikube docker-env`)
+
+When detected, the engine is logged as `minikube` during initialization.
+
+### TLS Certificates
+
+Minikube's Docker daemon uses TLS. The certificates are stored in
+`~/.minikube/certs/` by default. TestcontainerEx automatically loads `ca.pem`,
+`cert.pem`, and `key.pem` from the directory specified by `DOCKER_CERT_PATH`
+(which `minikube docker-env` sets).
+
+### Running Tests Inside a Minikube Pod
+
+If your tests run inside a Kubernetes pod managed by minikube (e.g., in a CI
+pipeline), TestcontainerEx detects the container environment via:
+
+- `/.dockerenv` file
+- `/var/run/secrets/kubernetes.io` directory
+- `/proc/1/cgroup` containing `kubepods`
+
+In this case, you may need to mount the Docker socket into your pod and set
+`TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` to the mounted path.
 
 ## Configuration
 

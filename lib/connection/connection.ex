@@ -12,6 +12,7 @@ defmodule TestcontainerEx.Connection do
   alias TestcontainerEx.DockerHostStrategyEvaluator
   alias TestcontainerEx.DockerSocketPathStrategy
   alias TestcontainerEx.DockerUrl
+  alias TestcontainerEx.MinikubeDockerEnvStrategy
 
   @timeout 300_000
 
@@ -110,6 +111,7 @@ defmodule TestcontainerEx.Connection do
       %DockerHostFromPropertiesStrategy{key: "docker.host"},
       %DockerHostFromEnvStrategy{},
       %ContainerHostFromEnvStrategy{},
+      %MinikubeDockerEnvStrategy{},
       %DockerSocketPathStrategy{}
     ]
 

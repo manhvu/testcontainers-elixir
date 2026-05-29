@@ -483,16 +483,25 @@ defmodule TestcontainerEx do
         dockerenv_path \\ "/.dockerenv",
         cgroup_path \\ "/proc/1/cgroup"
       ) do
-    if File.exists?(dockerenv_path) do
-      true
-    else
-      case File.read(cgroup_path) do
-        {:ok, content} ->
-          Regex.match?(~r/(docker|kubepods|lxc|containerd)/, content)
+    cond do
+      File.exists?(dockerenv_path) ->
+        true
 
-        {:error, _} ->
-          false
-      end
+      File.exists?("/var/run/secrets/kubernetes.io") ->
+        true
+
+      File.exists?("/.containerenv") ->
+        # Podman sets this in containers
+        true
+
+      true ->
+        case File.read(cgroup_path) do
+          {:ok, content} ->
+            Regex.match?(~r/(docker|kubepods|lxc|containerd|podman)/, content)
+
+          {:error, _} ->
+            false
+        end
     end
   end
 

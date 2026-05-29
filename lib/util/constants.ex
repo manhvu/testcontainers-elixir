@@ -16,9 +16,12 @@ defmodule TestcontainerEx.Constants do
   @doc """
   Detects which container engine is in use.
 
-  Returns `:podman` if the daemon responds with a `Server: Podman` header
-  on the `/_ping` endpoint, or if the `CONTAINER_HOST` env var is set.
-  Returns `:docker` otherwise.
+  Returns one of:
+
+  - `:podman` — if `CONTAINER_HOST` is set or the daemon identifies as Podman.
+  - `:minikube` — if `MINIKUBE_ACTIVE_DOCKERD` is set or the Docker host
+    resolves to a minikube IP/profile.
+  - `:docker` — default fallback.
 
   The result is cached after the first call.
   """
@@ -42,8 +45,57 @@ defmodule TestcontainerEx.Constants do
       podman_ping?() ->
         :podman
 
+      minikube_env?() ->
+        :minikube
+
       true ->
         :docker
+    end
+  end
+
+  @doc """
+  Returns `true` when running in a minikube environment.
+
+  Checks for:
+  - The `MINIKUBE_ACTIVE_DOCKERD` environment variable (set by `minikube docker-env`)
+  - The `MINIKUBE_PROFILE` environment variable
+  - A `DOCKER_HOST` value that resolves to a minikube IP (192.168.49.0/24)
+  """
+  def minikube_env? do
+    cond do
+      System.get_env("MINIKUBE_ACTIVE_DOCKERD") ->
+        true
+
+      System.get_env("MINIKUBE_PROFILE") ->
+        true
+
+      minikube_docker_host?() ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  defp minikube_docker_host? do
+    case System.get_env("DOCKER_HOST") do
+      nil ->
+        false
+
+      docker_host ->
+        case URI.parse(docker_host) do
+          %URI{host: host} when is_binary(host) ->
+            # minikube's default subnet is 192.168.49.0/24 (docker driver)
+            # or 192.168.59.0/24 (podman driver)
+            String.starts_with?(host, "192.168.49.") or
+              String.starts_with?(host, "192.168.59.") or
+              String.starts_with?(host, "192.168.69.") or
+              String.starts_with?(host, "10.0.0.") or
+              String.ends_with?(".minikube", host)
+
+          _ ->
+            false
+        end
     end
   end
 
