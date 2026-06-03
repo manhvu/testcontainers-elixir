@@ -2,7 +2,7 @@
 
 [![Hex.pm](https://img.shields.io/hexpm/v/testcontainer_ex.svg)](https://hex.pm/packages/testcontainer_ex)
 
-> Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), add support for Podman and Minikube.
+> Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), with added support for Podman, Minikube, and Colima, a `.env` file for project-local Docker host configuration, and a clean architecture refactor.
 
 > TestcontainerEx is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker or Podman container.
 
@@ -12,6 +12,8 @@
 - [Usage](#usage)
 - [Podman Support](#podman-support)
 - [Minikube Support](#minikube-support)
+- [Colima Support](#colima-support)
+- [Docker Host Resolution](#docker-host-resolution)
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
 - [Contributing](#contributing)
@@ -276,7 +278,7 @@ export TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED=true
 echo "ryuk.container.privileged=true" >> ~/.testcontainer_ex.properties
 ```
 
-### Socket Paths
+### Podman Socket Paths
 
 The library automatically detects Podman sockets at these locations:
 
@@ -284,6 +286,9 @@ The library automatically detects Podman sockets at these locations:
 - `$XDG_RUNTIME_DIR/containers/podman.sock`
 - `$XDG_RUNTIME_DIR/docker.sock`
 - `/var/run/docker.sock` (rootful Podman with Docker compatibility)
+- `~/.colima/default/docker.sock` (Colima with Podman runtime)
+
+See [Docker Host Resolution](#docker-host-resolution) for the full list of detected socket paths.
 
 ## Minikube Support
 
@@ -347,6 +352,104 @@ pipeline), TestcontainerEx detects the container environment via:
 
 In this case, you may need to mount the Docker socket into your pod and set
 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` to the mounted path.
+
+## Colima Support
+
+TestcontainerEx works with [Colima](https://github.com/abiosoft/colima), a lightweight Docker/Podman runtime for macOS and Linux. Colima runs a Linux VM with Docker or Podman inside and exposes a Unix socket on the host.
+
+### Quick Start with Colima
+
+1. **Install and start Colima:**
+
+   ```bash
+   brew install colima
+   colima start
+   ```
+
+2. **Run your tests:**
+
+   ```bash
+   MIX_ENV=test mix test
+   ```
+
+   TestcontainerEx automatically detects the Colima socket at `~/.colima/default/docker.sock`.
+
+### Specifying the Colima socket explicitly
+
+If auto-detection does not work (e.g. you use a named Colima profile), you can set the socket path via any of the standard configuration methods:
+
+```bash
+# Environment variable
+export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+
+# Or in ~/.testcontainer_ex.properties
+echo "tc.host=unix://$HOME/.colima/default/docker.sock" >> ~/.testcontainer_ex.properties
+
+# Or in a project .env file
+echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> .env
+```
+
+### Detected Socket Path
+
+The library automatically detects the Colima socket at:
+
+- `~/.colima/default/docker.sock` (default profile)
+
+For named profiles, the socket is at `~/.colima/<profile>/docker.sock` — set `DOCKER_HOST` explicitly for these.
+
+See [Docker Host Resolution](#docker-host-resolution) for the full list of detected socket paths.
+
+## Docker Host Resolution
+
+TestcontainerEx resolves the container engine host by trying several strategies in order. The first strategy that succeeds wins.
+
+### Resolution order
+
+| Priority | Strategy | Source | Notes |
+|----------|----------|--------|-------|
+| 1 | **Properties file** | `~/.testcontainer_ex.properties` | Checks `tc.host`, then `docker.host` |
+| 2 | **Environment variable** | `DOCKER_HOST` | Standard Docker env var (shell/profile) |
+| 3 | **`.env` file** | `.env` in project root | Project-local default; only used when `DOCKER_HOST` is unset |
+| 4 | **Container env var** | `CONTAINER_HOST` | Podman equivalent of `DOCKER_HOST` |
+| 5 | **Minikube** | `minikube docker-env` | Auto-detected when minikube is available |
+| 6 | **Socket scan** | Well-known paths | Docker Desktop, Docker Engine, Podman, Colima sockets |
+
+### `.env` file
+
+You can place a `.env` file in your project root to configure the Docker host without modifying your shell profile:
+
+```bash
+# .env
+DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+```
+
+This is especially useful for Colima users on macOS, where the socket path is not in the default search list and `DOCKER_HOST` is not automatically exported.
+
+The `.env` file uses simple `KEY=VALUE` syntax, one per line. Lines starting with `#` are comments:
+
+```bash
+# .env — project-local Docker host config
+DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+```
+
+> **Note:** The `.env` file is only consulted when `DOCKER_HOST` is not already set in your environment. Shell/profile settings always take precedence.
+
+### Socket auto-detection
+
+When no explicit host is configured, TestcontainerEx scans these socket paths:
+
+| Path | Runtime |
+|------|---------|
+| `/var/run/docker.sock` | Docker Engine (Linux) |
+| `~/.docker/run/docker.sock` | Docker Desktop (macOS/Windows) |
+| `~/.docker/desktop/docker.sock` | Docker Desktop (alternate) |
+| `~/.colima/default/docker.sock` | Colima (default profile) |
+| `$XDG_RUNTIME_DIR/podman/podman.sock` | Podman (rootless) |
+| `$XDG_RUNTIME_DIR/containers/podman.sock` | Podman (alternate) |
+| `$XDG_RUNTIME_DIR/docker.sock` | Generic XDG socket |
+| `/var/run/minikube/docker.sock` | Minikube |
+
+Only paths that exist on disk are probed. Each candidate is validated with a ping to the Docker Engine API.
 
 ## Configuration
 

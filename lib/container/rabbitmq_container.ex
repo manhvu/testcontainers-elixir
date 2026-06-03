@@ -1,18 +1,14 @@
 defmodule TestcontainerEx.RabbitMQContainer do
   @moduledoc """
   Provides functionality for creating and managing RabbitMQ container configurations.
-
-  NOTE: The default starting command is `chmod 400 /var/lib/rabbitmq/.erlang.cookie; rabbitmq-server`.
-  `chmod 400 /var/lib/rabbitmq/.erlang.cookie` is necessary for the waiting strategy, which calls the command `rabbitmq-diagnostics check_running`; otherwise CLI tools cannot communicate with the RabbitMQ node.
-
-  NOTE: Currently untested, any developer who tries to add improvements on this container should consider moving this container implementation to a separate Elixir package.
   """
+
   alias TestcontainerEx.CommandWaitStrategy
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.RabbitMQContainer
 
-  import TestcontainerEx.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
 
   @default_image "rabbitmq"
   @default_tag "3-alpine"
@@ -21,11 +17,7 @@ defmodule TestcontainerEx.RabbitMQContainer do
   @default_username "guest"
   @default_password "guest"
   @default_virtual_host "/"
-  @default_command [
-    "sh",
-    "-c",
-    "chmod 400 /var/lib/rabbitmq/.erlang.cookie; rabbitmq-server"
-  ]
+  @default_command ["sh", "-c", "chmod 400 /var/lib/rabbitmq/.erlang.cookie; rabbitmq-server"]
   @default_wait_timeout 60_000
 
   @type t :: %__MODULE__{}
@@ -44,9 +36,6 @@ defmodule TestcontainerEx.RabbitMQContainer do
     force_reuse: false
   ]
 
-  @doc """
-  Creates a new `RabbitMQContainer` struct with default configurations.
-  """
   def new,
     do: %__MODULE__{
       image: @default_image_with_tag,
@@ -58,182 +47,38 @@ defmodule TestcontainerEx.RabbitMQContainer do
       wait_timeout: @default_wait_timeout
     }
 
-  @doc """
-  Overrides the default image use for the RabbitMQ container.
+  def with_image(%__MODULE__{} = c, image), do: %{c | image: image}
+  def with_port(%__MODULE__{} = c, port) when is_integer(port), do: %{c | port: port}
+  def with_wait_timeout(%__MODULE__{} = c, t) when is_integer(t), do: %{c | wait_timeout: t}
+  def with_username(%__MODULE__{} = c, u) when is_binary(u), do: %{c | username: u}
+  def with_password(%__MODULE__{} = c, p) when is_binary(p), do: %{c | password: p}
+  def with_virtual_host(%__MODULE__{} = c, v) when is_binary(v), do: %{c | virtual_host: v}
+  def with_cmd(%__MODULE__{} = c, cmd) when is_list(cmd), do: %{c | cmd: cmd}
 
-  ## Examples
+  def with_check_image(%__MODULE__{} = c, ci) when is_valid_image(ci),
+    do: %__MODULE__{c | check_image: ci}
 
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_image("rabbitmq:xyz")
-    iex> config.image
-    "rabbitmq:xyz"
-  """
-  def with_image(%__MODULE__{} = config, image) do
-    %{config | image: image}
-  end
+  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
+    do: %__MODULE__{c | reuse: reuse}
 
-  @doc """
-  Overrides the default port used for the RabbitMQ container.
+  def with_force_reuse(%__MODULE__{} = c), do: %__MODULE__{c | reuse: true, force_reuse: true}
 
-  ## Examples
-
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_port(1111)
-    iex> config.port
-    1111
-  """
-  def with_port(%__MODULE__{} = config, port) when is_integer(port) do
-    %{config | port: port}
-  end
-
-  @doc """
-  Overrides the default wait timeout used for the RabbitMQ container.
-
-  Note: this timeout will be used for each individual wait strategy.
-
-  ## Examples
-
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_wait_timeout(60000)
-    iex> config.wait_timeout
-    60000
-  """
-  def with_wait_timeout(%__MODULE__{} = config, wait_timeout) when is_integer(wait_timeout) do
-    %{config | wait_timeout: wait_timeout}
-  end
-
-  @doc """
-  Overrides the default user used for the RabbitMQ container.
-
-  ## Examples
-
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_username("rabbitmq")
-    iex> config.username
-    "rabbitmq"
-  """
-  def with_username(%__MODULE__{} = config, username) when is_binary(username) do
-    %{config | username: username}
-  end
-
-  @doc """
-  Overrides the default password used for the RabbitMQ container.
-
-  ## Examples
-
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_password("rabbitmq")
-    iex> config.password
-    "rabbitmq"
-  """
-  def with_password(%__MODULE__{} = config, password) when is_binary(password) do
-    %{config | password: password}
-  end
-
-  @doc """
-  Overrides the default virtual host used for the RabbitMQ container.
-
-  ## Examples
-
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_virtual_host("/")
-    iex> config.password
-    "/"
-  """
-  def with_virtual_host(%__MODULE__{} = config, virtual_host) when is_binary(virtual_host) do
-    %{config | virtual_host: virtual_host}
-  end
-
-  @doc """
-  Overrides the default command used for the RabbitMQ container.
-
-  ## Examples
-
-    iex> config = RabbitMQContainer.new() |> RabbitMQContainer.with_cmd(["sh", "-c", "rabbitmq-server"])
-    iex> config.cmd
-    ["sh", "-c", "rabbitmq-server"]
-  """
-  def with_cmd(%__MODULE__{} = config, cmd) when is_list(cmd) do
-    %{config | cmd: cmd}
-  end
-
-  @doc """
-  Set the regular expression to check the image validity.
-  """
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
-  end
-
-  def with_force_reuse(%__MODULE__{} = config) do
-    %__MODULE__{config | reuse: true, force_reuse: true}
-  end
-
-  @doc """
-  Retrieves the default Docker image for the RabbitMQ container
-  """
   def default_image, do: @default_image
-
-  @doc """
-  Retrieves the default exposed port for the RabbitMQ container
-  """
   def default_port, do: @default_port
-
-  @doc """
-  Retrieves the default Docker image including tag for the RabbitMQ container
-  """
   def default_image_with_tag, do: @default_image <> ":" <> @default_tag
 
-  @doc """
-  Returns the port on the _host machine_ where the RabbitMQ container is listening.
-  """
-  def port(%Container{} = container),
+  def port(%Config{} = container),
     do:
       TestcontainerEx.get_port(
         container,
         String.to_integer(container.environment[:RABBITMQ_NODE_PORT])
       )
 
-  @doc """
-  Generates the connection URL for accessing the RabbitMQ service running within the container.
-
-  This URI is based on the AMQP 0-9-1, and has the following scheme:
-  amqp://username:password@host:port/vhost
-
-  ## Parameters
-
-  - `container`: The active RabbitMQ container instance in the form of a %Container{} struct.
-
-  ## Examples
-
-      iex> RabbitMQContainer.connection_url(container)
-      "amqp://guest:guest@localhost:32768"
-      iex> RabbitMQContainer.connection_url(container_with_vhost)
-      "amqp://guest:guest@localhost:32768/vhost"
-  """
-  def connection_url(%Container{} = container) do
+  def connection_url(%Config{} = container) do
     "amqp://#{container.environment[:RABBITMQ_DEFAULT_USER]}:#{container.environment[:RABBITMQ_DEFAULT_PASS]}@#{TestcontainerEx.get_host(container)}:#{port(container)}#{virtual_host_segment(container)}"
   end
 
-  @doc """
-  Returns the connection parameters to connect to RabbitMQ from the _host machine_.
-
-  ## Parameters
-
-  - `container`: The active RabbitMQ container instance in the form of a %Container{} struct.
-
-  ## Examples
-
-      iex> RabbitMQContainer.connection_parameters(container)
-      [
-        host: "localhost",
-        port: 32768,
-        username: "guest",
-        password: "guest",
-        vhost: "/"
-      ]
-  """
-  def connection_parameters(%Container{} = container) do
+  def connection_parameters(%Config{} = container) do
     [
       host: TestcontainerEx.get_host(container),
       port: port(container),
@@ -243,8 +88,6 @@ defmodule TestcontainerEx.RabbitMQContainer do
     ]
   end
 
-  # Provides the virtual host segment used in the AMQP URI specification defined in the AMQP 0-9-1,
-  # and interprets the virtual host for the connection URL based on the default value.
   defp virtual_host_segment(container) do
     case container.environment[:RABBITMQ_DEFAULT_VHOST] do
       "/" -> ""
@@ -252,47 +95,24 @@ defmodule TestcontainerEx.RabbitMQContainer do
     end
   end
 
-  defimpl ContainerBuilder do
-    import Container
-
-    @doc """
-    Implementation of the `ContainerBuilder` protocol specific to `RabbitMQContainer`.
-
-    This function builds a new container configuration, ensuring the RabbitMQ image is compatible, setting environment variables, and applying a waiting strategy for the container to be ready.
-
-    The build process raises an `ArgumentError` if the specified container image is not compatible with the expected RabbitMQ image.
-
-    ## Examples
-
-        # Assuming `ContainerBuilder.build/2` is called from somewhere in the application with a `RabbitMQContainer` configuration:
-        iex> config = RabbitMQContainer.new()
-        iex> built_container = ContainerBuilder.build(config, [])
-        # `built_container` is now a ready-to-use `%Container{}` configured specifically for RabbitMQ.
-
-    ## Errors
-
-    - Raises `ArgumentError` if the provided image is not compatible with the default RabbitMQ image.
-    """
+  defimpl Builder do
     @impl true
-    @spec build(RabbitMQContainer.t()) :: Container.t()
+    @spec build(RabbitMQContainer.t()) :: Config.t()
     def build(%RabbitMQContainer{} = config) do
-      new(config.image)
-      |> with_exposed_port(config.port)
-      |> with_environment(:RABBITMQ_DEFAULT_USER, config.username)
-      |> with_environment(:RABBITMQ_DEFAULT_PASS, config.password)
-      |> with_environment(:RABBITMQ_DEFAULT_VHOST, config.virtual_host)
-      |> with_environment(:RABBITMQ_NODE_PORT, to_string(config.port))
-      |> with_cmd(config.cmd)
-      |> with_waiting_strategy(
-        CommandWaitStrategy.new(
-          ["rabbitmq-diagnostics", "check_running"],
-          config.wait_timeout
-        )
+      Config.new(config.image)
+      |> Config.with_exposed_port(config.port)
+      |> Config.with_environment(:RABBITMQ_DEFAULT_USER, config.username)
+      |> Config.with_environment(:RABBITMQ_DEFAULT_PASS, config.password)
+      |> Config.with_environment(:RABBITMQ_DEFAULT_VHOST, config.virtual_host)
+      |> Config.with_environment(:RABBITMQ_NODE_PORT, to_string(config.port))
+      |> Config.with_cmd(config.cmd)
+      |> Config.with_waiting_strategy(
+        CommandWaitStrategy.new(["rabbitmq-diagnostics", "check_running"], config.wait_timeout)
       )
-      |> with_check_image(config.check_image)
-      |> with_reuse(config.reuse)
-      |> with_force_reuse(config.force_reuse)
-      |> valid_image!()
+      |> Config.with_check_image(config.check_image)
+      |> Config.with_reuse(config.reuse)
+      |> then(fn c -> if config.force_reuse, do: Config.with_force_reuse(c, true), else: c end)
+      |> Config.valid_image!()
     end
 
     @impl true

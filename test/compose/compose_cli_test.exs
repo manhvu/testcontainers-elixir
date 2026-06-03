@@ -1,14 +1,68 @@
 defmodule TestcontainerEx.Compose.CliTest do
-  use ExUnit.Case, async: true
+  # async: false because compose_command/0 caches via persistent_term
+  use ExUnit.Case, async: false
 
   alias TestcontainerEx.Compose.Cli
   alias TestcontainerEx.DockerCompose
+
+  setup do
+    :persistent_term.erase(Cli)
+    on_exit(fn -> :persistent_term.erase(Cli) end)
+    :ok
+  end
+
+  # ── Command detection ─────────────────────────────────────────────
+
+  describe "compose_command/0" do
+    setup do
+      original_ccp = System.get_env("CONTAINER_COMPOSE_PROVIDER")
+      original_pcp = System.get_env("PODMAN_COMPOSE_PROVIDER")
+
+      on_exit(fn ->
+        restore_env("CONTAINER_COMPOSE_PROVIDER", original_ccp)
+        restore_env("PODMAN_COMPOSE_PROVIDER", original_pcp)
+      end)
+
+      System.delete_env("CONTAINER_COMPOSE_PROVIDER")
+      System.delete_env("PODMAN_COMPOSE_PROVIDER")
+      :ok
+    end
+
+    test "returns custom command when CONTAINER_COMPOSE_PROVIDER is set" do
+      System.put_env("CONTAINER_COMPOSE_PROVIDER", "/usr/local/bin/docker-compose")
+      assert Cli.compose_command() == "/usr/local/bin/docker-compose"
+    end
+
+    test "returns custom command when PODMAN_COMPOSE_PROVIDER is set" do
+      System.put_env("PODMAN_COMPOSE_PROVIDER", "/usr/local/bin/podman-compose")
+      assert Cli.compose_command() == "/usr/local/bin/podman-compose"
+    end
+
+    test "CONTAINER_COMPOSE_PROVIDER takes precedence over PODMAN_COMPOSE_PROVIDER" do
+      System.put_env("CONTAINER_COMPOSE_PROVIDER", "/custom/docker-compose")
+      System.put_env("PODMAN_COMPOSE_PROVIDER", "/custom/podman-compose")
+      assert Cli.compose_command() == "/custom/docker-compose"
+    end
+
+    test "caches the result after first call" do
+      first = Cli.compose_command()
+      System.put_env("CONTAINER_COMPOSE_PROVIDER", "/changed/compose")
+      second = Cli.compose_command()
+      assert first == second
+    end
+
+    test "returns docker or podman when no env var override" do
+      cmd = Cli.compose_command()
+      assert is_binary(cmd)
+    end
+  end
+
+  # ── Argument building ─────────────────────────────────────────────
 
   describe "build_up_args/1" do
     test "builds basic up args" do
       compose = DockerCompose.new("/tmp/test") |> Map.put(:project_name, "tc-test123")
       args = Cli.build_up_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "up", "-d", "--wait"]
     end
 
@@ -19,7 +73,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         |> DockerCompose.with_build(true)
 
       args = Cli.build_up_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "up", "-d", "--wait", "--build"]
     end
 
@@ -30,7 +83,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         |> DockerCompose.with_pull(:always)
 
       args = Cli.build_up_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "up", "-d", "--wait", "--pull", "always"]
     end
 
@@ -41,7 +93,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         |> DockerCompose.with_pull(:never)
 
       args = Cli.build_up_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "up", "-d", "--wait", "--pull", "never"]
     end
 
@@ -52,7 +103,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         |> DockerCompose.with_services(["redis", "postgres"])
 
       args = Cli.build_up_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "up", "-d", "--wait", "redis", "postgres"]
     end
 
@@ -104,7 +154,6 @@ defmodule TestcontainerEx.Compose.CliTest do
     test "builds basic down args with -v by default" do
       compose = DockerCompose.new("/tmp/test") |> Map.put(:project_name, "tc-test123")
       args = Cli.build_down_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "down", "-v"]
     end
 
@@ -115,7 +164,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         |> DockerCompose.with_remove_volumes(false)
 
       args = Cli.build_down_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "down"]
     end
   end
@@ -124,7 +172,6 @@ defmodule TestcontainerEx.Compose.CliTest do
     test "builds ps args" do
       compose = DockerCompose.new("/tmp/test") |> Map.put(:project_name, "tc-test123")
       args = Cli.build_ps_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "ps", "--format=json"]
     end
   end
@@ -133,7 +180,6 @@ defmodule TestcontainerEx.Compose.CliTest do
     test "builds pull args" do
       compose = DockerCompose.new("/tmp/test") |> Map.put(:project_name, "tc-test123")
       args = Cli.build_pull_args(compose)
-
       assert args == ["compose", "-p", "tc-test123", "pull"]
     end
   end
@@ -142,10 +188,11 @@ defmodule TestcontainerEx.Compose.CliTest do
     test "builds logs args" do
       compose = DockerCompose.new("/tmp/test") |> Map.put(:project_name, "tc-test123")
       args = Cli.build_logs_args(compose, "redis")
-
       assert args == ["compose", "-p", "tc-test123", "logs", "redis"]
     end
   end
+
+  # ── Output parsing ────────────────────────────────────────────────
 
   describe "parse_ps_output/1" do
     test "parses single JSON line" do
@@ -177,7 +224,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         ~s|[{"ID":"abc123","Service":"redis","State":"running","Publishers":[]},{"ID":"def456","Service":"postgres","State":"running","Publishers":[]}]|
 
       result = Cli.parse_ps_output(output)
-
       assert length(result) == 2
     end
 
@@ -190,7 +236,6 @@ defmodule TestcontainerEx.Compose.CliTest do
         ~s|not json\n{"ID":"abc123","Service":"redis","State":"running","Publishers":[]}|
 
       result = Cli.parse_ps_output(output)
-
       assert length(result) == 1
       assert Enum.at(result, 0)["Service"] == "redis"
     end
@@ -212,12 +257,7 @@ defmodule TestcontainerEx.Compose.CliTest do
 
     test "filters out publishers with PublishedPort of 0" do
       publishers = [
-        %{
-          "URL" => "0.0.0.0",
-          "TargetPort" => 6379,
-          "PublishedPort" => 0,
-          "Protocol" => "tcp"
-        }
+        %{"URL" => "0.0.0.0", "TargetPort" => 6379, "PublishedPort" => 0, "Protocol" => "tcp"}
       ]
 
       assert Cli.parse_publishers(publishers) == []
@@ -253,12 +293,7 @@ defmodule TestcontainerEx.Compose.CliTest do
           "PublishedPort" => 32_768,
           "Protocol" => "tcp"
         },
-        %{
-          "URL" => "::",
-          "TargetPort" => 6379,
-          "PublishedPort" => 32_768,
-          "Protocol" => "tcp"
-        }
+        %{"URL" => "::", "TargetPort" => 6379, "PublishedPort" => 32_768, "Protocol" => "tcp"}
       ]
 
       assert Cli.parse_publishers(publishers) == [{6379, 32_768}]
@@ -272,4 +307,7 @@ defmodule TestcontainerEx.Compose.CliTest do
       assert Cli.parse_publishers([]) == []
     end
   end
+
+  defp restore_env(key, nil), do: System.delete_env(key)
+  defp restore_env(key, value), do: System.put_env(key, value)
 end

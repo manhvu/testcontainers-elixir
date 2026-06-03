@@ -1,5 +1,5 @@
 defmodule TestcontainerEx.HttpWaitStrategyTest do
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.HttpWaitStrategy
   use ExUnit.Case, async: true
 
@@ -7,9 +7,9 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
     port = 80
 
     config =
-      %Container{image: "nginx:alpine"}
-      |> Container.with_exposed_port(port)
-      |> Container.with_waiting_strategy(HttpWaitStrategy.new("/", port))
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(HttpWaitStrategy.new("/", port))
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
 
@@ -26,9 +26,9 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
     port = 80
 
     config =
-      %Container{image: "nginx:alpine"}
-      |> Container.with_exposed_port(port)
-      |> Container.with_waiting_strategy(HttpWaitStrategy.new("/", port, status_code: 200))
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(HttpWaitStrategy.new("/", port, status_code: 200))
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
     assert :ok = TestcontainerEx.stop_container(container.container_id)
@@ -38,9 +38,9 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
     port = 80
 
     config =
-      %Container{image: "nginx:alpine"}
-      |> Container.with_exposed_port(port)
-      |> Container.with_waiting_strategy(
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(
         HttpWaitStrategy.new("/", port, status_code: 999, timeout: 5000, max_retries: 1)
       )
 
@@ -51,9 +51,9 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
     port = 80
 
     config =
-      %Container{image: "nginx:alpine"}
-      |> Container.with_exposed_port(port)
-      |> Container.with_waiting_strategy(
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(
         HttpWaitStrategy.new("/", port,
           match: fn response -> response.body =~ "Welcome to nginx!" end
         )
@@ -67,9 +67,9 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
     port = 80
 
     config =
-      %Container{image: "nginx:alpine"}
-      |> Container.with_exposed_port(port)
-      |> Container.with_waiting_strategy(
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(
         HttpWaitStrategy.new("/", port,
           timeout: 5000,
           max_retries: 1,

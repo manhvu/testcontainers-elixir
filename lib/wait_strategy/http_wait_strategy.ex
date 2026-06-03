@@ -69,7 +69,6 @@ defmodule TestcontainerEx.HttpWaitStrategy do
   # Private functions and implementations
 
   defimpl TestcontainerEx.WaitStrategy do
-    alias TestcontainerEx.Container
     alias TestcontainerEx.HttpWaitStrategy
 
     @impl true
@@ -140,7 +139,10 @@ defmodule TestcontainerEx.HttpWaitStrategy do
       ])
     end
 
-    defp get_base_url(%HttpWaitStrategy{} = wait_strategy, %Container{} = container) do
+    defp get_base_url(
+           %HttpWaitStrategy{} = wait_strategy,
+           %TestcontainerEx.Container.Config{} = container
+         ) do
       port = TestcontainerEx.get_port(container, wait_strategy.port)
 
       "#{wait_strategy.protocol}://#{TestcontainerEx.get_host(container)}:#{port}/"

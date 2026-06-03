@@ -1,7 +1,8 @@
 defmodule TestcontainerExTest do
   alias TestcontainerEx.Connection
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.Docker
+  alias TestcontainerEx.HttpWaitStrategy
   # async: false because ryuk_privileged? tests mutate process environment
   use ExUnit.Case, async: false
 
@@ -85,10 +86,11 @@ defmodule TestcontainerExTest do
     end
   end
 
+  @tag :needs_dock
   test "cleans up containers on terminate" do
     {:ok, pid} = TestcontainerEx.start_link(name: :cleanup_test1)
 
-    config = %Container{image: "nginx:alpine"}
+    config = %Config{image: "nginx:alpine"}
     {:ok, container} = TestcontainerEx.start_container(config, :cleanup_test1)
 
     # Verify the container is running
@@ -102,12 +104,13 @@ defmodule TestcontainerExTest do
     assert {:error, _} = Docker.Api.get_container(container.container_id, conn)
   end
 
+  @tag :needs_dock
   test "cleans up container when wait strategy fails" do
     config =
-      %Container{image: "nginx:alpine"}
-      |> Container.with_exposed_port(80)
-      |> Container.with_waiting_strategy(
-        TestcontainerEx.HttpWaitStrategy.new("/nonexistent", 80,
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(80)
+      |> Config.with_waiting_strategy(
+        HttpWaitStrategy.new("/nonexistent", 80,
           status_code: 999,
           timeout: 2000,
           max_retries: 1
@@ -122,12 +125,13 @@ defmodule TestcontainerExTest do
     :ok = GenServer.stop(pid)
   end
 
+  @tag :needs_dock
   test "assigns custom name to container via Container.with_name/2" do
     name = "testcontainer_ex-name-#{:rand.uniform(1_000_000)}"
 
     config =
-      Container.new("nginx:alpine")
-      |> Container.with_name(name)
+      Config.new("nginx:alpine")
+      |> Config.with_name(name)
 
     {:ok, pid} = TestcontainerEx.start_link(name: :name_test)
     {:ok, container} = TestcontainerEx.start_container(config, :name_test)
@@ -143,6 +147,7 @@ defmodule TestcontainerExTest do
     :ok = GenServer.stop(pid)
   end
 
+  @tag :needs_dock
   test "initializes successfully when ryuk is disabled" do
     # Set environment variable to disable Ryuk
     System.put_env("TESTCONTAINERS_RYUK_DISABLED", "true")

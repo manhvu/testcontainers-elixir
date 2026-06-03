@@ -3,8 +3,8 @@ defmodule TestcontainerEx.MinioContainer do
   Provides functionality for creating and managing Minio container configurations.
   """
 
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.MinioContainer
 
@@ -20,13 +20,7 @@ defmodule TestcontainerEx.MinioContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :username, :password, :wait_timeout]
-  defstruct [
-    :image,
-    :username,
-    :password,
-    :wait_timeout,
-    reuse: false
-  ]
+  defstruct [:image, :username, :password, :wait_timeout, reuse: false]
 
   def new,
     do: %__MODULE__{
@@ -36,35 +30,21 @@ defmodule TestcontainerEx.MinioContainer do
       wait_timeout: @default_wait_timeout
     }
 
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
-  end
+  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse),
+    do: %__MODULE__{config | reuse: reuse}
 
   def get_username, do: @default_username
   def get_password, do: @default_password
   def default_ui_port, do: @default_ui_port
   def default_s3_port, do: @default_s3_port
 
-  @doc """
-  Retrieves the port mapped by the Docker host for the Minio container.
-  """
-  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_s3_port)
+  def port(%Config{} = container), do: TestcontainerEx.get_port(container, @default_s3_port)
 
-  @doc """
-  Generates the connection URL for accessing the Minio service running within the container.
-  """
-  def connection_url(%Container{} = container) do
+  def connection_url(%Config{} = container) do
     "http://#{TestcontainerEx.get_host(container)}:#{port(container)}"
   end
 
-  @doc """
-  Generates the connection options for accessing the Minio service running within the container.
-  Compatible with what ex_aws expects in `ExAws.request(options)`
-  """
-  def connection_opts(%Container{} = container) do
+  def connection_opts(%Config{} = container) do
     [
       port: MinioContainer.port(container),
       scheme: "http://",
@@ -74,24 +54,25 @@ defmodule TestcontainerEx.MinioContainer do
     ]
   end
 
-  defimpl ContainerBuilder do
-    import Container
-
-    @spec build(MinioContainer.t()) :: Container.t()
+  defimpl Builder do
+    @spec build(MinioContainer.t()) :: Config.t()
     @impl true
     def build(%MinioContainer{} = config) do
-      new(config.image)
-      |> with_exposed_ports([MinioContainer.default_s3_port(), MinioContainer.default_ui_port()])
-      |> with_environment(:MINIO_ROOT_USER, config.username)
-      |> with_environment(:MINIO_ROOT_PASSWORD, config.password)
-      |> with_reuse(config.reuse)
-      |> with_cmd([
+      Config.new(config.image)
+      |> Config.with_exposed_ports([
+        MinioContainer.default_s3_port(),
+        MinioContainer.default_ui_port()
+      ])
+      |> Config.with_environment(:MINIO_ROOT_USER, config.username)
+      |> Config.with_environment(:MINIO_ROOT_PASSWORD, config.password)
+      |> Config.with_reuse(config.reuse)
+      |> Config.with_cmd([
         "server",
         "--console-address",
         ":#{MinioContainer.default_ui_port()}",
         "/data"
       ])
-      |> with_waiting_strategy(
+      |> Config.with_waiting_strategy(
         LogWaitStrategy.new(~r/.*Status:         1 Online, 0 Offline..*/, config.wait_timeout)
       )
     end

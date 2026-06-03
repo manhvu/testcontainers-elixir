@@ -1,16 +1,18 @@
 defmodule CopyToTest do
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.HttpWaitStrategy
   use ExUnit.Case, async: true
 
+  @tag :needs_dock
   test "copy contents to target" do
     port = 80
     contents = "Hello there"
 
     config =
-      %TestcontainerEx.Container{image: "nginx:alpine"}
-      |> TestcontainerEx.Container.with_exposed_port(port)
-      |> TestcontainerEx.Container.with_waiting_strategy(HttpWaitStrategy.new("/hello.txt", port))
-      |> TestcontainerEx.Container.with_copy_to("/usr/share/nginx/html/hello.txt", contents)
+      %Config{image: "nginx:alpine"}
+      |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(HttpWaitStrategy.new("/hello.txt", port))
+      |> Config.with_copy_to("/usr/share/nginx/html/hello.txt", contents)
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
 

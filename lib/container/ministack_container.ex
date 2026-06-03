@@ -3,8 +3,8 @@ defmodule TestcontainerEx.MinistackContainer do
   Provides functionality for creating and managing Ministack container configurations.
   """
 
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.MinistackContainer
 
@@ -20,13 +20,7 @@ defmodule TestcontainerEx.MinistackContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :username, :password, :wait_timeout]
-  defstruct [
-    :image,
-    :username,
-    :password,
-    :wait_timeout,
-    reuse: false
-  ]
+  defstruct [:image, :username, :password, :wait_timeout, reuse: false]
 
   def new,
     do: %__MODULE__{
@@ -36,59 +30,43 @@ defmodule TestcontainerEx.MinistackContainer do
       wait_timeout: @default_wait_timeout
     }
 
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
-  end
+  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
+    do: %__MODULE__{c | reuse: reuse}
 
   def get_username, do: @default_username
   def get_password, do: @default_password
   def default_ui_port, do: @default_ui_port
   def default_s3_port, do: @default_s3_port
 
-  @doc """
-  Retrieves the port mapped by the Docker host for the Ministack container.
-  """
-  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_s3_port)
+  def port(%Config{} = c), do: TestcontainerEx.get_port(c, @default_s3_port)
 
-  @doc """
-  Generates the connection URL for accessing the Ministack service running within the container.
-  """
-  def connection_url(%Container{} = container) do
-    "http://#{TestcontainerEx.get_host(container)}:#{port(container)}"
+  def connection_url(%Config{} = c) do
+    "http://#{TestcontainerEx.get_host(c)}:#{port(c)}"
   end
 
-  @doc """
-  Generates the connection options for accessing the Ministack service running within the container.
-  Compatible with what ex_aws expects in `ExAws.request(options)`
-  """
-  def connection_opts(%Container{} = container) do
+  def connection_opts(%Config{} = c) do
     [
-      port: MinistackContainer.port(container),
+      port: MinistackContainer.port(c),
       scheme: "http://",
-      host: TestcontainerEx.get_host(container),
-      access_key_id: container.environment[:AWS_ACCESS_KEY_ID],
-      secret_access_key: container.environment[:AWS_SECRET_ACCESS_KEY]
+      host: TestcontainerEx.get_host(c),
+      access_key_id: c.environment[:AWS_ACCESS_KEY_ID],
+      secret_access_key: c.environment[:AWS_SECRET_ACCESS_KEY]
     ]
   end
 
-  defimpl ContainerBuilder do
-    import Container
-
-    @spec build(MinistackContainer.t()) :: Container.t()
+  defimpl Builder do
+    @spec build(MinistackContainer.t()) :: Config.t()
     @impl true
     def build(%MinistackContainer{} = config) do
-      new(config.image)
-      |> with_exposed_ports([
+      Config.new(config.image)
+      |> Config.with_exposed_ports([
         MinistackContainer.default_s3_port(),
         MinistackContainer.default_ui_port()
       ])
-      |> with_environment(:AWS_ACCESS_KEY_ID, config.username)
-      |> with_environment(:AWS_SECRET_ACCESS_KEY, config.password)
-      |> with_reuse(config.reuse)
-      |> with_waiting_strategy(
+      |> Config.with_environment(:AWS_ACCESS_KEY_ID, config.username)
+      |> Config.with_environment(:AWS_SECRET_ACCESS_KEY, config.password)
+      |> Config.with_reuse(config.reuse)
+      |> Config.with_waiting_strategy(
         LogWaitStrategy.new(
           ~r/.*Ready .* services available on port #{MinistackContainer.default_s3_port()}\./,
           config.wait_timeout,

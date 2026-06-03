@@ -2,14 +2,15 @@ defmodule TestcontainerEx.PullPolicyTest do
   use ExUnit.Case, async: true
 
   alias TestcontainerEx.Connection
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.Docker.Api
   alias TestcontainerEx.PullPolicy
 
+  @moduletag :needs_dock
   @moduletag :needs_registry
 
   test "always_pull/0 fetches image from remote repository" do
-    config = %Container{
+    config = %Config{
       image: "alpine:latest",
       pull_policy: PullPolicy.always_pull()
     }
@@ -23,7 +24,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     {:ok, _nil} = Api.pull_image("alpine:latest", conn)
     {:ok, _name} = Api.tag_image("alpine", "local_alpine", "latest", conn)
 
-    config = %Container{
+    config = %Config{
       image: "local_alpine:latest",
       pull_policy: PullPolicy.never_pull()
     }
@@ -33,7 +34,7 @@ defmodule TestcontainerEx.PullPolicyTest do
   end
 
   test "pull_condition/1 fetches image if expression evaluates to true" do
-    config = %Container{
+    config = %Config{
       image: "alpine:latest",
       pull_policy:
         PullPolicy.pull_condition(fn _config, _conn ->
@@ -50,7 +51,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     {:ok, _nil} = Api.pull_image("alpine:latest", conn)
     {:ok, _name} = Api.tag_image("alpine", "local_alpine2", "latest", conn)
 
-    config = %Container{
+    config = %Config{
       image: "local_alpine2:latest",
       pull_policy:
         PullPolicy.pull_condition(fn _config, _conn ->
@@ -67,7 +68,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     {:ok, _nil} = Api.pull_image("alpine:latest", conn)
     {:ok, _name} = Api.tag_image("alpine", "local_alpine3", "latest", conn)
 
-    config = %Container{
+    config = %Config{
       image: "local_alpine3:latest",
       pull_policy: PullPolicy.pull_if_missing()
     }
@@ -80,7 +81,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     {conn, _url, _host} = Connection.get_connection()
     _ = Api.delete_image("alpine:3.19", conn)
 
-    config = %Container{
+    config = %Config{
       image: "alpine:3.19",
       pull_policy: PullPolicy.pull_if_missing()
     }

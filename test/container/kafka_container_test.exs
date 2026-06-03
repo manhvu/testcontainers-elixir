@@ -130,6 +130,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
   end
 
   describe "kafka container" do
+    @tag :needs_dock
     container(:kafka, KafkaContainer.new())
 
     @tag :dood_limitation
@@ -152,6 +153,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
   end
 
   describe "kafka container with automatic topic creation" do
+    @tag :needs_dock
     container(:kafka, KafkaContainer.new() |> KafkaContainer.with_topics(["auto_topic"]))
 
     @tag :dood_limitation
@@ -179,6 +181,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
   end
 
   describe "helper functions" do
+    @tag :needs_dock
     container(:kafka, KafkaContainer.new())
 
     test "bootstrap_servers returns the correct connection string", %{kafka: kafka} do

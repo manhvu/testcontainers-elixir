@@ -1,9 +1,9 @@
-defmodule TestcontainerExElixir.MixProject do
+defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
   @version "0.1.0"
-  @source_url "https://github.com/testcontainer_ex/testcontainer_ex-elixir"
+  @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
     [
@@ -11,7 +11,7 @@ defmodule TestcontainerExElixir.MixProject do
       name: "#{@app}",
       version: @version,
       description:
-        "TestcontainerEx is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases or anything else that can run in a Docker/Podman container.",
+        "TestcontainerEx supports ExUnit tests, providing lightweight, throwaway instances of common databases or anything else that can run in a Docker/Podman container. TestcontainerEx is reworked from Testcontaines lib.",
       elixir: "~> 1.18",
       source_url: @source_url,
       homepage_url: @source_url,

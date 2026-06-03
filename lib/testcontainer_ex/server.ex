@@ -1,0 +1,268 @@
+defmodule TestcontainerEx.Server do
+  @moduledoc """
+  GenServer that manages the TestcontainerEx lifecycle.
+
+  State holds the connection, session metadata, and tracked resources
+  (containers, networks, compose environments) for cleanup on termination.
+  """
+
+  use GenServer
+
+  require Logger
+
+  alias TestcontainerEx.{
+    Connection,
+    Container.Config,
+    Container.Lifecycle,
+    Docker.Engine,
+    Network,
+    Ryuk,
+    Util.PropertiesParser
+  }
+
+  # ── Public API ────────────────────────────────────────────────────
+
+  def start_link(options \\ []) do
+    GenServer.start_link(__MODULE__, options, name: Keyword.get(options, :name, __MODULE__))
+  end
+
+  def start(options \\ []) do
+    GenServer.start(__MODULE__, options, name: Keyword.get(options, :name, __MODULE__))
+  end
+
+  # ── GenServer Callbacks ───────────────────────────────────────────
+
+  @impl true
+  def init(options) do
+    Process.flag(:trap_exit, true)
+    setup(options)
+  end
+
+  @impl true
+  def handle_call({:start_container, builder}, from, state) do
+    Task.start_link(fn ->
+      result = Lifecycle.start_container(builder, state.conn, state)
+      GenServer.reply(from, result)
+    end)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_call({:stop_container, container_id}, _from, state) do
+    result = Lifecycle.stop_container(container_id, state.conn)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call(:get_host, _from, state) do
+    {:reply, state.docker_hostname, state}
+  end
+
+  @impl true
+  def handle_call(:get_connection_mode, _from, state) do
+    {:reply, if(state.use_container_ip, do: :container_ip, else: :standard), state}
+  end
+
+  @impl true
+  def handle_call({:create_network, network_name}, _from, state) do
+    result = Network.create(network_name, state.conn)
+    {:reply, result, track_network(state, network_name)}
+  end
+
+  @impl true
+  def handle_call({:remove_network, network_name}, _from, state) do
+    result = Network.remove(network_name, state.conn)
+    {:reply, result, untrack_network(state, network_name)}
+  end
+
+  @impl true
+  def handle_call({:start_compose, compose}, _from, state) do
+    Task.start_link(fn ->
+      TestcontainerEx.Compose.Cli.up(compose)
+    end)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_call({:stop_compose, compose_env}, _from, state) do
+    result = TestcontainerEx.Compose.Cli.down(compose_env.compose)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_cast({:track_container, container_id, image}, state) do
+    {:noreply,
+     %{
+       state
+       | containers: MapSet.put(state.containers, container_id),
+         images: MapSet.put(state.images, image)
+     }}
+  end
+
+  @impl true
+  def handle_cast({:track_image, image}, state) do
+    {:noreply, %{state | images: MapSet.put(state.images, image)}}
+  end
+
+  @impl true
+  def handle_cast({:track_compose_env, compose_env}, state) do
+    {:noreply, %{state | compose_envs: [compose_env | state.compose_envs]}}
+  end
+
+  @impl true
+  def handle_cast({:untrack_compose_env, compose_env}, state) do
+    {:noreply, %{state | compose_envs: List.delete(state.compose_envs, compose_env)}}
+  end
+
+  @impl true
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  @impl true
+  def terminate(_reason, state) do
+    Enum.each(state.containers, &Lifecycle.stop_container(&1, state.conn))
+    Enum.each(state.compose_envs, &TestcontainerEx.Compose.Cli.down(&1.compose))
+    Enum.each(state.networks, &Network.remove(&1, state.conn))
+    :ok
+  end
+
+  # ── Private ───────────────────────────────────────────────────────
+
+  defp setup(options) do
+    {conn, docker_host_url, docker_host} = Connection.get_connection(options)
+    {:ok, properties} = PropertiesParser.read_property_sources()
+
+    session_id =
+      :crypto.hash(:sha, "#{inspect(self())}#{DateTime.utc_now() |> DateTime.to_string()}")
+      |> Base.encode16()
+
+    with {:ok, docker_hostname} <- resolve_docker_hostname(docker_host_url, conn, properties),
+         use_container_ip <- should_use_container_ip?(docker_hostname),
+         {:ok} <- Ryuk.start(conn, session_id, properties, docker_host, docker_hostname) do
+      engine = Engine.detect()
+
+      if use_container_ip do
+        Logger.info(
+          "TestcontainerEx initialized with #{engine} in container networking mode (using container IPs directly)"
+        )
+      else
+        Logger.info("TestcontainerEx initialized with #{engine}")
+      end
+
+      {:ok,
+       %{
+         conn: conn,
+         docker_hostname: docker_hostname,
+         use_container_ip: use_container_ip,
+         session_id: session_id,
+         properties: properties,
+         networks: MapSet.new(),
+         containers: MapSet.new(),
+         images: MapSet.new(),
+         compose_envs: []
+       }}
+    else
+      error ->
+        {:stop, error}
+    end
+  end
+
+  defp resolve_docker_hostname(docker_host_url, conn, properties) do
+    host_override =
+      Map.get(properties, "tc.host.override") ||
+        System.get_env("TESTCONTAINERS_HOST_OVERRIDE")
+
+    if host_override do
+      {:ok, host_override}
+    else
+      do_resolve_hostname(docker_host_url, conn)
+    end
+  end
+
+  defp do_resolve_hostname(docker_host_url, conn) do
+    case URI.parse(docker_host_url) do
+      %URI{scheme: "http"} -> {:ok, URI.parse(docker_host_url).host}
+      %URI{scheme: "https"} -> {:ok, URI.parse(docker_host_url).host}
+      %URI{scheme: "http+unix"} -> resolve_unix_hostname(conn)
+    end
+  end
+
+  defp resolve_unix_hostname(conn) do
+    if Config.running_in_container?() do
+      case Network.bridge_gateway(conn) do
+        {:ok, gateway} -> {:ok, gateway}
+        {:error, _} -> resolve_from_proc_route()
+      end
+    else
+      {:ok, "localhost"}
+    end
+  end
+
+  defp resolve_from_proc_route do
+    case File.read("/proc/net/route") do
+      {:ok, content} ->
+        case parse_gateway(content) do
+          {:ok, gateway} -> {:ok, gateway}
+          {:error, _} -> {:ok, "localhost"}
+        end
+
+      {:error, _} ->
+        {:ok, "localhost"}
+    end
+  end
+
+  defp parse_gateway(content) do
+    content
+    |> String.split("\n")
+    |> Enum.drop(1)
+    |> Enum.map(&String.split(&1, "\t"))
+    |> Enum.find(fn
+      [_iface, dest | _] -> dest == "00000000"
+      _ -> false
+    end)
+    |> case do
+      [_iface, _dest, hex | _] ->
+        decode_hex_gateway(hex)
+
+      _ ->
+        {:error, :no_default_route}
+    end
+  end
+
+  defp decode_hex_gateway(hex) when byte_size(hex) == 8 do
+    {value, ""} = Integer.parse(hex, 16)
+    a = Bitwise.band(value, 0xFF)
+    b = Bitwise.band(Bitwise.bsr(value, 8), 0xFF)
+    c = Bitwise.band(Bitwise.bsr(value, 16), 0xFF)
+    d = Bitwise.band(Bitwise.bsr(value, 24), 0xFF)
+    {:ok, "#{a}.#{b}.#{c}.#{d}"}
+  end
+
+  defp decode_hex_gateway(_), do: {:error, :invalid_gateway}
+
+  defp should_use_container_ip?(docker_hostname) do
+    if Config.running_in_container?() and docker_hostname != "localhost" do
+      case :gen_tcp.connect(~c"#{docker_hostname}", 0, [], 2000) do
+        {:ok, socket} ->
+          :gen_tcp.close(socket)
+          false
+
+        {:error, :econnrefused} ->
+          false
+
+        {:error, reason} ->
+          Logger.info(
+            "Bridge gateway #{docker_hostname} unreachable (#{inspect(reason)}). Switching to container networking mode"
+          )
+
+          true
+      end
+    else
+      false
+    end
+  end
+
+  defp track_network(state, name), do: %{state | networks: MapSet.put(state.networks, name)}
+  defp untrack_network(state, name), do: %{state | networks: MapSet.delete(state.networks, name)}
+end

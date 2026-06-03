@@ -31,7 +31,8 @@ defmodule TestcontainerEx.KafkaContainer do
   If you need to use a specific port, you can set it with `with_kafka_port/2`.
   """
 
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.Docker
   alias TestcontainerEx.KafkaContainer
   alias TestcontainerEx.LogWaitStrategy
@@ -157,7 +158,7 @@ defmodule TestcontainerEx.KafkaContainer do
   @doc """
   Returns the bootstrap servers string for connecting to the Kafka container.
   """
-  def bootstrap_servers(%Container{} = container) do
+  def bootstrap_servers(%Config{} = container) do
     port = TestcontainerEx.get_port(container, @default_internal_kafka_port)
     "#{TestcontainerEx.get_host(container)}:#{port}"
   end
@@ -165,22 +166,20 @@ defmodule TestcontainerEx.KafkaContainer do
   @doc """
   Returns the port on the host machine where the Kafka container is listening.
   """
-  def port(%Container{} = container),
+  def port(%Config{} = container),
     do: TestcontainerEx.get_port(container, @default_internal_kafka_port)
 
-  defimpl TestcontainerEx.ContainerBuilder do
-    import Container
-
+  defimpl Builder do
     @impl true
-    @spec build(KafkaContainer.t()) :: Container.t()
+    @spec build(KafkaContainer.t()) :: Config.t()
     def build(%KafkaContainer{} = config) do
       host = TestcontainerEx.get_host()
 
-      new(config.image)
-      |> with_fixed_port(config.internal_kafka_port, config.kafka_port)
+      Config.new(config.image)
+      |> Config.with_fixed_port(config.internal_kafka_port, config.kafka_port)
       |> with_kraft_config(config, host)
-      |> with_reuse(config.reuse)
-      |> with_waiting_strategy(
+      |> Config.with_reuse(config.reuse)
+      |> Config.with_waiting_strategy(
         LogWaitStrategy.new(
           ~r/Kafka Server started/,
           config.wait_timeout,
@@ -205,30 +204,30 @@ defmodule TestcontainerEx.KafkaContainer do
     # KRaft mode environment configuration
     defp with_kraft_config(container, config, host) do
       container
-      |> with_environment(:KAFKA_NODE_ID, "#{config.node_id}")
-      |> with_environment(:KAFKA_PROCESS_ROLES, "broker,controller")
-      |> with_environment(:KAFKA_CONTROLLER_LISTENER_NAMES, "CONTROLLER")
-      |> with_environment(:KAFKA_INTER_BROKER_LISTENER_NAME, "PLAINTEXT")
-      |> with_environment(
+      |> Config.with_environment(:KAFKA_NODE_ID, "#{config.node_id}")
+      |> Config.with_environment(:KAFKA_PROCESS_ROLES, "broker,controller")
+      |> Config.with_environment(:KAFKA_CONTROLLER_LISTENER_NAMES, "CONTROLLER")
+      |> Config.with_environment(:KAFKA_INTER_BROKER_LISTENER_NAME, "PLAINTEXT")
+      |> Config.with_environment(
         :KAFKA_LISTENERS,
         "PLAINTEXT://:#{config.internal_kafka_port},CONTROLLER://:#{config.controller_port}"
       )
-      |> with_environment(
+      |> Config.with_environment(
         :KAFKA_LISTENER_SECURITY_PROTOCOL_MAP,
         "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
       )
-      |> with_environment(
+      |> Config.with_environment(
         :KAFKA_CONTROLLER_QUORUM_VOTERS,
         "#{config.node_id}@localhost:#{config.controller_port}"
       )
-      |> with_environment(
+      |> Config.with_environment(
         :KAFKA_ADVERTISED_LISTENERS,
         "PLAINTEXT://#{host}:#{config.kafka_port}"
       )
-      |> with_environment(:KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, "1")
-      |> with_environment(:KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, "1")
-      |> with_environment(:KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, "1")
-      |> with_environment(:KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, "0")
+      |> Config.with_environment(:KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, "1")
+      |> Config.with_environment(:KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, "1")
+      |> Config.with_environment(:KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, "1")
+      |> Config.with_environment(:KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, "0")
     end
 
     defp create_topic(container_id, conn, topic, kafka_port) do

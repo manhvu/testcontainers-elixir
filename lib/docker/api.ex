@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: MIT
 defmodule TestcontainerEx.Docker.Api do
   @moduledoc """
-  Internal docker api. Only for direct use by `TestcontainerEx`
+  Internal Docker API client. All functions require a Tesla connection.
   """
 
   alias DockerEngineAPI.Api
   alias DockerEngineAPI.Model.ExecConfig
   alias DockerEngineAPI.Model.HostConfig
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Config
 
-  def get_container(container_id, conn)
-      when is_binary(container_id) do
+  # ── Container operations ──────────────────────────────────────────
+
+  def get_container(container_id, conn) when is_binary(container_id) do
     case Api.Container.container_inspect(conn, container_id) do
       {:error, %Tesla.Env{status: other}} ->
         {:error, {:http_error, other}}
@@ -24,13 +25,12 @@ defmodule TestcontainerEx.Docker.Api do
   end
 
   def get_container_by_hash(hash, conn) do
-    filters_json =
-      %{
-        "label" => ["#{TestcontainerEx.Constants.container_reuse_hash_label()}=#{hash}"]
-      }
-      |> Jason.encode!()
+    filters =
+      Jason.encode!(%{
+        "label" => ["#{TestcontainerEx.Util.Constants.container_reuse_hash_label()}=#{hash}"]
+      })
 
-    case Api.Container.container_list(conn, filters: filters_json) do
+    case Api.Container.container_list(conn, filters: filters) do
       {:ok, %DockerEngineAPI.Model.ErrorResponse{} = error} ->
         {:error, {:failed_to_get_container, error}}
 
@@ -45,49 +45,7 @@ defmodule TestcontainerEx.Docker.Api do
     end
   end
 
-  def pull_image(image, conn, opts \\ []) when is_binary(image) do
-    auth = Keyword.get(opts, :auth, nil)
-    headers = if auth, do: ["X-Registry-Auth": auth], else: []
-
-    case Api.Image.image_create(
-           conn,
-           Keyword.merge([fromImage: image], headers)
-         ) do
-      {:ok, %Tesla.Env{status: 200}} ->
-        {:ok, nil}
-
-      {:error, %Tesla.Env{status: other}} ->
-        {:error, {:http_error, other}}
-
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{} = error} ->
-        {:error, {:failed_to_pull_image, error}}
-    end
-  end
-
-  def image_exists?(image, conn) when is_binary(image) do
-    case Api.Image.image_inspect(conn, image) do
-      {:ok, %DockerEngineAPI.Model.ImageInspect{}} ->
-        {:ok, true}
-
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{}} ->
-        {:ok, false}
-
-      {:error, %Tesla.Env{status: 404}} ->
-        {:ok, false}
-
-      {:error, %Tesla.Env{status: other}} ->
-        {:error, {:http_error, other}}
-    end
-  end
-
-  def delete_image(image, conn) when is_binary(image) do
-    case Api.Image.image_delete(conn, image, force: true) do
-      {:ok, _} -> :ok
-      {:error, _} = error -> error
-    end
-  end
-
-  def create_container(%Container{} = container, conn) do
+  def create_container(%Config{} = container, conn) do
     opts = if container.name, do: [name: container.name], else: []
 
     case Api.Container.container_create(conn, container_create_request(container), opts) do
@@ -116,86 +74,98 @@ defmodule TestcontainerEx.Docker.Api do
   end
 
   def stop_container(container_id, conn) when is_binary(container_id) do
-    with {:ok, _} <-
-           Api.Container.container_kill(conn, container_id),
-         {:ok, _} <-
-           Api.Container.container_delete(conn, container_id) do
+    with {:ok, _} <- Api.Container.container_kill(conn, container_id),
+         {:ok, _} <- Api.Container.container_delete(conn, container_id) do
       :ok
     end
   end
 
-  def put_file(container_id, connection, path, file_name, file_contents) do
-    with {:ok, tar_file_contents} <- create_tar_stream(file_name, file_contents),
-         {:ok, %Tesla.Env{}} <-
-           Api.Container.put_container_archive(connection, container_id, path, tar_file_contents) do
+  def put_file(container_id, conn, path, file_name, file_contents) do
+    with {:ok, tar} <- create_tar(file_name, file_contents),
+         {:ok, %Tesla.Env{}} <- Api.Container.put_container_archive(conn, container_id, path, tar) do
       :ok
     end
   end
 
-  # Helper function to create a tar stream from a file
-  defp create_tar_stream(file_name, file_contents) do
-    tar_file = System.tmp_dir!() |> Path.join("#{Uniq.UUID.uuid4()}-#{file_name}.tar")
+  # ── Image operations ──────────────────────────────────────────────
 
-    :ok =
-      :erl_tar.create(
-        tar_file,
-        # file_name must be charlist ref https://til.kaiwern.com/tags/88
-        [{file_name |> String.to_charlist(), file_contents}],
-        [:compressed]
-      )
+  def pull_image(image, conn, opts \\ []) when is_binary(image) do
+    auth = Keyword.get(opts, :auth, nil)
+    headers = if auth, do: ["X-Registry-Auth": auth], else: []
 
-    with {:ok, tar_file_contents} <- File.read(tar_file),
-         :ok <- File.rm(tar_file) do
-      {:ok, tar_file_contents}
+    case Api.Image.image_create(conn, Keyword.merge([fromImage: image], headers)) do
+      {:ok, %Tesla.Env{status: 200}} ->
+        {:ok, nil}
+
+      {:error, %Tesla.Env{status: other}} ->
+        {:error, {:http_error, other}}
+
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{} = error} ->
+        {:error, {:failed_to_pull_image, error}}
     end
   end
+
+  def image_exists?(image, conn) when is_binary(image) do
+    case Api.Image.image_inspect(conn, image) do
+      {:ok, %DockerEngineAPI.Model.ImageInspect{}} -> {:ok, true}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{}} -> {:ok, false}
+      {:error, %Tesla.Env{status: 404}} -> {:ok, false}
+      {:error, %Tesla.Env{status: other}} -> {:error, {:http_error, other}}
+    end
+  end
+
+  def delete_image(image, conn) when is_binary(image) do
+    case Api.Image.image_delete(conn, image, force: true) do
+      {:ok, _} -> :ok
+      {:error, _} = error -> error
+    end
+  end
+
+  def tag_image(image, repo, tag, conn) do
+    case Api.Image.image_tag(conn, image, repo: repo, tag: tag) do
+      {:ok, %Tesla.Env{status: 201}} -> {:ok, "#{repo}:#{tag}"}
+      {:ok, %Tesla.Env{status: status}} -> {:error, {:http_error, status}}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} -> {:error, msg}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # ── Exec operations ───────────────────────────────────────────────
 
   def inspect_exec(exec_id, conn) do
     case Api.Exec.exec_inspect(conn, exec_id) do
       {:ok, %DockerEngineAPI.Model.ExecInspectResponse{} = body} ->
-        {:ok, parse_inspect_result(body)}
+        {:ok, %{running: body."Running", exit_code: body."ExitCode"}}
 
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, message}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} ->
+        {:error, msg}
 
-      {:error, message} ->
-        {:error, message}
+      {:error, msg} ->
+        {:error, msg}
     end
   end
 
   def start_exec(container_id, command, conn) do
     with {:ok, exec_id} <- create_exec(container_id, command, conn),
-         :ok <- start_exec(exec_id, conn) do
+         :ok <- do_start_exec(exec_id, conn) do
       {:ok, exec_id}
     end
   end
 
   def stdout_logs(container_id, conn) do
-    case Api.Container.container_logs(
-           conn,
-           container_id,
-           stdout: true,
-           stderr: true
-         ) do
-      {:ok, %Tesla.Env{body: body}} ->
-        {:ok, body}
-
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, message}
-
-      {:error, error} ->
-        {:error, :unknown, error}
+    case Api.Container.container_logs(conn, container_id, stdout: true, stderr: true) do
+      {:ok, %Tesla.Env{body: body}} -> {:ok, body}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} -> {:error, msg}
+      {:error, error} -> {:error, :unknown, error}
     end
   end
+
+  # ── Network operations ────────────────────────────────────────────
 
   def get_bridge_gateway(conn) do
     case Api.Network.network_inspect(conn, "bridge") do
       {:ok, %DockerEngineAPI.Model.Network{IPAM: %DockerEngineAPI.Model.Ipam{Config: config}}} ->
-        with_gateway =
-          config
-          |> Enum.filter(fn cfg -> Map.get(cfg, :Gateway, nil) != nil end)
-
-        case with_gateway do
+        case Enum.filter(config, &Map.get(&1, :Gateway)) do
           [] -> {:error, :no_gateway}
           [first | _] -> {:ok, Map.get(first, :Gateway)}
         end
@@ -205,28 +175,20 @@ defmodule TestcontainerEx.Docker.Api do
     end
   end
 
-  @doc """
-  Creates a Docker network.
-  """
-  # Suppress Dialyzer warnings - runtime behavior may differ from generated specs
-  @dialyzer {:nowarn_function, create_network: 3}
   def create_network(name, conn, opts \\ []) when is_binary(name) do
-    driver = Keyword.get(opts, :driver, "bridge")
-    labels = Keyword.get(opts, :labels, %{})
-
     body = %DockerEngineAPI.Model.NetworkCreateRequest{
       Name: name,
-      Driver: driver,
+      Driver: Keyword.get(opts, :driver, "bridge"),
       CheckDuplicate: true,
-      Labels: labels
+      Labels: Keyword.get(opts, :labels, %{})
     }
 
     case Api.Network.network_create(conn, body) do
       {:ok, %DockerEngineAPI.Model.NetworkCreateResponse{Id: id}} ->
         {:ok, id}
 
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, {:failed_to_create_network, message}}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} ->
+        {:error, {:failed_to_create_network, msg}}
 
       {_, %Tesla.Env{status: 409}} ->
         {:ok, :already_exists}
@@ -236,11 +198,6 @@ defmodule TestcontainerEx.Docker.Api do
     end
   end
 
-  @doc """
-  Removes a Docker network.
-  """
-  # Suppress Dialyzer warnings - runtime behavior may differ from generated specs
-  @dialyzer {:nowarn_function, remove_network: 2}
   def remove_network(name, conn) when is_binary(name) do
     case Api.Network.network_delete(conn, name) do
       {:ok, nil} ->
@@ -252,17 +209,14 @@ defmodule TestcontainerEx.Docker.Api do
       {_, %Tesla.Env{status: 404}} ->
         {:error, :network_not_found}
 
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, {:failed_to_remove_network, message}}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} ->
+        {:error, {:failed_to_remove_network, msg}}
 
       {_, %Tesla.Env{status: status}} ->
         {:error, {:http_error, status}}
     end
   end
 
-  @doc """
-  Checks if a network exists.
-  """
   def network_exists?(name, conn) when is_binary(name) do
     case Api.Network.network_inspect(conn, name) do
       {:ok, %DockerEngineAPI.Model.Network{}} -> true
@@ -270,191 +224,146 @@ defmodule TestcontainerEx.Docker.Api do
     end
   end
 
-  def tag_image(image, repo, tag, conn) do
-    case Api.Image.image_tag(conn, image, repo: repo, tag: tag) do
-      {:ok, %Tesla.Env{status: 201}} ->
-        {:ok, "#{repo}:#{tag}"}
-
-      {:ok, %Tesla.Env{status: status}} ->
-        {:error, {:http_error, status}}
-
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, message}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp parse_inspect_result(%DockerEngineAPI.Model.ExecInspectResponse{} = json) do
-    %{running: json."Running", exit_code: json."ExitCode"}
-  end
-
-  defp container_create_request(%Container{} = container_config) do
-    base_request = %DockerEngineAPI.Model.ContainerCreateRequest{
-      Image: container_config.image,
-      Cmd: container_config.cmd,
-      ExposedPorts: map_exposed_ports(container_config),
-      Env: map_env(container_config),
-      Labels: container_config.labels,
-      Hostname: container_config.hostname,
-      HostConfig: %HostConfig{
-        AutoRemove: container_config.auto_remove,
-        PortBindings: map_port_bindings(container_config),
-        Privileged: container_config.privileged,
-        Binds: map_binds(container_config),
-        Mounts: map_volumes(container_config),
-        NetworkMode: container_config.network_mode || container_config.network
-      }
-    }
-
-    # Add NetworkingConfig if a network is specified
-    if container_config.network do
-      endpoint_config = %{
-        container_config.network => %DockerEngineAPI.Model.EndpointSettings{}
-      }
-
-      Map.put(base_request, :NetworkingConfig, %DockerEngineAPI.Model.NetworkingConfig{
-        EndpointsConfig: endpoint_config
-      })
-    else
-      base_request
-    end
-  end
-
-  defp map_exposed_ports(%Container{} = container_config) do
-    container_config.exposed_ports
-    |> Enum.map(fn
-      {container_port, _host_port} -> {container_port, %{}}
-    end)
-    |> Enum.into(%{})
-  end
-
-  defp map_env(%Container{} = container_config) do
-    container_config.environment
-    |> Enum.map(fn {key, value} -> "#{key}=#{value}" end)
-  end
-
-  defp map_port_bindings(%Container{} = container_config) do
-    container_config.exposed_ports
-    |> Enum.map(fn
-      {container_port, host_port} when is_nil(host_port) ->
-        {container_port, [%{"HostIp" => "0.0.0.0", "HostPort" => ""}]}
-
-      {container_port, host_port} ->
-        {container_port, [%{"HostIp" => "0.0.0.0", "HostPort" => to_string(host_port)}]}
-    end)
-    |> Enum.into(%{})
-  end
-
-  defp map_binds(%Container{} = container_config) do
-    container_config.bind_mounts
-    |> Enum.map(fn volume_binding ->
-      "#{volume_binding.host_src}:#{volume_binding.container_dest}:#{volume_binding.options}"
-    end)
-  end
-
-  defp map_volumes(%Container{} = container_config) do
-    container_config.bind_volumes
-    |> Enum.map(fn volume_to_dest ->
-      %{
-        Target: volume_to_dest.container_dest,
-        Source: volume_to_dest.volume,
-        Type: "volume",
-        ReadOnly: volume_to_dest.read_only
-      }
-    end)
-  end
+  # ── Response mapping ──────────────────────────────────────────────
 
   defp from(%DockerEngineAPI.Model.ContainerInspectResponse{
-         Id: container_id,
+         Id: id,
          Image: image,
-         NetworkSettings: %{IPAddress: ip_address, Ports: ports, Networks: networks},
+         NetworkSettings: %{IPAddress: ip, Ports: ports, Networks: networks},
          Config: %{Env: env, Labels: labels}
        }) do
-    # For custom networks, the IP address is in Networks.<network_name>.IPAddress
-    # The default bridge IPAddress will be empty for custom networks
-    resolved_ip = resolve_ip_address(ip_address, networks)
-
-    make_container(container_id, image, labels, resolved_ip, ports, env)
-  end
-
-  # Also handle when Networks key is missing
-  defp from(%DockerEngineAPI.Model.ContainerInspectResponse{
-         Id: container_id,
-         Image: image,
-         NetworkSettings: %{IPAddress: ip_address, Ports: ports},
-         Config: %{Env: env, Labels: labels}
-       }) do
-    make_container(container_id, image, labels, ip_address, ports, env)
-  end
-
-  defp make_container(container_id, image, labels, ip_address, ports, env) do
-    %Container{
-      container_id: container_id,
+    %Config{
+      container_id: id,
       image: image,
       labels: labels,
-      ip_address: ip_address,
-      exposed_ports:
-        Enum.reduce(ports || [], [], fn {key, ports}, acc ->
-          acc ++
-            Enum.map(ports || [], fn %{"HostPort" => host_port} ->
-              {key |> String.replace("/tcp", "") |> String.to_integer(),
-               host_port |> String.to_integer()}
-            end)
-        end),
-      environment:
-        Enum.reduce(env || [], %{}, fn env, acc ->
-          tokens = String.split(env, "=")
-          Map.merge(acc, %{"#{List.first(tokens)}": List.last(tokens)})
-        end)
+      ip_address: resolve_ip(ip, networks),
+      exposed_ports: map_ports(ports),
+      environment: map_env(env)
     }
   end
 
-  # Resolve IP address, preferring custom network IPs if default is empty
-  defp resolve_ip_address(nil, networks), do: get_ip_from_networks(networks)
-  defp resolve_ip_address("", networks), do: get_ip_from_networks(networks)
-  defp resolve_ip_address(ip, _networks) when is_binary(ip) and ip != "", do: ip
+  defp from(%DockerEngineAPI.Model.ContainerInspectResponse{
+         Id: id,
+         Image: image,
+         NetworkSettings: %{IPAddress: ip, Ports: ports},
+         Config: %{Env: env, Labels: labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      labels: labels,
+      ip_address: ip,
+      exposed_ports: map_ports(ports),
+      environment: map_env(env)
+    }
+  end
+
+  # ── Private helpers ───────────────────────────────────────────────
+
+  defp container_create_request(%Config{} = cfg) do
+    base = %DockerEngineAPI.Model.ContainerCreateRequest{
+      Image: cfg.image,
+      Cmd: cfg.cmd,
+      ExposedPorts: map_exposed_ports(cfg),
+      Env: map_env(cfg.environment),
+      Labels: cfg.labels,
+      Hostname: cfg.hostname,
+      HostConfig: %HostConfig{
+        AutoRemove: cfg.auto_remove,
+        PortBindings: map_port_bindings(cfg),
+        Privileged: cfg.privileged,
+        Binds: map_binds(cfg),
+        Mounts: map_volumes(cfg),
+        NetworkMode: cfg.network_mode || cfg.network
+      }
+    }
+
+    if cfg.network do
+      endpoint = %{cfg.network => %DockerEngineAPI.Model.EndpointSettings{}}
+
+      Map.put(base, :NetworkingConfig, %DockerEngineAPI.Model.NetworkingConfig{
+        EndpointsConfig: endpoint
+      })
+    else
+      base
+    end
+  end
+
+  defp map_exposed_ports(%Config{exposed_ports: ports}) do
+    Enum.map(ports, fn {port, _} -> {port, %{}} end) |> Enum.into(%{})
+  end
+
+  defp map_env(nil), do: []
+  defp map_env(env), do: Enum.map(env, fn {k, v} -> "#{k}=#{v}" end)
+
+  defp map_port_bindings(%Config{exposed_ports: ports}) do
+    Enum.map(ports, fn
+      {port, nil} -> {port, [%{"HostIp" => "0.0.0.0", "HostPort" => ""}]}
+      {port, host} -> {port, [%{"HostIp" => "0.0.0.0", "HostPort" => to_string(host)}]}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp map_binds(%Config{bind_mounts: mounts}) do
+    Enum.map(mounts, &"#{&1.host_src}:#{&1.container_dest}:#{&1.options}")
+  end
+
+  defp map_volumes(%Config{bind_volumes: volumes}) do
+    Enum.map(
+      volumes,
+      &%{Target: &1.container_dest, Source: &1.volume, Type: "volume", ReadOnly: &1.read_only}
+    )
+  end
+
+  defp map_ports(nil), do: []
+
+  defp map_ports(ports) do
+    Enum.reduce(ports, [], fn {key, mappings}, acc ->
+      acc ++
+        Enum.map(mappings || [], fn %{"HostPort" => hp} ->
+          {String.replace(key, "/tcp", "") |> String.to_integer(), String.to_integer(hp)}
+        end)
+    end)
+  end
+
+  defp resolve_ip(nil, networks), do: get_ip_from_networks(networks)
+  defp resolve_ip("", networks), do: get_ip_from_networks(networks)
+  defp resolve_ip(ip, _) when is_binary(ip) and ip != "", do: ip
 
   defp get_ip_from_networks(nil), do: nil
 
   defp get_ip_from_networks(networks) when is_map(networks) do
-    # Get the first non-empty IP from any network
-    networks
-    |> Enum.find_value(fn
+    Enum.find_value(networks, fn
       {_name, %{IPAddress: ip}} when is_binary(ip) and ip != "" -> ip
       _ -> nil
     end)
   end
 
-  defp create_exec(container_id, command, conn) do
-    data = %ExecConfig{Cmd: command}
+  defp create_tar(file_name, contents) do
+    tar_path = Path.join(System.tmp_dir!(), "#{Uniq.UUID.uuid4()}-#{file_name}.tar")
 
-    case Api.Exec.container_exec(conn, container_id, data) do
-      {:ok, %DockerEngineAPI.Model.IdResponse{Id: id}} ->
-        {:ok, id}
+    :ok = :erl_tar.create(tar_path, [{String.to_charlist(file_name), contents}], [:compressed])
 
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, message}
-
-      {:error, message} ->
-        {:error, message}
+    with {:ok, data} <- File.read(tar_path),
+         :ok <- File.rm(tar_path) do
+      {:ok, data}
     end
   end
 
-  defp start_exec(exec_id, conn) do
+  defp create_exec(container_id, command, conn) do
+    case Api.Exec.container_exec(conn, container_id, %ExecConfig{Cmd: command}) do
+      {:ok, %DockerEngineAPI.Model.IdResponse{Id: id}} -> {:ok, id}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} -> {:error, msg}
+      {:error, msg} -> {:error, msg}
+    end
+  end
+
+  defp do_start_exec(exec_id, conn) do
     case Api.Exec.exec_start(conn, exec_id, body: %{:Detach => true}) do
-      {:ok, %Tesla.Env{status: 200}} ->
-        :ok
-
-      {:ok, %Tesla.Env{status: status}} ->
-        {:error, {:http_error, status}}
-
-      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: message}} ->
-        {:error, message}
-
-      {:error, message} ->
-        {:error, message}
+      {:ok, %Tesla.Env{status: 200}} -> :ok
+      {:ok, %Tesla.Env{status: s}} -> {:error, {:http_error, s}}
+      {:ok, %DockerEngineAPI.Model.ErrorResponse{message: msg}} -> {:error, msg}
+      {:error, msg} -> {:error, msg}
     end
   end
 end

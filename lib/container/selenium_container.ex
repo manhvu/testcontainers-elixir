@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: MIT
 defmodule TestcontainerEx.SeleniumContainer do
   @moduledoc """
-  Work in progress. Not stable for use yet. Not yet documented for this very reason.
-  Can use https://github.com/stuart/elixir-webdriver for client in tests
+  Work in progress. Not stable for use yet.
   """
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.PortWaitStrategy
   alias TestcontainerEx.SeleniumContainer
 
-  import TestcontainerEx.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
 
   @default_image "selenium/standalone-chrome"
   @default_tag "118.0"
@@ -22,14 +22,7 @@ defmodule TestcontainerEx.SeleniumContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :port1, :port2, :wait_timeout]
-  defstruct [
-    :image,
-    :port1,
-    :port2,
-    :wait_timeout,
-    check_image: @default_image,
-    reuse: false
-  ]
+  defstruct [:image, :port1, :port2, :wait_timeout, check_image: @default_image, reuse: false]
 
   def new,
     do: %__MODULE__{
@@ -39,47 +32,26 @@ defmodule TestcontainerEx.SeleniumContainer do
       port2: @default_port2
     }
 
-  def with_image(%__MODULE__{} = config, image) when is_binary(image) do
-    %{config | image: image}
-  end
+  def with_image(%__MODULE__{} = c, image) when is_binary(image), do: %{c | image: image}
+  def with_port1(%__MODULE__{} = c, p) when is_integer(p), do: %{c | port1: p}
+  def with_port2(%__MODULE__{} = c, p) when is_integer(p), do: %{c | port2: p}
+  def with_wait_timeout(%__MODULE__{} = c, t) when is_integer(t), do: %{c | wait_timeout: t}
 
-  def with_port1(%__MODULE__{} = config, port1) when is_integer(port1) do
-    %{config | port1: port1}
-  end
+  def with_check_image(%__MODULE__{} = c, ci) when is_valid_image(ci),
+    do: %__MODULE__{c | check_image: ci}
 
-  def with_port2(%__MODULE__{} = config, port2) when is_integer(port2) do
-    %{config | port2: port2}
-  end
-
-  def with_wait_timeout(%__MODULE__{} = config, wait_timeout) when is_integer(wait_timeout) do
-    %{config | wait_timeout: wait_timeout}
-  end
-
-  @doc """
-  Set the regular expression to check the image validity.
-  """
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
-  end
+  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
+    do: %__MODULE__{c | reuse: reuse}
 
   def default_image, do: @default_image
 
-  defimpl ContainerBuilder do
-    import Container
-
-    @spec build(SeleniumContainer.t()) :: Container.t()
+  defimpl Builder do
+    @spec build(SeleniumContainer.t()) :: Config.t()
     @impl true
     def build(%SeleniumContainer{} = config) do
-      new(config.image)
-      |> with_exposed_ports([config.port1, config.port2])
-      |> with_waiting_strategies([
+      Config.new(config.image)
+      |> Config.with_exposed_ports([config.port1, config.port2])
+      |> Config.with_waiting_strategies([
         LogWaitStrategy.new(
           ~r/.*(RemoteWebDriver instances should connect to|Selenium Server is up and running|Started Selenium Standalone).*\n/,
           config.wait_timeout,
@@ -88,9 +60,9 @@ defmodule TestcontainerEx.SeleniumContainer do
         PortWaitStrategy.new("127.0.0.1", config.port1, config.wait_timeout, 1000),
         PortWaitStrategy.new("127.0.0.1", config.port2, config.wait_timeout, 1000)
       ])
-      |> with_check_image(config.check_image)
-      |> with_reuse(config.reuse)
-      |> valid_image!()
+      |> Config.with_check_image(config.check_image)
+      |> Config.with_reuse(config.reuse)
+      |> Config.valid_image!()
     end
 
     @impl true

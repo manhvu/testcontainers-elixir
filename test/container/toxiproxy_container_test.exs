@@ -3,7 +3,8 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
   use ExUnit.Case, async: true
   import TestcontainerEx.ExUnit
 
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Config
+  alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.ToxiproxyContainer
 
   describe "new/0" do
@@ -105,12 +106,12 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       assert toxiproxy.container_id != nil
 
       # Verify control port is mapped
-      control_port = Container.mapped_port(toxiproxy, ToxiproxyContainer.control_port())
+      control_port = Config.mapped_port(toxiproxy, ToxiproxyContainer.control_port())
       assert is_integer(control_port)
       assert control_port > 0
 
       # Verify first proxy port is mapped
-      proxy_port = Container.mapped_port(toxiproxy, ToxiproxyContainer.first_proxy_port())
+      proxy_port = Config.mapped_port(toxiproxy, ToxiproxyContainer.first_proxy_port())
       assert is_integer(proxy_port)
       assert proxy_port > 0
     end
@@ -191,7 +192,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
     @tag :flaky
     test "creates proxy using container IP", %{toxiproxy: toxiproxy} do
       # Create a mock container struct with IP
-      mock_container = %Container{
+      mock_container = %Config{
         container_id: "mock_id",
         image: "mock:latest",
         ip_address: "172.17.0.5",
@@ -232,26 +233,26 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       {:ok, network_name: network_name}
     end
 
+    @tag :needs_dock
     @tag :dood_limitation
     test "can proxy and inject faults into Redis traffic", %{network_name: network_name} do
-      alias TestcontainerEx.ContainerBuilder
       alias TestcontainerEx.RedisContainer
 
       # Start Redis on the network
       redis_config =
         RedisContainer.new()
-        |> ContainerBuilder.build()
-        |> Container.with_network(network_name)
-        |> Container.with_hostname("redis")
+        |> Builder.build()
+        |> Config.with_network(network_name)
+        |> Config.with_hostname("redis")
 
       {:ok, redis} = TestcontainerEx.start_container(redis_config)
 
       # Start Toxiproxy on the same network
       toxiproxy_config =
         ToxiproxyContainer.new()
-        |> ContainerBuilder.build()
-        |> Container.with_network(network_name)
-        |> Container.with_hostname("toxiproxy")
+        |> Builder.build()
+        |> Config.with_network(network_name)
+        |> Config.with_hostname("toxiproxy")
 
       {:ok, toxiproxy} = TestcontainerEx.start_container(toxiproxy_config)
 

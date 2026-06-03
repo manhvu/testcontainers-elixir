@@ -6,10 +6,10 @@ defmodule TestcontainerEx.CassandraContainer do
 
   alias TestcontainerEx.CassandraContainer
   alias TestcontainerEx.CommandWaitStrategy
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
 
-  import TestcontainerEx.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
 
   @default_image "cassandra"
   @default_tag "3.11.2"
@@ -39,66 +39,49 @@ defmodule TestcontainerEx.CassandraContainer do
     %{config | image: image}
   end
 
-  @doc """
-  Set the regular expression to check the image validity.
-  """
   def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
     %__MODULE__{config | check_image: check_image}
   end
 
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
   def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
     %__MODULE__{config | reuse: reuse}
   end
 
   def default_image, do: @default_image
-
   def default_port, do: @default_port
-
   def get_username, do: @default_username
-
   def get_password, do: @default_password
 
-  @doc """
-  Retrieves the port mapped by the Docker host for the Cassandra container.
-  """
-  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
+  def port(%Config{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
-  @doc """
-  Generates the connection URL for accessing the Cassandra service running within the container.
-  """
-  def connection_uri(%Container{} = container) do
+  def connection_uri(%Config{} = container) do
     "#{TestcontainerEx.get_host(container)}:#{port(container)}"
   end
 
-  defimpl ContainerBuilder do
-    import Container
-
+  defimpl Builder do
     @impl true
-    @spec build(CassandraContainer.t()) :: Container.t()
+    @spec build(CassandraContainer.t()) :: Config.t()
     def build(%CassandraContainer{} = config) do
-      new(config.image)
-      |> with_exposed_port(CassandraContainer.default_port())
-      |> with_environment(:CASSANDRA_SNITCH, "GossipingPropertyFileSnitch")
-      |> with_environment(
+      Config.new(config.image)
+      |> Config.with_exposed_port(CassandraContainer.default_port())
+      |> Config.with_environment(:CASSANDRA_SNITCH, "GossipingPropertyFileSnitch")
+      |> Config.with_environment(
         :JVM_OPTS,
         "-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0"
       )
-      |> with_environment(:HEAP_NEWSIZE, "128M")
-      |> with_environment(:MAX_HEAP_SIZE, "1024M")
-      |> with_environment(:CASSANDRA_ENDPOINT_SNITCH, "GossipingPropertyFileSnitch")
-      |> with_environment(:CASSANDRA_DC, "datacenter1")
-      |> with_waiting_strategy(
+      |> Config.with_environment(:HEAP_NEWSIZE, "128M")
+      |> Config.with_environment(:MAX_HEAP_SIZE, "1024M")
+      |> Config.with_environment(:CASSANDRA_ENDPOINT_SNITCH, "GossipingPropertyFileSnitch")
+      |> Config.with_environment(:CASSANDRA_DC, "datacenter1")
+      |> Config.with_waiting_strategy(
         CommandWaitStrategy.new(
           ["cqlsh", "-e", "describe keyspaces"],
           config.wait_timeout
         )
       )
-      |> with_check_image(config.check_image)
-      |> with_reuse(config.reuse)
-      |> valid_image!()
+      |> Config.with_check_image(config.check_image)
+      |> Config.with_reuse(config.reuse)
+      |> Config.valid_image!()
     end
 
     @impl true

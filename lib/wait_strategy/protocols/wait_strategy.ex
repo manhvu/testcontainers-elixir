@@ -5,9 +5,9 @@ defprotocol TestcontainerEx.WaitStrategy do
   @moduledoc """
   Defines the protocol/interface for the wait strategies in `TestcontainerEx`
   """
-  alias TestcontainerEx.Container
+  alias TestcontainerEx.Container.Config
 
-  @spec wait_until_container_is_ready(t(), Container.t(), Tesla.Env.client()) ::
+  @spec wait_until_container_is_ready(t(), Config.t(), Tesla.Env.client()) ::
           :ok | {:error, atom()}
   def wait_until_container_is_ready(wait_strategy, container, conn)
 end

@@ -1,6 +1,7 @@
 defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
   use ExUnit.Case, async: false
 
+  @moduletag :needs_dock
   @moduletag :integration
 
   alias TestcontainerEx.Compose.ComposeEnvironment

@@ -1,6 +1,8 @@
 defmodule TestcontainerEx.NetworkTest do
   use ExUnit.Case, async: false
 
+  @moduletag :needs_dock
+
   alias TestcontainerEx.Container
   alias TestcontainerEx.ContainerBuilder
   alias TestcontainerEx.RedisContainer

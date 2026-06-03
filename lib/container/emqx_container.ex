@@ -3,12 +3,12 @@ defmodule TestcontainerEx.EmqxContainer do
   Provides functionality for creating and managing EMQX container configurations.
   """
 
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.EmqxContainer
   alias TestcontainerEx.PortWaitStrategy
 
-  import TestcontainerEx.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
 
   @default_image "emqx"
   @default_tag "5.6.0"
@@ -107,23 +107,18 @@ defmodule TestcontainerEx.EmqxContainer do
   @doc """
   Returns the port on the _host machine_ where the Emqx container is listening.
   """
-  def mqtt_port(%Container{} = container),
+  def mqtt_port(%Config{} = container),
     do: TestcontainerEx.get_port(container, @default_mqtt_port)
 
-  defimpl ContainerBuilder do
-    import Container
-
-    @doc """
-    Builds a new container instance based on the provided configuration.
-    """
+  defimpl Builder do
     @impl true
     def build(%EmqxContainer{} = config) do
-      new(config.image)
-      |> with_exposed_ports(exposed_ports(config))
-      |> with_waiting_strategies(waiting_strategies(config))
-      |> with_check_image(config.check_image)
-      |> with_reuse(config.reuse)
-      |> valid_image!()
+      Config.new(config.image)
+      |> Config.with_exposed_ports(exposed_ports(config))
+      |> Config.with_waiting_strategies(waiting_strategies(config))
+      |> Config.with_check_image(config.check_image)
+      |> Config.with_reuse(config.reuse)
+      |> Config.valid_image!()
     end
 
     defp exposed_ports(config),

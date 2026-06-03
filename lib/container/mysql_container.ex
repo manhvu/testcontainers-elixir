@@ -1,18 +1,16 @@
 # SPDX-License-Identifier: MIT
-# Original by: Marco Dallagiacoma @ 2023 in https://github.com/dallagi/excontainers
-# Modified by: Jarl André Hübenthal @ 2023
 defmodule TestcontainerEx.MySqlContainer do
   @behaviour TestcontainerEx.DatabaseBehaviour
   @moduledoc """
   Provides functionality for creating and managing MySQL container configurations.
   """
 
-  alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
+  alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.MySqlContainer
 
-  import TestcontainerEx.Container, only: [is_valid_image: 1]
+  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
 
   @default_image "mysql"
   @default_tag "8"
@@ -38,9 +36,6 @@ defmodule TestcontainerEx.MySqlContainer do
     reuse: false
   ]
 
-  @doc """
-  Creates a new `MySqlContainer` struct with default configurations.
-  """
   def new,
     do: %__MODULE__{
       image: @default_image_with_tag,
@@ -52,137 +47,32 @@ defmodule TestcontainerEx.MySqlContainer do
       persistent_volume: nil
     }
 
-  @doc """
-  Overrides the default image used for the MySQL container.
+  def with_image(%__MODULE__{} = c, image) when is_binary(image), do: %{c | image: image}
+  def with_user(%__MODULE__{} = c, user) when is_binary(user), do: %{c | user: user}
+  def with_password(%__MODULE__{} = c, pw) when is_binary(pw), do: %{c | password: pw}
+  def with_database(%__MODULE__{} = c, db) when is_binary(db), do: %{c | database: db}
 
-  ## Examples
+  def with_port(%__MODULE__{} = c, port) when is_integer(port) or is_tuple(port),
+    do: %{c | port: port}
 
-      iex> config = MySqlContainer.new()
-      iex> new_config = MySqlContainer.with_image(config, "mysql:4")
-      iex> new_config.image
-      "mysql:4"
-  """
-  def with_image(%__MODULE__{} = config, image) when is_binary(image) do
-    %{config | image: image}
-  end
+  def with_persistent_volume(%__MODULE__{} = c, vol) when is_binary(vol),
+    do: %{c | persistent_volume: vol}
 
-  @doc """
-  Overrides the default user used for the MySQL container.
+  def with_wait_timeout(%__MODULE__{} = c, t) when is_integer(t), do: %{c | wait_timeout: t}
 
-  ## Examples
+  def with_check_image(%__MODULE__{} = c, ci) when is_valid_image(ci),
+    do: %__MODULE__{c | check_image: ci}
 
-      iex> config = MySqlContainer.new()
-      iex> new_config = MySqlContainer.with_user(config, "another-user")
-      iex> new_config.user
-      "another-user"
-  """
-  def with_user(%__MODULE__{} = config, user) when is_binary(user) do
-    %{config | user: user}
-  end
+  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
+    do: %__MODULE__{c | reuse: reuse}
 
-  @doc """
-  Overrides the default password used for the MySQL container.
-
-  ## Examples
-
-      iex> config = MySqlContainer.new()
-      iex> new_config = MySqlContainer.with_password(config, "another-password")
-      iex> new_config.password
-      "another-password"
-  """
-  def with_password(%__MODULE__{} = config, password) when is_binary(password) do
-    %{config | password: password}
-  end
-
-  @doc """
-  Overrides the default database used for the MySQL container.
-
-  ## Examples
-
-      iex> config = MySqlContainer.new()
-      iex> new_config = MySqlContainer.with_database(config, "another-database")
-      iex> new_config.database
-      "another-database"
-  """
-  def with_database(%__MODULE__{} = config, database) when is_binary(database) do
-    %{config | database: database}
-  end
-
-  @doc """
-  Overrides the default port used for the MySQL container.
-
-  Note: this will not change what port the docker container is listening to internally.
-
-  ## Examples
-
-      iex> config = MySqlContainer.new()
-      iex> new_config = MySqlContainer.with_port(config, 3307)
-      iex> new_config.port
-      3307
-  """
-  def with_port(%__MODULE__{} = config, port) when is_integer(port) or is_tuple(port) do
-    %{config | port: port}
-  end
-
-  def with_persistent_volume(%__MODULE__{} = config, persistent_volume)
-      when is_binary(persistent_volume) do
-    %{config | persistent_volume: persistent_volume}
-  end
-
-  @doc """
-  Overrides the default wait timeout used for the MySQL container.
-
-  Note: this timeout will be used for each individual wait strategy.
-
-  ## Examples
-
-      iex> config = MySqlContainer.new()
-      iex> new_config = MySqlContainer.with_wait_timeout(config, 8000)
-      iex> new_config.wait_timeout
-      8000
-  """
-  def with_wait_timeout(%__MODULE__{} = config, wait_timeout) when is_integer(wait_timeout) do
-    %{config | wait_timeout: wait_timeout}
-  end
-
-  @doc """
-  Set the regular expression to check the image validity.
-  """
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
-  end
-
-  @doc """
-  Retrieves the default exposed port for the MySQL container.
-  """
   def default_port, do: @default_port
-
-  @doc """
-  Retrieves the default Docker image for the MySQL container.
-  """
   def default_image, do: @default_image
-
-  @doc """
-  Retrieves the default Docker image including tag for the MySQL container.
-  """
   def default_image_with_tag, do: @default_image <> ":" <> @default_tag
 
-  @doc """
-  Returns the port on the _host machine_ where the MySql container is listening.
-  """
-  def port(%Container{} = container), do: TestcontainerEx.get_port(container, @default_port)
+  def port(%Config{} = container), do: TestcontainerEx.get_port(container, @default_port)
 
-  @doc """
-  Returns the connection parameters to connect to the database from the _host machine_.
-  """
-  def connection_parameters(%Container{} = container) do
+  def connection_parameters(%Config{} = container) do
     [
       hostname: TestcontainerEx.get_host(container),
       port: port(container),
@@ -192,43 +82,23 @@ defmodule TestcontainerEx.MySqlContainer do
     ]
   end
 
-  defimpl ContainerBuilder do
-    import Container
-
-    @doc """
-    Implementation of the `ContainerBuilder` protocol specific to `MySqlContainer`.
-
-    This function builds a new container configuration, ensuring the MySQL image is compatible, setting environment variables, and applying a waiting strategy for the container to be ready.
-
-    The build process raises an `ArgumentError` if the specified container image is not compatible with the expected MySql image.
-
-    ## Examples
-
-        # Assuming `ContainerBuilder.build/2` is called from somewhere in the application with a `MySqlContainer` configuration:
-        iex> config = MySqlContainer.new()
-        iex> built_container = ContainerBuilder.build(config, [])
-        # `built_container` is now a ready-to-use `%Container{}` configured specifically for Mysql.
-
-    ## Errors
-
-    - Raises `ArgumentError` if the provided image is not compatible with the default MySql image.
-    """
-    @spec build(MySqlContainer.t()) :: Container.t()
+  defimpl Builder do
+    @spec build(MySqlContainer.t()) :: Config.t()
     @impl true
     def build(%MySqlContainer{} = config) do
-      new(config.image)
+      Config.new(config.image)
       |> then(MySqlContainer.container_port_fun(config.port))
-      |> with_environment(:MYSQL_USER, config.user)
-      |> with_environment(:MYSQL_PASSWORD, config.password)
-      |> with_environment(:MYSQL_DATABASE, config.database)
+      |> Config.with_environment(:MYSQL_USER, config.user)
+      |> Config.with_environment(:MYSQL_PASSWORD, config.password)
+      |> Config.with_environment(:MYSQL_DATABASE, config.database)
       |> then(MySqlContainer.container_volume_fun(config.persistent_volume))
-      |> with_environment(:MYSQL_RANDOM_ROOT_PASSWORD, "yes")
-      |> with_waiting_strategy(
+      |> Config.with_environment(:MYSQL_RANDOM_ROOT_PASSWORD, "yes")
+      |> Config.with_waiting_strategy(
         LogWaitStrategy.new(~r/.*port: 3306  MySQL Community Server.*/, config.wait_timeout)
       )
-      |> with_check_image(config.check_image)
-      |> with_reuse(config.reuse)
-      |> valid_image!()
+      |> Config.with_check_image(config.check_image)
+      |> Config.with_reuse(config.reuse)
+      |> Config.valid_image!()
     end
 
     @impl true
@@ -238,18 +108,14 @@ defmodule TestcontainerEx.MySqlContainer do
   @doc false
   def container_port_fun(nil), do: &Function.identity/1
 
-  def container_port_fun({exposed_port, host_port}) do
-    fn container -> Container.with_fixed_port(container, exposed_port, host_port) end
-  end
+  def container_port_fun({exposed, host}),
+    do: fn c -> Config.with_fixed_port(c, exposed, host) end
 
-  def container_port_fun(port) do
-    fn container -> Container.with_exposed_port(container, port) end
-  end
+  def container_port_fun(port), do: fn c -> Config.with_exposed_port(c, port) end
 
   @doc false
   def container_volume_fun(nil), do: &Function.identity/1
 
-  def container_volume_fun(volume) when is_binary(volume) do
-    fn container -> Container.with_bind_volume(container, volume, "/var/lib/mysql") end
-  end
+  def container_volume_fun(vol) when is_binary(vol),
+    do: fn c -> Config.with_bind_volume(c, vol, "/var/lib/mysql") end
 end
