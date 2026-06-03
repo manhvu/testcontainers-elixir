@@ -41,3 +41,5 @@ testcontainer_ex_elixir-*.tar
 
 # test runs
 test_run_*.log
+.expert
+.DS_Store

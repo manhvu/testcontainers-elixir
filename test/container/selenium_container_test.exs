@@ -7,6 +7,7 @@ defmodule TestcontainerEx.Container.SeleniumContainerTest do
   alias TestcontainerEx.SeleniumContainer
 
   describe "with default configuration" do
+    @moduletag :needs_dock
     container(:selenium, SeleniumContainer.new())
 
     @tag :dood_limitation

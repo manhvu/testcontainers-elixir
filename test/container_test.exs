@@ -2,8 +2,6 @@ defmodule TestcontainerEx.ContainerTest do
   use ExUnit.Case, async: true
 
   alias TestcontainerEx.Container
-  alias TestcontainerEx.ContainerBuilder
-  alias TestcontainerEx.PostgresContainer
   alias TestcontainerEx.Util.Hash
 
   describe "with reuse" do
@@ -19,14 +17,17 @@ defmodule TestcontainerEx.ContainerTest do
 
   describe "hash" do
     test "returns the same hash for the same container" do
-      container1 = ContainerBuilder.build(PostgresContainer.new())
-      container2 = ContainerBuilder.build(PostgresContainer.new())
+      container1 = Container.new("postgres:16")
+      container2 = Container.new("postgres:16")
 
-      assert Hash.struct_to_hash(container1) ==
-               "a0b9a403e485c224323eabc27b2b8e94a6353c785cdc27f9ac2b8a9b67a47cb1"
+      assert Hash.struct_to_hash(container1) == Hash.struct_to_hash(container2)
+    end
 
-      assert Hash.struct_to_hash(container2) ==
-               "a0b9a403e485c224323eabc27b2b8e94a6353c785cdc27f9ac2b8a9b67a47cb1"
+    test "returns different hash for different containers" do
+      container1 = Container.new("postgres:16")
+      container2 = Container.new("postgres:15")
+
+      assert Hash.struct_to_hash(container1) != Hash.struct_to_hash(container2)
     end
   end
 

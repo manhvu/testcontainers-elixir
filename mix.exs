@@ -19,7 +19,7 @@ defmodule TestcontainerEx.MixProject do
       deps: deps(),
       dialyzer: [plt_add_apps: [:mix]],
       package: [
-        files: ~w(lib docker_engine_api .formatter.exs mix.exs README* LICENSE*),
+        files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
         links: %{"GitHub" => @source_url},
         licenses: ["MIT"]
       ],
@@ -38,12 +38,13 @@ defmodule TestcontainerEx.MixProject do
     [preferred_envs: [test: :test, citest: :test, "testcontainer_ex.test": :test]]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support", "docker_engine_api"]
-  defp elixirc_paths(_), do: ["lib", "docker_engine_api"]
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger],
+      mod: {TestcontainerEx.Application, []}
     ]
   end
 
@@ -86,8 +87,7 @@ defmodule TestcontainerEx.MixProject do
   defp aliases do
     [
       setup: ["deps.get"],
-      citest: ["test --exclude flaky --cover"],
-      "testcontainer_ex.test": ["testcontainer_ex.run test"]
+      citest: ["test --exclude flaky --cover"]
     ]
   end
 end

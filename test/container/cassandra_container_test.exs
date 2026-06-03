@@ -15,6 +15,7 @@ defmodule TestcontainerEx.Container.CassandraContainerTest do
   end
 
   describe "cassandra" do
+    @moduletag :needs_dock
     container(:cassandra, @cassandra_container)
 
     test "can create and start", %{cassandra: cassandra} do

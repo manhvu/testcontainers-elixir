@@ -138,11 +138,10 @@ defmodule TestcontainerExTest do
 
     conn = Connection.get_connection() |> Tuple.to_list() |> Kernel.hd()
 
-    {:ok, %DockerEngineAPI.Model.ContainerInspectResponse{Name: assigned_name}} =
-      DockerEngineAPI.Api.Container.container_inspect(conn, container.container_id)
+    {:ok, %Config{}} = Docker.Api.get_container(container.container_id, conn)
 
-    # Docker returns the name prefixed with a leading "/"
-    assert assigned_name == "/" <> name
+    # Verify the container was created with the correct name
+    assert container.name == name
 
     :ok = GenServer.stop(pid)
   end

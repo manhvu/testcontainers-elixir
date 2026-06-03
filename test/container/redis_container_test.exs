@@ -3,6 +3,8 @@
 # Modified by: Jarl André Hübenthal @ 2023
 defmodule TestcontainerEx.Container.RedisContainerTest do
   use ExUnit.Case, async: true
+
+  @moduletag :needs_dock
   import TestcontainerEx.ExUnit
 
   alias TestcontainerEx.RedisContainer

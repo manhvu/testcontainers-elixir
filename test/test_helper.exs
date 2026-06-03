@@ -28,8 +28,15 @@ exclude =
       # exclude dock-dependent tests.
       try do
         case TestcontainerEx.start_link() do
-          {:ok, _pid} -> [:dood_limitation]
-          _ -> [:needs_dock, :dood_limitation]
+          {:ok, pid} ->
+            if TestcontainerEx.connected?() do
+              [:dood_limitation]
+            else
+              TestcontainerEx.stop(pid)
+              [:needs_dock, :dood_limitation]
+            end
+          _ ->
+            [:needs_dock, :dood_limitation]
         end
       rescue
         _ -> [:needs_dock, :dood_limitation]

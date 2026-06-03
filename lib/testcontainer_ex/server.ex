@@ -30,12 +30,31 @@ defmodule TestcontainerEx.Server do
     GenServer.start(__MODULE__, options, name: Keyword.get(options, :name, __MODULE__))
   end
 
+  @doc """
+  Returns true if the server has a working Docker connection.
+  """
+  def connected?(name \\ __MODULE__) do
+    GenServer.call(name, :connected?)
+  end
+
+  @doc """
+  Stops the GenServer.
+  """
+  def stop(name \\ __MODULE__) do
+    GenServer.stop(name)
+  end
+
   # ── GenServer Callbacks ───────────────────────────────────────────
 
   @impl true
   def init(options) do
     Process.flag(:trap_exit, true)
     setup(options)
+  end
+
+  @impl true
+  def handle_call(:connected?, _from, state) do
+    {:reply, !is_nil(state.conn), state}
   end
 
   @impl true
@@ -130,16 +149,42 @@ defmodule TestcontainerEx.Server do
   # ── Private ───────────────────────────────────────────────────────
 
   defp setup(options) do
-    {conn, docker_host_url, docker_host} = Connection.get_connection(options)
-    {:ok, properties} = PropertiesParser.read_property_sources()
-
     session_id =
       :crypto.hash(:sha, "#{inspect(self())}#{DateTime.utc_now() |> DateTime.to_string()}")
       |> Base.encode16()
 
+    state = %{
+      conn: nil,
+      docker_hostname: nil,
+      use_container_ip: false,
+      session_id: session_id,
+      properties: %{},
+      networks: MapSet.new(),
+      containers: MapSet.new(),
+      images: MapSet.new(),
+      compose_envs: []
+    }
+
+    case initialize_connection(options, state) do
+      {:ok, initialized_state} ->
+        {:ok, initialized_state}
+
+      {:error, reason} ->
+        Logger.warning(
+          "TestcontainerEx could not connect to Docker: #{inspect(reason)}. The server will start but container operations will fail until a connection is available."
+        )
+
+        {:ok, state}
+    end
+  end
+
+  defp initialize_connection(options, state) do
+    {conn, docker_host_url, docker_host} = Connection.get_connection(options)
+    {:ok, properties} = PropertiesParser.read_property_sources()
+
     with {:ok, docker_hostname} <- resolve_docker_hostname(docker_host_url, conn, properties),
          use_container_ip <- should_use_container_ip?(docker_hostname),
-         {:ok} <- Ryuk.start(conn, session_id, properties, docker_host, docker_hostname) do
+         {:ok} <- Ryuk.start(conn, state.session_id, properties, docker_host, docker_hostname) do
       engine = Engine.detect()
 
       if use_container_ip do
@@ -152,19 +197,12 @@ defmodule TestcontainerEx.Server do
 
       {:ok,
        %{
-         conn: conn,
-         docker_hostname: docker_hostname,
-         use_container_ip: use_container_ip,
-         session_id: session_id,
-         properties: properties,
-         networks: MapSet.new(),
-         containers: MapSet.new(),
-         images: MapSet.new(),
-         compose_envs: []
+         state
+         | conn: conn,
+           docker_hostname: docker_hostname,
+           use_container_ip: use_container_ip,
+           properties: properties
        }}
-    else
-      error ->
-        {:stop, error}
     end
   end
 

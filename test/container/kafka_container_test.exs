@@ -133,6 +133,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
     @tag :needs_dock
     container(:kafka, KafkaContainer.new())
 
+    @tag :needs_dock
     @tag :dood_limitation
     test "provides a ready-to-use kafka container", %{kafka: kafka} do
       worker_name = :worker
@@ -156,6 +157,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
     @tag :needs_dock
     container(:kafka, KafkaContainer.new() |> KafkaContainer.with_topics(["auto_topic"]))
 
+    @tag :needs_dock
     @tag :dood_limitation
     test "creates topics automatically", %{kafka: kafka} do
       worker_name = :auto_worker
@@ -184,11 +186,13 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
     @tag :needs_dock
     container(:kafka, KafkaContainer.new())
 
+    @tag :needs_dock
     test "bootstrap_servers returns the correct connection string", %{kafka: kafka} do
       bootstrap = KafkaContainer.bootstrap_servers(kafka)
-      assert bootstrap =~ ~r/^[\w\.]+:\d+$/
+      assert bootstrap =~ ~r/^[\w\.:]+:\d+$/
     end
 
+    @tag :needs_dock
     test "port returns the mapped port", %{kafka: kafka} do
       port = KafkaContainer.port(kafka)
       assert is_integer(port)

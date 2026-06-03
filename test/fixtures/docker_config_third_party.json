@@ -1,0 +1,25 @@
+{
+  "auths": {
+    "https://index.docker.io/v1/": {
+      "auth": "YWxpY2U6czNjcmV0"
+    },
+    "quay.io": {
+      "auth": "cXVheS11c2VyOnF1YXktdG9rZW4="
+    },
+    "ghcr.io": {
+      "auth": "Z2hjci11c2VyOmdoY3ItcGF0"
+    },
+    "gcr.io": {
+      "auth": "X2pzb25fa2V5Omdjci1zZXJ2aWNlLWFjY291bnQ="
+    },
+    "registry.gitlab.com": {
+      "auth": "Z2l0bGFiLWNpLXRva2VuOmdpdGxhYi10b2tlbg=="
+    },
+    "123456789.dkr.ecr.us-east-1.amazonaws.com": {
+      "auth": "QVdTOmVjci10b2tlbg=="
+    },
+    "myregistry.example.com:5000": {
+      "auth": "YWRtaW46cmVnaXN0cnktcGFzcw=="
+    }
+  }
+}

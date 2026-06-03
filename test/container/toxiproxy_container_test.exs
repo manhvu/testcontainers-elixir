@@ -99,6 +99,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
   end
 
   describe "with default configuration" do
+    @moduletag :needs_dock
     container(:toxiproxy, ToxiproxyContainer.new())
 
     test "provides a ready-to-use toxiproxy container", %{toxiproxy: toxiproxy} do
@@ -187,6 +188,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
   end
 
   describe "create_proxy_for_container/5" do
+    @moduletag :needs_dock
     container(:toxiproxy, ToxiproxyContainer.new())
 
     @tag :flaky

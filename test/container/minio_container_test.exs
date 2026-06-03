@@ -2,6 +2,7 @@
 defmodule TestcontainerEx.Container.MinioContainerTest do
   use ExUnit.Case, async: true
 
+  @moduletag :needs_dock
   import TestcontainerEx.ExUnit
   alias TestcontainerEx.MinioContainer
 

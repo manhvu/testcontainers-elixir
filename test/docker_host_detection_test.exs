@@ -58,7 +58,9 @@ defmodule TestcontainerEx.DockerHostDetectionTest do
       try do
         assert TestcontainerEx.running_in_container?(
                  "/nonexistent/dockerenv",
-                 "/nonexistent/cgroup"
+                 "/nonexistent/cgroup",
+                 tmp,
+                 "/nonexistent/containerenv"
                )
       after
         File.rm_rf(tmp)
@@ -72,7 +74,9 @@ defmodule TestcontainerEx.DockerHostDetectionTest do
       try do
         assert TestcontainerEx.running_in_container?(
                  "/nonexistent/dockerenv",
-                 "/nonexistent/cgroup"
+                 "/nonexistent/cgroup",
+                 "/nonexistent/k8s",
+                 tmp
                )
       after
         File.rm(tmp)
@@ -195,8 +199,8 @@ defmodule TestcontainerEx.DockerHostDetectionTest do
 
   describe "container_engine/0" do
     setup do
-      :persistent_term.erase({TestcontainerEx.Constants, :container_engine})
-      on_exit(fn -> :persistent_term.erase({TestcontainerEx.Constants, :container_engine}) end)
+      :persistent_term.erase({TestcontainerEx.Docker.Engine, :engine})
+      on_exit(fn -> :persistent_term.erase({TestcontainerEx.Docker.Engine, :engine}) end)
       :ok
     end
 

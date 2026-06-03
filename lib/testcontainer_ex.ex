@@ -83,5 +83,53 @@ defmodule TestcontainerEx do
   # ── Engine detection ──────────────────────────────────────────────
 
   def container_engine, do: Engine.detect()
-  def running_in_container?, do: Container.running_in_container?()
+  def running_in_container?, do: Config.running_in_container?()
+
+  # ── Ryuk ──────────────────────────────────────────────────────────
+
+  defdelegate ryuk_privileged?(properties), to: TestcontainerEx.Ryuk, as: :privileged?
+
+  # ── Connection ────────────────────────────────────────────────────
+
+  def connected?(name \\ __MODULE__), do: Server.connected?(name)
+  def stop(name \\ __MODULE__), do: Server.stop(name)
+
+  @doc """
+  Returns `true` when running inside a container (Docker, Podman, Kubernetes).
+
+  Accepts optional overrides for the `.dockerenv` path, cgroup path,
+  Kubernetes secrets path, and Podman containerenv path
+  (useful for testing on non-Linux hosts).
+  """
+  def running_in_container?(dockerenv_path, cgroup_path, k8s_secrets_path \\ "/var/run/secrets/kubernetes.io", containerenv_path \\ "/.containerenv") do
+    Config.running_in_container?(dockerenv_path, cgroup_path, k8s_secrets_path, containerenv_path)
+  end
+
+  @doc """
+  Parses the default gateway IP from `/proc/net/route` content.
+
+  Returns `{:ok, ip_string}` or `{:error, :no_default_route}`.
+  """
+  def parse_gateway_from_proc_route(content) when is_binary(content) do
+    content
+    |> String.split("\n")
+    |> Enum.map(&String.split(&1, "\t"))
+    |> Enum.find(fn
+      [_, "00000000", gateway | _] when gateway != "00000000" -> true
+      _ -> false
+    end)
+    |> case do
+      [_, "00000000", gateway | _] ->
+        ip =
+          gateway
+          |> String.to_integer(16)
+          |> :binary.encode_unsigned(:little)
+          |> :binary.bin_to_list()
+
+        {:ok, Enum.join(ip, ".")}
+
+      _ ->
+        {:error, :no_default_route}
+    end
+  end
 end

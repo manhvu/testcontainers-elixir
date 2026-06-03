@@ -4,6 +4,7 @@
 defmodule TestcontainerEx.Container.SharedMySqlContainerTest do
   use ExUnit.Case, async: true
 
+  @moduletag :needs_dock
   import TestcontainerEx.ExUnit
 
   alias TestcontainerEx.MySqlContainer

@@ -2,6 +2,7 @@
 defmodule TestcontainerEx.Container.CephContainerTest do
   use ExUnit.Case, async: true
 
+  @moduletag :needs_dock
   import TestcontainerEx.ExUnit
   alias TestcontainerEx.CephContainer
 

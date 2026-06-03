@@ -35,6 +35,7 @@ defmodule TestcontainerEx.Container.MinistackContainerTest do
   end
 
   describe "runtime behavior" do
+    @moduletag :needs_dock
     container(:ministack, @ministack_container)
 
     test "provides connection helpers", %{

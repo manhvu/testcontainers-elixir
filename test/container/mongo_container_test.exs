@@ -58,6 +58,7 @@ defmodule TestcontainerEx.Container.MongoContainerTest do
   end
 
   describe "runtime behavior" do
+    @moduletag :needs_dock
     container(:mongo, MongoContainer.new())
 
     test "has the default port mapped", %{mongo: mongo} do

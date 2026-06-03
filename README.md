@@ -2,7 +2,7 @@
 
 [![Hex.pm](https://img.shields.io/hexpm/v/testcontainer_ex.svg)](https://hex.pm/packages/testcontainer_ex)
 
-> Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), with added support for Podman, Minikube, and Colima, a `.env` file for project-local Docker host configuration, and a clean architecture refactor.
+> Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), with added support for Podman, Minikube, and Colima, a `.env` file for project-local Docker host configuration, a hand-written Docker Engine API client replacing the auto-generated one, third-party registry support (quay.io, ghcr.io, gcr.io, and more), and a clean architecture refactor.
 
 > TestcontainerEx is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker or Podman container.
 
@@ -36,7 +36,7 @@ To add TestcontainerEx to your project, follow these steps:
 ```elixir
 def deps do
   [
-    {:testcontainer_ex, "~> X.XX", only: [:test, :dev]}
+    {:testcontainer_ex, "~> X.X", only: [:test, :dev]}
   ]
 end
 ```
@@ -185,22 +185,6 @@ In the example above we are running tests while excluding flaky tests and using 
 Note: MIX_ENV is not overridden by the run task. For tests, set it explicitly in the shell:
 
 `MIX_ENV=test mix testcontainer_ex.run test`
-
-#### Backward Compatibility
-
-For backward compatibility, the old `mix testcontainer_ex.test` task is still available and works exactly as before. It automatically delegates to `mix testcontainer_ex.run test`, so existing scripts and workflows will continue to work without modification:
-
-```bash
-# These commands are equivalent:
-mix testcontainer_ex.test --database mysql
-mix testcontainer_ex.run test --database mysql
-
-# Both support all the same options:
-mix testcontainer_ex.test --database postgres --db-volume my_data
-mix testcontainer_ex.run test --database postgres --db-volume my_data
-```
-
-While the old task will continue to work, we recommend updating to `mix testcontainer_ex.run` for new projects as it provides more flexibility by allowing you to run any Mix task, not just tests.
 
 ### Logging
 
@@ -491,17 +475,33 @@ The name is passed straight through to Docker's `/containers/create` as the `nam
 
 ### Private registries
 
+TestcontainerEx supports **any Docker-compatible registry** — Docker Hub, Quay.io, GitHub Container Registry (ghcr.io), Google Container Registry (gcr.io), GitLab Registry, Amazon ECR, Microsoft Container Registry, NVIDIA NGC, and more.
+
 If the image lives on a registry that requires authentication, TestcontainerEx automatically resolves credentials from the user's Docker config on image pull. The lookup order is:
 
 1. `Container.auth` if set explicitly — always wins.
-2. The `auths` map in `$DOCKER_CONFIG/config.json` (or `~/.docker/config.json` if `DOCKER_CONFIG` is unset). The registry host of the image is matched against entries in the map.
+2. The `auths` map in `$DOCKER_CONFIG/config.json` (or `~/.docker/config.json` if `DOCKER_CONFIG` is unset). The registry host is extracted from the image reference and matched against entries in the map.
 3. Anonymous pull.
+
+The registry host is automatically extracted from the image reference:
+
+| Image reference | Resolved registry |
+|----------------|-------------------|
+| `nginx` | `https://index.docker.io/v1/` (Docker Hub) |
+| `quay.io/org/image` | `quay.io` |
+| `ghcr.io/org/image` | `ghcr.io` |
+| `gcr.io/project/image` | `gcr.io` |
+| `registry.gitlab.com/org/image` | `registry.gitlab.com` |
+| `myregistry:5000/image` | `myregistry:5000` |
 
 Only the `auths` map is consulted; credential-helper binaries (`credsStore`, `credHelpers`) are not invoked. If an auto-resolved credential is rejected with a 4xx, the pull is retried once anonymously to keep stale entries in `config.json` from breaking pulls that would otherwise succeed without auth.
 
 To log in before running tests:
 
 ```bash
+docker login quay.io
+docker login ghcr.io
+docker login gcr.io
 docker login myregistry.example.com
 ```
 

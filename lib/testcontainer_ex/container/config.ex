@@ -258,17 +258,25 @@ defmodule TestcontainerEx.Container.Config do
 
   @doc """
   Returns `true` when running inside a container (Docker, Podman, Kubernetes).
+
+  Accepts optional overrides for the `.dockerenv` path, cgroup path,
+  Kubernetes secrets path, and Podman containerenv path.
   """
-  @spec running_in_container?(String.t(), String.t()) :: boolean()
-  def running_in_container?(dockerenv_path \\ "/.dockerenv", cgroup_path \\ "/proc/1/cgroup") do
+  @spec running_in_container?(String.t(), String.t(), String.t(), String.t()) :: boolean()
+  def running_in_container?(
+        dockerenv_path \\ "/.dockerenv",
+        cgroup_path \\ "/proc/1/cgroup",
+        k8s_secrets_path \\ "/var/run/secrets/kubernetes.io",
+        containerenv_path \\ "/.containerenv"
+      ) do
     cond do
       File.exists?(dockerenv_path) ->
         true
 
-      File.exists?("/var/run/secrets/kubernetes.io") ->
+      File.exists?(k8s_secrets_path) ->
         true
 
-      File.exists?("/.containerenv") ->
+      File.exists?(containerenv_path) ->
         true
 
       true ->
@@ -281,4 +289,13 @@ defmodule TestcontainerEx.Container.Config do
         end
     end
   end
+end
+
+# Builder protocol implementation for Config (identity — already built)
+defimpl TestcontainerEx.Container.Builder, for: TestcontainerEx.Container.Config do
+  @impl true
+  def build(config), do: config
+
+  @impl true
+  def after_start(_config, _container, _conn), do: :ok
 end

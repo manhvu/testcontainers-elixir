@@ -3,6 +3,8 @@
 # Modified by: Jarl André Hübenthal @ 2023
 defmodule TestcontainerEx.Container.PostgresContainerTest do
   use ExUnit.Case, async: true
+
+  @moduletag :needs_dock
   import TestcontainerEx.ExUnit
 
   alias TestcontainerEx.PostgresContainer

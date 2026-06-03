@@ -110,12 +110,7 @@ defmodule Mix.Tasks.TestcontainerEx.Run do
 
   defp create_env(container, port) do
     [
-      {"DATABASE_URL", "ecto://test:test@#{TestcontainerEx.get_host(container)}:#{port}/test"},
-      # for backward compability, will be removed in future releases
-      {"DB_USER", "test"},
-      {"DB_PASSWORD", "test"},
-      {"DB_HOST", TestcontainerEx.get_host(container)},
-      {"DB_PORT", Integer.to_string(port)}
+      {"DATABASE_URL", "ecto://test:test@#{TestcontainerEx.get_host(container)}:#{port}/test"}
     ]
   end
 end
