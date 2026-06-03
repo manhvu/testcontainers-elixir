@@ -56,7 +56,7 @@ defmodule TestcontainerEx.Util.PropertiesParserTest do
   describe "read_property_file/1" do
     test "reads properties from specified file" do
       {:ok, props} =
-        PropertiesParser.read_property_file("test/fixtures/.testcontainer_ex.properties")
+        PropertiesParser.read_property_file("test/fixtures/.testcontainers.properties")
 
       assert is_map(props)
       assert props["tc.host"] == "tcp://localhost:9999"

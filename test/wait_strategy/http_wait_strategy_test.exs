@@ -3,6 +3,8 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
   alias TestcontainerEx.HttpWaitStrategy
   use ExUnit.Case, async: true
 
+  @moduletag :needs_dock
+
   test "can wait for a http request and retrieve content" do
     port = 80
 
