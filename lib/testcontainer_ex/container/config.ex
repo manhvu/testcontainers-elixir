@@ -299,3 +299,26 @@ defimpl TestcontainerEx.Container.Builder, for: TestcontainerEx.Container.Config
   @impl true
   def after_start(_config, _container, _conn), do: :ok
 end
+
+defimpl Inspect, for: TestcontainerEx.Container.Config do
+  import Inspect.Algebra
+
+  def inspect(config, opts) do
+    port_info =
+      Enum.map_join(config.exposed_ports, ", ", fn
+        {p, nil} -> "#{p}->auto"
+        {p, h} -> "#{p}->#{h}"
+      end)
+
+    fields = [
+      image: config.image,
+      container_id: config.container_id,
+      ports: port_info,
+      ip_address: config.ip_address,
+      network: config.network,
+      reuse: config.reuse
+    ]
+
+    concat(["#Container<", to_doc(fields, opts), ">"])
+  end
+end

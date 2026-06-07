@@ -43,3 +43,6 @@ testcontainer_ex_elixir-*.tar
 test_run_*.log
 .expert
 .DS_Store
+
+# Local environment (contains machine-specific Docker socket paths)
+.env

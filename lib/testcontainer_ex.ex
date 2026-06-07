@@ -85,6 +85,14 @@ defmodule TestcontainerEx do
   def container_engine, do: Engine.detect()
   def running_in_container?, do: Config.running_in_container?()
 
+  # ── Debugging ─────────────────────────────────────────────────────
+
+  defdelegate debug_status, to: TestcontainerEx.Debug, as: :status
+  defdelegate debug_inspect(container), to: TestcontainerEx.Debug, as: :inspect_container
+  defdelegate debug_summarize(container), to: TestcontainerEx.Debug, as: :summarize
+  defdelegate debug_list_containers, to: TestcontainerEx.Debug, as: :list_containers
+  defdelegate debug_list_networks, to: TestcontainerEx.Debug, as: :list_networks
+
   # ── Ryuk ──────────────────────────────────────────────────────────
 
   defdelegate ryuk_privileged?(properties), to: TestcontainerEx.Ryuk, as: :privileged?
@@ -101,7 +109,12 @@ defmodule TestcontainerEx do
   Kubernetes secrets path, and Podman containerenv path
   (useful for testing on non-Linux hosts).
   """
-  def running_in_container?(dockerenv_path, cgroup_path, k8s_secrets_path \\ "/var/run/secrets/kubernetes.io", containerenv_path \\ "/.containerenv") do
+  def running_in_container?(
+        dockerenv_path,
+        cgroup_path,
+        k8s_secrets_path \\ "/var/run/secrets/kubernetes.io",
+        containerenv_path \\ "/.containerenv"
+      ) do
     Config.running_in_container?(dockerenv_path, cgroup_path, k8s_secrets_path, containerenv_path)
   end
 

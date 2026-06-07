@@ -16,6 +16,7 @@ defmodule TestcontainerEx.Container.Lifecycle do
     Docker.Auth,
     CopyTo,
     PullPolicy,
+    Telemetry,
     WaitStrategy
   }
 
@@ -34,6 +35,17 @@ defmodule TestcontainerEx.Container.Lifecycle do
   @spec start_container(struct(), Tesla.Env.client(), map()) ::
           {:ok, Config.t()} | {:error, term()}
   def start_container(builder, conn, state) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :start],
+      %{image: extract_image(builder)},
+      fn -> do_start_container(builder, conn, state) end
+    )
+  end
+
+  defp extract_image(%{image: image}) when is_binary(image), do: image
+  defp extract_image(_), do: "unknown"
+
+  defp do_start_container(builder, conn, state) do
     case BuilderHelper.build(builder, state) do
       {:reuse, config, hash} ->
         case Api.get_container_by_hash(hash, conn) do
@@ -60,7 +72,11 @@ defmodule TestcontainerEx.Container.Lifecycle do
   """
   @spec stop_container(String.t(), Tesla.Env.client()) :: :ok | {:error, term()}
   def stop_container(container_id, conn) do
-    Api.stop_container(container_id, conn)
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :stop],
+      %{container_id: container_id},
+      fn -> Api.stop_container(container_id, conn) end
+    )
   end
 
   # ── Private ───────────────────────────────────────────────────────

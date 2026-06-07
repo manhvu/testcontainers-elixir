@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.1.0"
+  @version "0.2.0"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -51,6 +51,8 @@ defmodule TestcontainerEx.MixProject do
   defp deps do
     [
       {:uniq, "~> 0.6"},
+      {:telemetry, "~> 1.2"},
+      {:recon, "~> 2.5", only: [:dev, :test]},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.30", only: :dev, runtime: false},

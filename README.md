@@ -11,13 +11,20 @@ TestcontainerEx is an Elixir library that supports ExUnit tests, providing light
 ## Table of Contents
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+- [Quick Setup with .env](#quick-setup-with-env)
 - [Usage](#usage)
+- [Container Info & Connection Helpers](#container-info--connection-helpers)
+- [Wait Strategies](#wait-strategies)
+- [Structured Logging](#structured-logging)
+- [Telemetry & Observability](#telemetry--observability)
+- [Debugging](#debugging)
 - [Podman Support](#podman-support)
 - [Minikube Support](#minikube-support)
 - [Colima Support](#colima-support)
 - [Docker Host Resolution](#docker-host-resolution)
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
+- [Windows support](#windows-support)
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
@@ -45,6 +52,17 @@ end
 
 Replace X.XX with the current major and minor version.
 
+### Optional dependencies
+
+TestcontainerEx includes these runtime dependencies automatically:
+
+| Dependency | Purpose |
+|-----------|--------|
+| `:telemetry` | Observability events for container lifecycle timing |
+| `:recon` | Advanced runtime debugging (dev/test only) |
+
+No additional configuration is needed — they are started automatically.
+
 2. Run mix deps.get
 
 3. Add the following to test/test_helper.exs
@@ -52,6 +70,75 @@ Replace X.XX with the current major and minor version.
 ```elixir
 TestcontainerEx.start_link()
 ```
+
+## Quick Setup with .env
+
+TestcontainerEx needs to know where your Docker/Podman daemon is listening. The easiest way is to use a `.env` file in your project root — no shell exports or profile changes needed.
+
+### Step 1: Copy the template
+
+```bash
+cp .env.example .env
+```
+
+### Step 2: Uncomment the right DOCKER_HOST
+
+Open `.env` and uncomment the line that matches your container runtime:
+
+| Runtime | Line to uncomment |
+|---------|------------------|
+| **Colima** (macOS) | `DOCKER_HOST=unix:///Users/$USER/.colima/default/docker.sock` |
+| **Docker Desktop** (macOS/Windows) | `DOCKER_HOST=unix:///Users/$USER/.docker/run/docker.sock` |
+| **Docker Engine** (Linux) | `DOCKER_HOST=unix:///var/run/docker.sock` |
+| **Podman** (Linux rootless) | `DOCKER_HOST=unix:///run/user/1000/podman/podman.sock` |
+| **Remote Docker** (TCP) | `DOCKER_HOST=tcp://192.168.1.100:2375` |
+
+> **Tip:** Replace `$USER` with your actual macOS username, or use `$HOME`.
+
+### Step 3: Run your tests
+
+```bash
+mix test
+```
+
+That's it! The `.env` file is read automatically by the Dotenv connection strategy.
+
+### How it works
+
+When TestcontainerEx starts, it resolves the Docker host using this priority order:
+
+1. `~/.testcontainer_ex.properties` (global user config)
+2. `DOCKER_HOST` environment variable (shell/profile)
+3. **`.env` file** in project root ← this is what we just set up
+4. `CONTAINER_HOST` environment variable (Podman)
+5. Minikube auto-detection
+6. Socket path auto-scan
+
+The `.env` file is **only** consulted when `DOCKER_HOST` is not already set in your shell. Shell settings always win.
+
+### .env file format
+
+```bash
+# Docker host (required — uncomment one)
+DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+
+# TestcontainerEx options (optional)
+TESTCONTAINERS_RYUK_DISABLED=false          # Disable auto-cleanup
+TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED=false  # Privileged Ryuk (SELinux)
+TESTCONTAINERS_PULL_POLICY=missing          # "missing", "always", or "never"
+TESTCONTAINERS_REUSE_ENABLE=false           # Reuse containers across runs
+TESTCONTAINERS_HOST_OVERRIDE=               # Override connection host
+```
+
+Environment variables with the `TESTCONTAINERS_` prefix are automatically converted to dotted property keys:
+
+| Environment Variable | Property Key |
+|---------------------|-------------|
+| `TESTCONTAINERS_RYUK_DISABLED` | `ryuk.disabled` |
+| `TESTCONTAINERS_PULL_POLICY` | `pull.policy` |
+| `TESTCONTAINERS_REUSE_ENABLE` | `testcontainer_ex.reuse.enable` |
+
+> **Security:** The `.env` file is in `.gitignore` by default so machine-specific paths are never committed. A `.env.example` template is provided for sharing with your team.
 
 ## Usage
 
@@ -191,6 +278,292 @@ Note: MIX_ENV is not overridden by the run task. For tests, set it explicitly in
 ### Logging
 
 TestcontainerEx use the standard Logger, see https://hexdocs.pm/logger/Logger.html.
+
+## Container Info & Connection Helpers
+
+The `TestcontainerEx.Container.Info` module provides ready-to-use connection options for common databases and services. No more manually extracting host, port, username, and password from the container environment.
+
+### Quick connection setup
+
+```elixir
+{:ok, container} = TestcontainerEx.start_container(TestcontainerEx.PostgresContainer.new())
+
+# Get Postgrex-compatible connection options
+opts = TestcontainerEx.Container.Info.pg_connect_opts(container)
+# => [hostname: "localhost", port: 55123, username: "test", password: "test", database: "test"]
+
+{:ok, conn} = Postgrex.start_link(opts)
+```
+
+### Available helpers
+
+| Function | Returns | Use with |
+|----------|---------|----------|
+| `pg_connect_opts/2` | Keyword list | `Postgrex.start_link/1` |
+| `mysql_connect_opts/2` | Keyword list | `MyXQL.start_link/1` |
+| `redis_url/1` | `"redis://host:port/"` | `Redix.start_link/1` |
+| `mongo_url/1` | `"mongodb://user:pass@host:port/db"` | `Mongo.start_link/1` |
+| `amqp_url/1` | `"amqp://user:pass@host:port"` | `AMQP.Connection.open/1` |
+| `url/3` | `"scheme://host:port"` | Any TCP service |
+| `host/1` | Host string | Manual connections |
+| `port/2` | Mapped port integer | Manual connections |
+
+All `*_connect_opts` functions accept an optional second argument for overrides:
+
+```elixir
+# Override the database name
+opts = TestcontainerEx.Container.Info.pg_connect_opts(container, database: "my_other_db")
+```
+
+### Generic URL builder
+
+```elixir
+# Build a URL for any TCP service
+url = TestcontainerEx.Container.Info.url(container, 9042, "cassandra")
+# => "cassandra://localhost:55124"
+```
+
+## Wait Strategies
+
+Wait strategies determine when a container is considered "ready". TestcontainerEx provides four built-in strategies:
+
+| Strategy | Ready when... | Module |
+|----------|---------------|--------|
+| **Port** | A TCP port accepts connections | `PortWaitStrategy` |
+| **HTTP** | An HTTP request succeeds | `HttpWaitStrategy` |
+| **Log** | A log line matches a regex | `LogWaitStrategy` |
+| **Command** | A command exits with code 0 | `CommandWaitStrategy` |
+
+### Using the unified `TestcontainerEx.Wait` module
+
+Instead of remembering each strategy module, use the convenience aliases:
+
+```elixir
+alias TestcontainerEx.Wait
+
+# Port wait — wait for port 5432 to accept connections
+Wait.port("localhost", 5432, 60_000)
+
+# HTTP wait — wait for an HTTP 200 from /health
+Wait.http("/health", 8080, status_code: 200)
+
+# Log wait — wait for a specific log line
+Wait.log(~r/Server started/, 60_000)
+
+# Command wait — wait for a command to succeed
+Wait.command(["pg_isready", "-U", "test"], 60_000)
+```
+
+### Combining multiple strategies
+
+```elixir
+import TestcontainerEx.Container
+
+config =
+  new("my-app:latest")
+  |> with_exposed_port(8080)
+  |> with_waiting_strategies([
+    TestcontainerEx.LogWaitStrategy.new(~r/Application started/, 30_000),
+    TestcontainerEx.HttpWaitStrategy.new("/health", 8080, status_code: 200)
+  ])
+```
+
+## Structured Logging
+
+The `TestcontainerEx.Log` module wraps Elixir's `Logger` with contextual metadata so log lines are easy to filter and correlate with specific containers.
+
+```elixir
+import TestcontainerEx.Log
+
+# These automatically include :testcontainer_ex, :container_id, :image metadata
+log_info("Container started", container_id: id, image: "postgres:15")
+log_debug("Pulling image", image: "redis:7")
+log_warning("Ryuk disabled", reason: :config)
+log_error("Failed to start", container_id: id, error: reason)
+```
+
+### Configuring log output
+
+In `config/dev.exs`, the logger is configured to include TestcontainerEx metadata:
+
+```elixir
+config :logger, :console,
+  format: "$time $metadata[$level] $message\n",
+  metadata: [:testcontainer_ex, :container_id, :image, :session_id, :engine]
+```
+
+This produces output like:
+
+```
+19:13:16.588 testcontainer_ex=true image=redis:7 [info] Pulling image
+19:13:17.123 testcontainer_ex=true container_id=abc123 [info] Container started
+```
+
+### Available functions
+
+| Function | Level |
+|----------|-------|
+| `info/2` | `:info` |
+| `debug/2` | `:debug` |
+| `warning/2` | `:warning` |
+| `error/2` | `:error` |
+| `log/3` | Custom level |
+
+## Telemetry & Observability
+
+TestcontainerEx emits `:telemetry` events at key lifecycle points, so you can measure container start times, track pull durations, and integrate with monitoring tools.
+
+### Events
+
+| Event | Measurements | Metadata |
+|-------|-------------|----------|
+| `[:testcontainer_ex, :container, :start]` | `duration`, `monotonic_time` | `image` |
+| `[:testcontainer_ex, :container, :stop]` | `duration`, `monotonic_time` | `container_id` |
+| `[:testcontainer_ex, :network, :create]` | `duration`, `monotonic_time` | `network_name` |
+| `[:testcontainer_ex, :network, :remove]` | `duration`, `monotonic_time` | `network_name` |
+
+Each event also emits `[:start]`, `[:stop]`, and `[:exception]` suffix variants for span tracking.
+
+### Attaching a handler
+
+```elixir
+:telemetry.attach(
+  "my-container-metrics",
+  [:testcontainer_ex, :container, :start],
+  fn _name, measurements, _meta, _config ->
+    # Log or record metrics
+    duration_ms = System.convert_time_unit(measurements[:duration], :native, :millisecond)
+    IO.puts("Container started in #{duration_ms}ms")
+  end,
+  nil
+)
+```
+
+### With Telemetry.Metrics
+
+```elixir
+# In your metrics supervisor
+[
+  Metrics.summary("testcontainer_ex.container.start.duration",
+    unit: {:native, :millisecond},
+    description: "Container start time"
+  ),
+  Metrics.summary("testcontainer_ex.network.create.duration",
+    unit: {:native, :millisecond},
+    description: "Network creation time"
+  )
+]
+```
+
+### Manual events
+
+You can also emit custom telemetry events:
+
+```elixir
+TestcontainerEx.Telemetry.event(
+  [:testcontainer_ex, :wait, :strategy],
+  %{duration: elapsed},
+  %{strategy: :port_wait, container_id: id}
+)
+```
+
+## Debugging
+
+TestcontainerEx provides several debugging tools for use from `iex -S mix` or when troubleshooting failing tests.
+
+### Quick status check
+
+```elixir
+iex> TestcontainerEx.debug_status()
+%{
+  connected: true,
+  engine: :docker,
+  running_in_container: false,
+  host: "localhost",
+  container_ip_mode: false
+}
+```
+
+### Inspect a running container
+
+```elixir
+iex> {:ok, container} = TestcontainerEx.start_container(redis)
+iex> TestcontainerEx.debug_inspect(container)
+%{
+  container_id: "abc123...",
+  image: "redis:7.2-alpine",
+  ports: [{6379, 55123}],
+  ip_address: "172.17.0.3",
+  environment: %{},
+  labels: %{...},
+  reuse: false,
+  wait_strategies: [TestcontainerEx.CommandWaitStrategy]
+}
+```
+
+### One-line summary
+
+```elixir
+iex> TestcontainerEx.debug_summarize(container)
+"redis:7.2-alpine [abc123] ports: 6379->55123 ip: 172.17.0.3"
+```
+
+### List tracked resources
+
+```elixir
+iex> TestcontainerEx.debug_list_containers()
+["abc123...", "def456..."]
+
+iex> TestcontainerEx.debug_list_networks()
+["my-test-network"]
+```
+
+### Using the Debug module directly
+
+```elixir
+iex> TestcontainerEx.Debug.status()           # Same as debug_status()
+iex> TestcontainerEx.Debug.inspect_container(c)  # Same as debug_inspect(c)
+iex> TestcontainerEx.Debug.summarize(c)       # Same as debug_summarize(c)
+```
+
+### Recon (advanced runtime inspection)
+
+For deeper debugging, TestcontainerEx includes `:recon` in dev/test environments. The `TestcontainerEx.Recon` module provides Elixir-friendly wrappers:
+
+```elixir
+# View the GenServer's internal state
+iex> TestcontainerEx.Recon.server_state()
+%{conn: _, containers: _, networks: _, ...}
+
+# Get a readable summary of tracked resources
+iex> TestcontainerEx.Recon.resource_summary()
+%{
+  container_count: 2,
+  containers: ["abc123", "def456"],
+  network_count: 1,
+  networks: ["my-network"],
+  image_count: 2,
+  connected: true,
+  docker_hostname: "localhost"
+}
+
+# Top processes by memory
+iex> TestcontainerEx.Recon.top_processes(5)
+
+# Memory allocation breakdown
+iex> TestcontainerEx.Recon.memory()
+```
+
+### Custom Inspect for containers
+
+Container configs now have a custom `Inspect` implementation for readable IEx output:
+
+```elixir
+iex> container
+#Container<[image: "postgres:15-alpine", container_id: "abc123", ports: "5432->55123", ip_address: "172.17.0.3", network: nil, reuse: false]>
+```
+
+Instead of the raw struct dump, you get a focused summary with image, ID, ports, and network info.
 
 ## Podman Support
 
@@ -402,7 +775,12 @@ TestcontainerEx resolves the container engine host by trying several strategies 
 
 ### `.env` file
 
-You can place a `.env` file in your project root to configure the Docker host without modifying your shell profile:
+You can place a `.env` file in your project root to configure the Docker host without modifying your shell profile. A `.env.example` template is provided — copy it and uncomment the right line:
+
+```bash
+cp .env.example .env
+# Edit .env and uncomment the DOCKER_HOST for your runtime
+```
 
 ```bash
 # .env
@@ -411,14 +789,18 @@ DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
 
 This is especially useful for Colima users on macOS, where the socket path is not in the default search list and `DOCKER_HOST` is not automatically exported.
 
-The `.env` file uses simple `KEY=VALUE` syntax, one per line. Lines starting with `#` are comments:
+The `.env` file uses simple `KEY=VALUE` syntax, one per line. Lines starting with `#` are comments. You can also set TestcontainerEx options:
 
 ```bash
 # .env — project-local Docker host config
 DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+TESTCONTAINERS_PULL_POLICY=missing
+TESTCONTAINERS_REUSE_ENABLE=false
 ```
 
 > **Note:** The `.env` file is only consulted when `DOCKER_HOST` is not already set in your environment. Shell/profile settings always take precedence.
+>
+> **Security:** `.env` is in `.gitignore` by default. Use `.env.example` for sharing with your team.
 
 ### Socket auto-detection
 

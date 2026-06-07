@@ -4,6 +4,7 @@ defmodule TestcontainerEx.Network do
   """
 
   alias TestcontainerEx.Docker.Api
+  alias TestcontainerEx.Telemetry
 
   @doc """
   Creates a Docker network. Returns `{:ok, id}` or `{:ok, :already_exists}`.
@@ -11,7 +12,11 @@ defmodule TestcontainerEx.Network do
   @spec create(String.t(), Tesla.Env.client()) ::
           {:ok, String.t()} | {:ok, :already_exists} | {:error, term()}
   def create(name, conn) do
-    Api.create_network(name, conn)
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :network, :create],
+      %{network_name: name},
+      fn -> Api.create_network(name, conn) end
+    )
   end
 
   @doc """
@@ -19,7 +24,11 @@ defmodule TestcontainerEx.Network do
   """
   @spec remove(String.t(), Tesla.Env.client()) :: :ok | {:error, term()}
   def remove(name, conn) do
-    Api.remove_network(name, conn)
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :network, :remove],
+      %{network_name: name},
+      fn -> Api.remove_network(name, conn) end
+    )
   end
 
   @doc """

@@ -68,6 +68,16 @@ defmodule TestcontainerEx.Server do
   end
 
   @impl true
+  def handle_call(:list_containers, _from, state) do
+    {:reply, MapSet.to_list(state.containers), state}
+  end
+
+  @impl true
+  def handle_call(:list_networks, _from, state) do
+    {:reply, MapSet.to_list(state.networks), state}
+  end
+
+  @impl true
   def handle_call({:stop_container, container_id}, _from, state) do
     result = Lifecycle.stop_container(container_id, state.conn)
     {:reply, result, state}
@@ -96,9 +106,10 @@ defmodule TestcontainerEx.Server do
   end
 
   @impl true
-  def handle_call({:start_compose, compose}, _from, state) do
+  def handle_call({:start_compose, compose}, from, state) do
     Task.start_link(fn ->
-      TestcontainerEx.Compose.Cli.up(compose)
+      result = TestcontainerEx.Compose.Cli.up(compose)
+      GenServer.reply(from, result)
     end)
 
     {:noreply, state}
@@ -133,6 +144,43 @@ defmodule TestcontainerEx.Server do
   @impl true
   def handle_cast({:untrack_compose_env, compose_env}, state) do
     {:noreply, %{state | compose_envs: List.delete(state.compose_envs, compose_env)}}
+  end
+
+  @impl true
+  def handle_info({:track_container, container_id, image}, state) do
+    {:noreply,
+     %{
+       state
+       | containers: MapSet.put(state.containers, container_id),
+         images: MapSet.put(state.images, image)
+     }}
+  end
+
+  @impl true
+  def handle_info({:track_image, image}, state) do
+    {:noreply, %{state | images: MapSet.put(state.images, image)}}
+  end
+
+  @impl true
+  def handle_info({:track_compose_env, compose_env}, state) do
+    {:noreply, %{state | compose_envs: [compose_env | state.compose_envs]}}
+  end
+
+  @impl true
+  def handle_info({:untrack_compose_env, compose_env}, state) do
+    {:noreply, %{state | compose_envs: List.delete(state.compose_envs, compose_env)}}
+  end
+
+  @impl true
+  def handle_info({:list_containers, from}, state) do
+    GenServer.reply(from, MapSet.to_list(state.containers))
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:list_networks, from}, state) do
+    GenServer.reply(from, MapSet.to_list(state.networks))
+    {:noreply, state}
   end
 
   @impl true

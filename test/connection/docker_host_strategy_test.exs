@@ -186,6 +186,7 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
       System.delete_env("DOCKER_HOST")
 
       case Strategies.Dotenv.resolve() do
+        {:ok, _url} -> :ok
         {:error, {:file_not_found, _}} -> :ok
         {:error, {:env_already_set, "DOCKER_HOST", _}} -> :ok
         {:error, _} -> :ok
@@ -264,13 +265,20 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
 
   describe "Strategy behaviour" do
     test "all strategies implement the Behaviour protocol" do
-      # Verify each strategy module implements the behaviour
-      assert function_exported?(Strategies.Env, :resolve, 0)
-      assert function_exported?(Strategies.ContainerEnv, :resolve, 0)
-      assert function_exported?(Strategies.Properties, :resolve, 0)
-      assert function_exported?(Strategies.Socket, :resolve, 0)
-      assert function_exported?(Strategies.Minikube, :resolve, 0)
-      assert function_exported?(Strategies.Dotenv, :resolve, 0)
+      # Ensure modules are loaded before checking exports
+      modules = [
+        Strategies.Env,
+        Strategies.ContainerEnv,
+        Strategies.Properties,
+        Strategies.Socket,
+        Strategies.Minikube,
+        Strategies.Dotenv
+      ]
+
+      Enum.each(modules, fn mod ->
+        assert Code.ensure_loaded?(mod), "Expected #{inspect(mod)} to be loaded"
+        assert function_exported?(mod, :resolve, 0), "Expected #{inspect(mod)} to export resolve/0"
+      end)
     end
   end
 

@@ -32,10 +32,9 @@ defmodule TestcontainerEx.Ryuk do
     ryuk_disabled = Map.get(properties, "ryuk.disabled", "false") == "true"
 
     if ryuk_disabled do
-      IO.puts("""
-      ********************************************************************************
+      Logger.warning("""
       Ryuk has been disabled. This can cause unexpected behavior in your environment.
-      ********************************************************************************
+      Containers will not be automatically cleaned up after tests.
       """)
 
       {:ok}

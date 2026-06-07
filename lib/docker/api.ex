@@ -135,6 +135,12 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: 200}} ->
         {:ok, nil}
 
+      # Docker returns NDJSON for image pulls; Tesla.Middleware.JSON may fail
+      # to decode the streaming body as a single JSON object. A 200 status
+      # still means the pull succeeded.
+      {:error, {Tesla.Middleware.JSON, :decode, _}} ->
+        {:ok, nil}
+
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
