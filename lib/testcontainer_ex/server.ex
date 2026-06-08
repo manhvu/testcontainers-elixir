@@ -58,8 +58,13 @@ defmodule TestcontainerEx.Server do
   end
 
   @impl true
+  def handle_call({:start_container, _builder}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
   def handle_call({:start_container, builder}, from, state) do
-    Task.start_link(fn ->
+    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
       result = Lifecycle.start_container(builder, state.conn, state)
       GenServer.reply(from, result)
     end)
@@ -75,6 +80,11 @@ defmodule TestcontainerEx.Server do
   @impl true
   def handle_call(:list_networks, _from, state) do
     {:reply, MapSet.to_list(state.networks), state}
+  end
+
+  @impl true
+  def handle_call({:stop_container, _container_id}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
   end
 
   @impl true
@@ -94,9 +104,19 @@ defmodule TestcontainerEx.Server do
   end
 
   @impl true
+  def handle_call({:create_network, _network_name}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
   def handle_call({:create_network, network_name}, _from, state) do
     result = Network.create(network_name, state.conn)
     {:reply, result, track_network(state, network_name)}
+  end
+
+  @impl true
+  def handle_call({:remove_network, _network_name}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
   end
 
   @impl true
@@ -107,7 +127,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:start_compose, compose}, from, state) do
-    Task.start_link(fn ->
+    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
       result = TestcontainerEx.Compose.Cli.up(compose)
       GenServer.reply(from, result)
     end)
@@ -187,6 +207,9 @@ defmodule TestcontainerEx.Server do
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true
+  def terminate(_reason, %{conn: nil}), do: :ok
+
+  @impl true
   def terminate(_reason, state) do
     Enum.each(state.containers, &Lifecycle.stop_container(&1, state.conn))
     Enum.each(state.compose_envs, &TestcontainerEx.Compose.Cli.down(&1.compose))
@@ -213,17 +236,7 @@ defmodule TestcontainerEx.Server do
       compose_envs: []
     }
 
-    case initialize_connection(options, state) do
-      {:ok, initialized_state} ->
-        {:ok, initialized_state}
-
-      {:error, reason} ->
-        Logger.warning(
-          "TestcontainerEx could not connect to Docker: #{inspect(reason)}. The server will start but container operations will fail until a connection is available."
-        )
-
-        {:ok, state}
-    end
+    initialize_connection(options, state)
   end
 
   defp initialize_connection(options, state) do

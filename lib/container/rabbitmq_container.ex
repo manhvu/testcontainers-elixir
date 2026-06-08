@@ -67,12 +67,15 @@ defmodule TestcontainerEx.RabbitMQContainer do
   def default_port, do: @default_port
   def default_image_with_tag, do: @default_image <> ":" <> @default_tag
 
-  def port(%Config{} = container),
-    do:
-      TestcontainerEx.get_port(
-        container,
-        String.to_integer(container.environment[:RABBITMQ_NODE_PORT])
-      )
+  def port(%Config{} = container) do
+    port_number =
+      case container.environment[:RABBITMQ_NODE_PORT] do
+        nil -> @default_port
+        port_str -> String.to_integer(port_str)
+      end
+
+    TestcontainerEx.get_port(container, port_number)
+  end
 
   def connection_url(%Config{} = container) do
     "amqp://#{container.environment[:RABBITMQ_DEFAULT_USER]}:#{container.environment[:RABBITMQ_DEFAULT_PASS]}@#{TestcontainerEx.get_host(container)}:#{port(container)}#{virtual_host_segment(container)}"
@@ -89,10 +92,7 @@ defmodule TestcontainerEx.RabbitMQContainer do
   end
 
   defp virtual_host_segment(container) do
-    case container.environment[:RABBITMQ_DEFAULT_VHOST] do
-      "/" -> ""
-      vhost -> "/" <> vhost
-    end
+    container.environment[:RABBITMQ_DEFAULT_VHOST] || "/"
   end
 
   defimpl Builder do

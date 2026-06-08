@@ -26,6 +26,8 @@ defmodule TestcontainerEx.Recon do
 
   @server_name TestcontainerEx.Server
 
+  @compile {:no_warn_undefined, [{:recon, :proc_window, 3}, {:recon_alloc, :memory, 1}]}
+
   @doc """
   Returns the current state of the TestcontainerEx GenServer.
 
@@ -89,19 +91,22 @@ defmodule TestcontainerEx.Recon do
   @spec resource_summary() :: map() | {:error, :not_running}
   def resource_summary do
     case server_state() do
-      {:error, _} = err -> err
-      state -> %{
-        containers: MapSet.to_list(state.containers),
-        container_count: MapSet.size(state.containers),
-        networks: MapSet.to_list(state.networks),
-        network_count: MapSet.size(state.networks),
-        images: MapSet.to_list(state.images),
-        image_count: MapSet.size(state.images),
-        compose_env_count: length(state.compose_envs),
-        connected: !is_nil(state.conn),
-        docker_hostname: state.docker_hostname,
-        use_container_ip: state.use_container_ip
-      }
+      {:error, _} = err ->
+        err
+
+      state ->
+        %{
+          containers: MapSet.to_list(state.containers),
+          container_count: MapSet.size(state.containers),
+          networks: MapSet.to_list(state.networks),
+          network_count: MapSet.size(state.networks),
+          images: MapSet.to_list(state.images),
+          image_count: MapSet.size(state.images),
+          compose_env_count: length(state.compose_envs),
+          connected: !is_nil(state.conn),
+          docker_hostname: state.docker_hostname,
+          use_container_ip: state.use_container_ip
+        }
     end
   end
 end

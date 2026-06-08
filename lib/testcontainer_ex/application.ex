@@ -10,6 +10,7 @@ defmodule TestcontainerEx.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      {Task.Supervisor, name: TestcontainerEx.TaskSupervisor},
       {TestcontainerEx.Server, name: TestcontainerEx}
     ]
 

@@ -72,12 +72,19 @@ defmodule TestcontainerEx.Ryuk do
 
     config = TestcontainerEx.Container.Lifecycle.resolve_pull_policy(config, properties)
 
-    with :ok <- Api.pull_image(config.image, conn),
+    with {:ok, _} <- Api.pull_image(config.image, conn),
          {:ok, id} <- Api.create_container(config, conn),
          :ok <- Api.start_container(id, conn),
          {:ok, container} <- Api.get_container(id, conn),
          :ok <- connect_and_register(container, docker_hostname, session_id) do
       {:ok}
+    else
+      error ->
+        Logger.warning(
+          "Ryuk failed to start: #{inspect(error)}. Containers will not be automatically cleaned up."
+        )
+
+        {:ok}
     end
   end
 
