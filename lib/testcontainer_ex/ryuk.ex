@@ -183,8 +183,14 @@ defmodule TestcontainerEx.Ryuk do
         {:linux, %URI{scheme: "unix", path: path}} ->
           Config.with_bind_mount(config, path, "/var/run/docker.sock", "rw")
 
-        {:macos, %URI{scheme: "unix", path: path}} ->
-          Config.with_bind_mount(config, path, "/var/run/docker.sock", "rw")
+        {:macos, %URI{scheme: "unix", path: _path}} ->
+          # On macOS the Docker daemon runs inside a VM (Docker Desktop, Colima).
+          # The unix socket exists on the host but cannot be bind-mounted into
+          # containers because the VM cannot see macOS filesystem paths.
+          # Ryuk will connect via the exposed TCP port instead.
+          Logger.debug("Skipping Docker socket bind mount on macOS (daemon runs in VM)")
+
+          config
 
         {:windows, _} ->
           Config.with_bind_mount(config, "//var/run/docker.sock", "/var/run/docker.sock", "rw")

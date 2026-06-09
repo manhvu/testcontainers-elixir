@@ -191,9 +191,11 @@ defmodule TestcontainerEx.Container.Lifecycle do
   defp resolve_auth(_), do: :none
 
   defp copy_to_container(id, config, conn) do
-    Enum.reduce(config.copy_to, :ok, fn
-      copy_to, :ok -> CopyTo.copy_to(conn, id, copy_to)
-      _, error -> error
+    Enum.reduce_while(config.copy_to, :ok, fn copy_to, :ok ->
+      case CopyTo.copy_to(conn, id, copy_to) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
     end)
   end
 

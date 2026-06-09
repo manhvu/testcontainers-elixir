@@ -41,6 +41,7 @@ defmodule TestcontainerEx.Connection do
         user_agent: Keyword.get(options, :user_agent, Constants.user_agent())
       )
       |> maybe_add_tls_options(url)
+      |> maybe_disable_pool(url)
 
     {build_client(conn_options), url, raw_url}
   end
@@ -75,16 +76,28 @@ defmodule TestcontainerEx.Connection do
   def build_adapter(options, recv_timeout) do
     case Keyword.get(options, :adapter) do
       nil ->
+        base_opts = Keyword.put(adapter_opts(options), :recv_timeout, recv_timeout)
+
         case Keyword.get(options, :ssl_options) do
           nil ->
-            {Tesla.Adapter.Hackney, recv_timeout: recv_timeout}
+            {Tesla.Adapter.Hackney, base_opts}
 
           ssl_opts ->
-            {Tesla.Adapter.Hackney, recv_timeout: recv_timeout, ssl_options: ssl_opts}
+            {Tesla.Adapter.Hackney, Keyword.put(base_opts, :ssl_options, ssl_opts)}
         end
 
       adapter ->
         adapter
+    end
+  end
+
+  # Returns adapter-specific options, including pool settings.
+  # Unix socket connections must bypass Hackney's pool (which routes through
+  # hackney_happy DNS resolution and returns :nxdomain for local sockets).
+  defp adapter_opts(options) do
+    case Keyword.get(options, :pool) do
+      nil -> []
+      pool -> [pool: pool]
     end
   end
 
@@ -97,7 +110,81 @@ defmodule TestcontainerEx.Connection do
     end
   end
 
+  # Disable Hackney's connection pool for Unix socket URLs.
+  # Hackney's pool routes connections through hackney_happy (happy eyeballs
+  # DNS resolution), which does not understand Unix domain sockets and returns
+  # {:error, :nxdomain}. Direct connections (pool: false) use hackney_local_tcp
+  # which correctly calls gen_tcp:connect({:local, Path}, ...).
+  defp maybe_disable_pool(options, url) do
+    case URI.parse(url) do
+      %URI{scheme: "http+unix"} -> Keyword.put(options, :pool, false)
+      _ -> options
+    end
+  end
+
   defp format_errors(errors) do
-    "Failed to find docker host: #{inspect(errors)}"
+    """
+    Failed to find a Docker host.
+
+    Resolution attempted the following strategies, all of which failed:
+    #{format_error_list(errors)}
+
+    To fix this, ensure one of the following:
+      1. Docker Desktop or Colima is running
+      2. DOCKER_HOST environment variable is set correctly
+      3. A .env file with DOCKER_HOST exists in the project root
+      4. A Docker socket exists at a standard path (e.g. /var/run/docker.sock)
+
+    For Colima users:
+      colima start
+      # Verify with: docker ps
+    """
+  end
+
+  defp format_error_list(errors) do
+    errors
+    |> Enum.map(fn error -> "  - #{format_reason(error)}" end)
+    |> Enum.join("\n")
+  end
+
+  defp format_reason({:not_found, key}), do: "#{key} not found"
+  defp format_reason({:empty, key}), do: "#{key} is empty"
+
+  defp format_reason({:ping_failed, url, {:connection_failed, reason}}),
+    do: "ping failed for #{url} (connection failed: #{reason})"
+  defp format_reason({:ping_failed, url, reason}),
+    do: "ping failed for #{url} (#{inspect(reason)})"
+
+  defp format_reason(:no_socket_found), do: "no Docker socket found at standard paths"
+  defp format_reason(:all_sockets_failed), do: "all socket pings failed"
+  defp format_reason(:minikube_docker_env_failed), do: "minikube docker-env failed"
+  defp format_reason(:colima_not_installed), do: "colima not installed (brew install colima)"
+  defp format_reason(:colima_not_running), do: "colima not running (colima start)"
+  defp format_reason(:colima_socket_not_found), do: "colima status did not report a Docker socket"
+  defp format_reason({:colima_socket_unreachable, path, {:connection_failed, reason}}) do
+    "colima socket unreachable at #{path} (connection failed: #{reason})"
+  end
+  defp format_reason({:colima_socket_unreachable, path, reason}) do
+    "colima socket unreachable at #{path} (#{inspect(reason)})"
+  end
+
+  defp format_reason({:env_already_set, key, _val}) do
+    "#{key} already set in ENV (skipped .env)"
+  end
+
+  defp format_reason({:key_not_found_in_file, key, path}) do
+    "#{key} not found in #{path}"
+  end
+
+  defp format_reason({:file_not_found, path}) do
+    "file not found: #{path}"
+  end
+
+  defp format_reason({:file_read_failed, path, reason}) do
+    "failed to read #{path}: #{inspect(reason)}"
+  end
+
+  defp format_reason(other) do
+    inspect(other)
   end
 end

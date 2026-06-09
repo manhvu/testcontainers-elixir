@@ -1,9 +1,8 @@
 defmodule TestcontainerEx.Container.PutFileTest do
   use ExUnit.Case, async: true
 
-  import TestcontainerEx.ExUnit
-
   alias TestcontainerEx.Container.Config
+  alias TestcontainerEx.HttpWaitStrategy
 
   @tag :needs_dock
   test "upload file to container" do
@@ -13,6 +12,7 @@ defmodule TestcontainerEx.Container.PutFileTest do
     config =
       %Config{image: "nginx:alpine"}
       |> Config.with_exposed_port(port)
+      |> Config.with_waiting_strategy(HttpWaitStrategy.new("/hello.txt", port))
       |> Config.with_copy_to("/usr/share/nginx/html/hello.txt", contents)
 
     assert {:ok, container} = TestcontainerEx.start_container(config)

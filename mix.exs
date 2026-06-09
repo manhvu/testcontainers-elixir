@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.3.0"
+  @version "0.3.1"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -51,38 +51,41 @@ defmodule TestcontainerEx.MixProject do
   defp deps do
     [
       {:uniq, "~> 0.6"},
-      {:telemetry, "~> 1.2"},
+      {:telemetry, "~> 1.4"},
       {:recon, "~> 2.5", only: [:dev, :test]},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
-      {:ex_doc, "~> 0.30", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:tesla, "~> 1.7"},
       {:jason, "~> 1.4"},
-      {:hackney, "~> 1.20"},
+      {:hackney, "~> 4.2"},
       # mysql
-      {:myxql, "~> 0.4", only: [:dev, :test]},
+      {:myxql, "~> 0.9", only: [:dev, :test]},
       # postgres
-      {:postgrex, "~> 0.14", only: [:dev, :test]},
+      {:postgrex, "~> 0.22", only: [:dev, :test]},
       # mongo
-      {:mongodb_driver, "~> 1.6.2", only: [:dev, :test]},
+      {:mongodb_driver, "~> 1.6", only: [:dev, :test]},
       # redis
-      {:redix, "~> 1.0", only: [:dev, :test]},
+      {:redix, "~> 1.5", only: [:dev, :test]},
       # ceph and minio
-      {:ex_aws, "~> 2.1", only: [:dev, :test]},
-      {:ex_aws_s3, "~> 2.0", only: [:dev, :test]},
-      {:sweet_xml, "~> 0.6", only: [:dev, :test]},
+      {:ex_aws, "~> 2.7", only: [:dev, :test]},
+      {:ex_aws_s3, "~> 2.5", only: [:dev, :test]},
+      {:sweet_xml, "~> 0.7", only: [:dev, :test]},
       # cassandra
-      {:xandra, "~> 0.14", only: [:dev, :test]},
+      {:xandra, "~> 0.19", only: [:dev, :test]},
       # kafka
-      {:kafka_ex, "~> 0.13", only: [:dev, :test]},
+      {:kafka_ex, "~> 1.0", only: [:dev, :test]},
+      # RabbitMQ
+      {:amqp, "~> 4.1", only: [:dev, :test]},
       # Zookeeper
-      {:erlzk, "~> 0.6.2", only: [:dev, :test]},
+      {:erlzk, "~> 0.6", only: [:dev, :test]},
       # EMQX
-      {:tortoise311, "~> 0.12.0", only: [:dev, :test]},
+      {:tortoise311, "~> 0.12", only: [:dev, :test]},
       # Toxiproxy (for fault injection tests)
       {:toxiproxy_ex, "~> 2.0", only: [:dev, :test]},
       # For watching directories for file changes in mix task
-      {:fs, "~> 11.4"}
+      {:fs, "~> 11.4"},
+      {:decimal, "~> 3.0", only: [:dev, :test], override: true}
     ]
   end
 

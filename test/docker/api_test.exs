@@ -101,10 +101,18 @@ defmodule TestcontainerEx.Docker.ApiTest do
       %{method: :post, url: "/images/create?fromImage=broken%3Alatest"} ->
         %Tesla.Env{status: 500, body: ""}
 
-      %{method: :get, url: "/containers/json?filters=%7B%22label%22%3A%5B%22org.testcontainer_ex.reuse-hash%3Dnonexistent%22%5D%7D"} ->
+      %{
+        method: :get,
+        url:
+          "/containers/json?filters=%7B%22label%22%3A%5B%22org.testcontainer_ex.reuse-hash%3Dnonexistent%22%5D%7D"
+      } ->
         json([])
 
-      %{method: :get, url: "/containers/json?filters=%7B%22label%22%3A%5B%22org.testcontainer_ex.reuse-hash%3Dsess-123%22%5D%7D"} ->
+      %{
+        method: :get,
+        url:
+          "/containers/json?filters=%7B%22label%22%3A%5B%22org.testcontainer_ex.reuse-hash%3Dsess-123%22%5D%7D"
+      } ->
         json([
           %{
             "Id" => "abc123def456",
@@ -229,8 +237,8 @@ defmodule TestcontainerEx.Docker.ApiTest do
 
     test "parses environment variables", %{conn: conn} do
       assert {:ok, %Config{} = config} = Api.get_container("abc123", conn)
-      assert "POSTGRES_PASSWORD=secret" in config.environment
-      assert "POSTGRES_DB=test" in config.environment
+      assert config.environment[:POSTGRES_PASSWORD] == "secret"
+      assert config.environment[:POSTGRES_DB] == "test"
     end
 
     test "parses labels", %{conn: conn} do
@@ -353,7 +361,8 @@ defmodule TestcontainerEx.Docker.ApiTest do
 
   describe "tag_image/4" do
     test "tags image successfully", %{conn: conn} do
-      assert {:ok, "myrepo/myimage:v1"} = Api.tag_image("postgres:16", "myrepo/myimage", "v1", conn)
+      assert {:ok, "myrepo/myimage:v1"} =
+               Api.tag_image("postgres:16", "myrepo/myimage", "v1", conn)
     end
 
     test "returns error on failure", %{conn: conn} do

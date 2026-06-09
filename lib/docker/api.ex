@@ -62,6 +62,7 @@ defmodule TestcontainerEx.Docker.Api do
           %{"Id" => id} -> {:ok, id}
           _ -> {:error, {:failed_to_create_container, body}}
         end
+
       {:ok, %{status: 200, body: body}} ->
         case parse_body(body) do
           %{"Id" => id} -> {:ok, id}
@@ -105,12 +106,19 @@ defmodule TestcontainerEx.Docker.Api do
   end
 
   def stop_container(container_id, conn) when is_binary(container_id) do
-    with {:ok, %{status: 200}} <- delete(conn, "/containers/#{container_id}?force=true"),
-         {:ok, %{status: 200}} <- delete(conn, "/containers/#{container_id}") do
-      :ok
-    else
-      {:ok, %{status: status}} -> {:error, {:http_error, status}}
-      {:error, reason} -> {:error, reason}
+    case delete(conn, "/containers/#{container_id}?force=true") do
+      {:ok, %{status: status}} when status in [200, 204] ->
+        :ok
+
+      {:ok, %{status: 404}} ->
+        # Container already removed
+        :ok
+
+      {:ok, %{status: status}} ->
+        {:error, {:http_error, status}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -194,6 +202,7 @@ defmodule TestcontainerEx.Docker.Api do
     case post(conn, "/images/#{image}/tag?#{query}", nil) do
       {:ok, %{status: 201}} ->
         {:ok, "#{repo}:#{tag}"}
+
       {:ok, %{status: 200}} ->
         {:ok, "#{repo}:#{tag}"}
 
@@ -232,7 +241,8 @@ defmodule TestcontainerEx.Docker.Api do
   end
 
   def stdout_logs(container_id, conn) do
-    case get(conn,
+    case get(
+           conn,
            "/containers/#{container_id}/logs?stdout=true&stderr=true&timestamps=false"
          ) do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
@@ -287,6 +297,7 @@ defmodule TestcontainerEx.Docker.Api do
           %{"Id" => id} -> {:ok, id}
           _ -> {:error, {:failed_to_create_network, body}}
         end
+
       {:ok, %{status: 200, body: body}} ->
         case parse_body(body) do
           %{"Id" => id} -> {:ok, id}
@@ -350,6 +361,10 @@ defmodule TestcontainerEx.Docker.Api do
 
   # ── Response mapping ──────────────────────────────────────────────
 
+  defp from_container_inspect(%{"ExecIDs" => nil} = inspect) do
+    from_container_inspect(%{inspect | "ExecIDs" => []})
+  end
+
   defp from_container_inspect(%{
          "Id" => id,
          "Image" => image,
@@ -378,6 +393,41 @@ defmodule TestcontainerEx.Docker.Api do
       labels: labels,
       ip_address: ip,
       exposed_ports: map_ports(ports),
+      environment: map_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "NetworkSettings" => network_settings,
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    ip = Map.get(network_settings, "IPAddress")
+    ports = Map.get(network_settings, "Ports") || %{}
+    networks = Map.get(network_settings, "Networks") || %{}
+
+    %Config{
+      container_id: id,
+      image: image,
+      labels: labels,
+      ip_address: resolve_ip(ip, networks),
+      exposed_ports: map_ports(ports),
+      environment: map_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      labels: labels,
+      ip_address: nil,
+      exposed_ports: [],
       environment: map_env(env)
     }
   end
@@ -420,8 +470,21 @@ defmodule TestcontainerEx.Docker.Api do
     Enum.map(ports, fn {port, _} -> {to_string(port), %{}} end) |> Enum.into(%{})
   end
 
-  defp map_env(nil), do: []
-  defp map_env(env) when is_list(env), do: env
+  defp map_env(nil), do: %{}
+
+  defp map_env(env) when is_list(env) do
+    Enum.into(env, %{}, fn
+      str when is_binary(str) ->
+        case String.split(str, "=", parts: 2) do
+          [key, value] -> {String.to_atom(key), value}
+          [key] -> {String.to_atom(key), ""}
+        end
+
+      other ->
+        {other, ""}
+    end)
+  end
+
   defp map_env(env) when is_map(env), do: Enum.map(env, fn {k, v} -> "#{k}=#{v}" end)
 
   defp map_port_bindings(%Config{exposed_ports: ports}) do
@@ -439,8 +502,12 @@ defmodule TestcontainerEx.Docker.Api do
   defp map_volumes(%Config{bind_volumes: volumes}) do
     Enum.map(
       volumes,
-      &%{"Target" => &1.container_dest, "Source" => &1.volume, "Type" => "volume",
-        "ReadOnly" => &1.read_only}
+      &%{
+        "Target" => &1.container_dest,
+        "Source" => &1.volume,
+        "Type" => "volume",
+        "ReadOnly" => &1.read_only
+      }
     )
   end
 
@@ -469,7 +536,11 @@ defmodule TestcontainerEx.Docker.Api do
   end
 
   defp create_tar(file_name, contents) do
-    tar_path = Path.join(System.tmp_dir!(), "#{Uniq.UUID.uuid4()}-#{file_name}.tar")
+    tar_path =
+      Path.join(
+        System.tmp_dir!(),
+        "#{:crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)}-#{file_name}.tar"
+      )
 
     :ok = :erl_tar.create(tar_path, [{String.to_charlist(file_name), contents}], [:compressed])
 
@@ -488,6 +559,7 @@ defmodule TestcontainerEx.Docker.Api do
           %{"Id" => id} -> {:ok, id}
           _ -> {:error, {:failed_to_create_exec, body}}
         end
+
       {:ok, %{status: 200, body: body}} ->
         case parse_body(body) do
           %{"Id" => id} -> {:ok, id}

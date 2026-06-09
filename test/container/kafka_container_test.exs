@@ -146,10 +146,10 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       :ok = create_topic(worker_name, topic_name, [])
 
       {:ok, _} = produce_with_retry(topic_name, "hey", worker_name, 5)
-      stream = KafkaEx.stream(topic_name, 0, worker_name: :worker)
-      [response] = Enum.take(stream, 1)
-
-      assert response.value == "hey"
+      {:ok, fetch_result} = KafkaEx.API.fetch(worker_name, topic_name, 0, 0)
+      assert length(fetch_result.records) > 0
+      record = hd(fetch_result.records)
+      assert record.value == "hey"
     end
   end
 
@@ -169,16 +169,16 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
 
       # Topic should already exist - refresh metadata and wait for leader
       :timer.sleep(1000)
-      KafkaEx.metadata(worker_name: worker_name)
+      KafkaEx.API.metadata(worker_name)
       :timer.sleep(1000)
 
       # Try produce with retries for leader election
       {:ok, _} = produce_with_retry(topic_name, "auto_message", worker_name, 5)
 
-      stream = KafkaEx.stream(topic_name, 0, worker_name: worker_name)
-      [response] = Enum.take(stream, 1)
-
-      assert response.value == "auto_message"
+      {:ok, fetch_result} = KafkaEx.API.fetch(worker_name, topic_name, 0, 0)
+      assert length(fetch_result.records) > 0
+      record = hd(fetch_result.records)
+      assert record.value == "auto_message"
     end
   end
 
@@ -203,26 +203,25 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
   # After creating a topic, we need to wait for a short period of time for the topic to be created and
   # available for use.
   defp create_topic(worker_name, topic_name, opts) do
-    request = %KafkaEx.Protocol.CreateTopics.TopicRequest{
-      topic: topic_name,
-      num_partitions: Keyword.get(opts, :num_partitions, 1),
-      replication_factor: Keyword.get(opts, :replication_factor, 1),
-      replica_assignment: Keyword.get(opts, :replica_assignment, [])
-    }
+    num_partitions = Keyword.get(opts, :num_partitions, 1)
+    replication_factor = Keyword.get(opts, :replication_factor, 1)
 
-    KafkaEx.create_topics([request], worker_name: worker_name)
+    KafkaEx.API.create_topic(worker_name, topic_name,
+      num_partitions: num_partitions,
+      replication_factor: replication_factor
+    )
+
     :timer.sleep(100)
-
     :ok
   end
 
   # Retry producing a message if leader is not available yet
   defp produce_with_retry(topic_name, message, worker_name, retries) when retries > 0 do
-    case KafkaEx.produce(topic_name, 0, message, worker_name: worker_name, required_acks: 1) do
+    case KafkaEx.API.produce_one(worker_name, topic_name, 0, message, required_acks: 1) do
       {:ok, _} = result ->
         result
 
-      :leader_not_available ->
+      {:error, :leader_not_available} ->
         :timer.sleep(1000)
         produce_with_retry(topic_name, message, worker_name, retries - 1)
 

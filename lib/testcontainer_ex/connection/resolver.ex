@@ -13,8 +13,9 @@ defmodule TestcontainerEx.Connection.Resolver do
     Strategies.Env,
     Strategies.Dotenv,
     Strategies.ContainerEnv,
-    Strategies.Minikube,
-    Strategies.Socket
+    Strategies.Colima,
+    Strategies.Socket,
+    Strategies.Minikube
   ]
 
   @doc """
