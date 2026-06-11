@@ -58,9 +58,125 @@ defmodule TestcontainerEx.Ryuk do
     truthy?(value)
   end
 
+  # ── Host-based reaper (for macOS/Colima where container can't reach Docker) ──
+
+  @doc """
+  Starts a host-based reaper that watches for labeled containers and removes
+  them when the test process exits.
+
+  On macOS with Colima/Docker Desktop, the Ryuk container can't reach the
+  Docker daemon inside the VM. This function runs the reaper logic directly
+  on the host process instead.
+
+  Returns `{:ok}` on success or `{:error, reason}` on failure.
+  """
+  @spec start_host_reaper(Tesla.Env.client(), String.t(), map()) :: {:ok} | {:error, term()}
+  def start_host_reaper(conn, session_id, properties) do
+    ryuk_disabled = Map.get(properties, "ryuk.disabled", "false") == "true"
+
+    if ryuk_disabled do
+      Logger.warning("Ryuk has been disabled.")
+      {:ok}
+    else
+      do_start_host_reaper(conn, session_id)
+    end
+  end
+
+  defp do_start_host_reaper(conn, session_id) do
+    # Spawn a linked process that will die when the parent dies.
+    # On exit, it cleans up all containers labeled with our session.
+    parent = self()
+    ref = make_ref()
+
+    pid =
+      spawn_link(fn ->
+        # Wait for parent to exit
+        Process.monitor(parent)
+
+        receive do
+          {:DOWN, ^ref, :process, ^parent, _reason} ->
+            Logger.info("Host reaper: parent process exited, cleaning up session #{session_id}")
+            cleanup_labeled_containers(conn, session_id)
+        end
+      end)
+
+    # Store the reaper PID so we can clean up on explicit stop
+    :persistent_term.put({__MODULE__, session_id}, pid)
+
+    Logger.info(
+      "Host-based Ryuk reaper started for session #{session_id} (reaper PID: #{inspect(pid)})"
+    )
+
+    {:ok}
+  end
+
+  @doc """
+  Stops the host-based reaper for a given session.
+  """
+  def stop_host_reaper(session_id) do
+    case :persistent_term.get({__MODULE__, session_id}, nil) do
+      nil ->
+        :ok
+
+      pid ->
+        Process.exit(pid, :normal)
+        :persistent_term.erase({__MODULE__, session_id})
+    end
+  end
+
+  defp cleanup_labeled_containers(conn, session_id) do
+    label = container_session_id_label()
+    filters = Jason.encode!(%{"label" => ["#{label}=#{session_id}"]})
+
+    case get(conn, "/containers/json?filters=#{URI.encode_www_form(filters)}") do
+      {:ok, %{status: 200, body: body}} ->
+        containers =
+          case body do
+            body when is_binary(body) ->
+              case Jason.decode(body) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> []
+              end
+
+            body when is_list(body) ->
+              body
+
+            _ ->
+              []
+          end
+
+        Enum.each(containers, fn
+          %{"Id" => id} ->
+            Logger.debug("Host reaper: removing container #{String.slice(id, 0, 12)}")
+            delete(conn, "/containers/#{id}?force=true")
+
+          _ ->
+            :ok
+        end)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp get(conn, path), do: Tesla.get(conn, path)
+  defp delete(conn, path), do: Tesla.delete(conn, path)
+
   # ── Private ───────────────────────────────────────────────────────
 
   defp do_start(conn, session_id, properties, docker_host, docker_hostname) do
+    # On macOS with Colima/Docker Desktop, the Docker daemon runs inside a VM.
+    # Containers can't bind-mount the host's unix socket, so the Ryuk container
+    # can't reach Docker. Use a host-based reaper instead.
+    if Config.os_type() == :macos do
+      Logger.info("Using host-based Ryuk reaper on macOS (Colima/Docker Desktop)")
+      start_host_reaper(conn, session_id, properties)
+    else
+      do_start_container_reaper(conn, session_id, properties, docker_host, docker_hostname)
+    end
+  end
+
+  defp do_start_container_reaper(conn, session_id, properties, docker_host, docker_hostname) do
     ryuk_privileged = privileged?(properties)
 
     config =
@@ -72,19 +188,49 @@ defmodule TestcontainerEx.Ryuk do
 
     config = TestcontainerEx.Container.Lifecycle.resolve_pull_policy(config, properties)
 
+    # Retry starting Ryuk up to 3 times with exponential backoff.
+    # Transient connection errors (e.g. Docker daemon still starting) are common
+    # in CI and Colima environments.
+    case retry(fn -> start_ryuk_pipeline(config, conn, docker_hostname, session_id) end, 3) do
+      {:ok} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "Ryuk failed to start after retries: #{inspect(reason)}. Containers will not be automatically cleaned up."
+        )
+
+        {:ok}
+    end
+  end
+
+  defp start_ryuk_pipeline(config, conn, docker_hostname, session_id) do
     with {:ok, _} <- Api.pull_image(config.image, conn),
          {:ok, id} <- Api.create_container(config, conn),
          :ok <- Api.start_container(id, conn),
          {:ok, container} <- Api.get_container(id, conn),
          :ok <- connect_and_register(container, docker_hostname, session_id) do
       {:ok}
-    else
-      error ->
-        Logger.warning(
-          "Ryuk failed to start: #{inspect(error)}. Containers will not be automatically cleaned up."
+    end
+  end
+
+  defp retry(fun, max_retries, attempt \\ 1) do
+    case fun.() do
+      {:ok} = ok ->
+        ok
+
+      {:error, reason} when attempt < max_retries ->
+        delay = :timer.seconds(attempt)
+
+        Logger.info(
+          "Ryuk start attempt #{attempt}/#{max_retries} failed (#{inspect(reason)}), retrying in #{delay}ms"
         )
 
-        {:ok}
+        :timer.sleep(delay)
+        retry(fun, max_retries, attempt + 1)
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

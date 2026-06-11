@@ -27,7 +27,8 @@ defmodule TestcontainerEx.Docker.AuthThirdPartyRegistryTest do
     end
 
     test "registry.gitlab.com images resolve correctly" do
-      assert Auth.registry_for_image("registry.gitlab.com/group/project/image:tag") == "registry.gitlab.com"
+      assert Auth.registry_for_image("registry.gitlab.com/group/project/image:tag") ==
+               "registry.gitlab.com"
     end
 
     test "AWS ECR registries resolve correctly" do
@@ -36,7 +37,8 @@ defmodule TestcontainerEx.Docker.AuthThirdPartyRegistryTest do
     end
 
     test "Azure Container Registry resolves correctly" do
-      assert Auth.registry_for_image("myregistry.azurecr.io/myimage:tag") == "myregistry.azurecr.io"
+      assert Auth.registry_for_image("myregistry.azurecr.io/myimage:tag") ==
+               "myregistry.azurecr.io"
     end
 
     test "GitHub Package Registry (old format) resolves correctly" do
@@ -216,7 +218,9 @@ defmodule TestcontainerEx.Docker.AuthThirdPartyRegistryTest do
 
     test "strips scheme and path from third-party registry URLs" do
       assert Auth.normalize_server_address("https://quay.io/v1/") == "quay.io"
-      assert Auth.normalize_server_address("https://registry.gitlab.com/") == "registry.gitlab.com"
+
+      assert Auth.normalize_server_address("https://registry.gitlab.com/") ==
+               "registry.gitlab.com"
     end
 
     test "passes through bare third-party registry hosts" do

@@ -5,6 +5,7 @@ defmodule TestcontainerEx.Docker.Api do
   """
 
   alias TestcontainerEx.Container.Config
+  alias TestcontainerEx.Util.Constants
 
   # ── Container operations ──────────────────────────────────────────
 
@@ -30,7 +31,7 @@ defmodule TestcontainerEx.Docker.Api do
   def get_container_by_hash(hash, conn) do
     filters =
       Jason.encode!(%{
-        "label" => ["#{TestcontainerEx.Util.Constants.container_reuse_hash_label()}=#{hash}"]
+        "label" => ["#{Constants.container_reuse_hash_label()}=#{hash}"]
       })
 
     case get(conn, "/containers/json?filters=#{URI.encode_www_form(filters)}") do
@@ -248,15 +249,36 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
         {:ok, body}
 
+      {:ok, %{status: 200, body: body}} when is_reference(body) or is_pid(body) ->
+        # Hackney may return a reference/pid for streaming bodies.
+        # Read the body with a reasonable max size.
+        case read_hackney_body(body, 1_000_000) do
+          {:ok, data} -> {:ok, data}
+          {:error, reason} -> {:error, {:body_read_error, reason}}
+        end
+
       {:ok, %{body: %{"message" => msg}}} ->
         {:error, msg}
 
       {:ok, %{body: body}} ->
         {:error, body}
 
-      {:error, error} ->
-        {:error, :unknown, error}
+      {:error, {Tesla.Middleware.JSON, :decode, reason}} ->
+        {:error, {:decode_error, reason}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  # Read body from a hackney reference or pid.
+  defp read_hackney_body(ref, max_size) when is_reference(ref) or is_pid(ref) do
+    case :hackney.body(ref, max_size) do
+      {:ok, data} -> {:ok, data}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    _ -> {:error, :body_read_failed}
   end
 
   # ── Network operations ────────────────────────────────────────────
@@ -264,15 +286,11 @@ defmodule TestcontainerEx.Docker.Api do
   def get_bridge_gateway(conn) do
     case get(conn, "/networks/bridge") do
       {:ok, %{status: 200, body: body}} ->
-        case parse_body(body) do
-          %{"IPAM" => %{"Config" => config}} ->
-            case Enum.filter(config, &Map.get(&1, "Gateway")) do
-              [] -> {:error, :no_gateway}
-              [first | _] -> {:ok, Map.get(first, "Gateway")}
-            end
-
-          _ ->
-            {:error, :unexpected_response}
+        with {:ok, config} <- parse_bridge_gateway_config(body),
+             {:ok, gateway} <- first_gateway(config) do
+          {:ok, gateway}
+        else
+          _ -> {:error, :no_gateway}
         end
 
       {:ok, %{status: status}} ->
@@ -280,6 +298,25 @@ defmodule TestcontainerEx.Docker.Api do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp parse_bridge_gateway_config(body) do
+    case parse_body(body) do
+      %{"IPAM" => %{"Config" => config}} when is_list(config) -> {:ok, config}
+      _ -> :error
+    end
+  end
+
+  defp first_gateway(config) do
+    config
+    |> Enum.find_value(fn
+      %{"Gateway" => gateway} when is_binary(gateway) and gateway != "" -> {:ok, gateway}
+      _ -> nil
+    end)
+    |> case do
+      nil -> :error
+      gateway -> gateway
     end
   end
 
@@ -304,11 +341,11 @@ defmodule TestcontainerEx.Docker.Api do
           _ -> {:error, {:failed_to_create_network, body}}
         end
 
-      {:ok, %{body: %{"message" => msg}}} ->
-        {:error, {:failed_to_create_network, msg}}
-
       {:ok, %{status: 409}} ->
         {:ok, :already_exists}
+
+      {:ok, %{body: %{"message" => msg}}} ->
+        {:error, {:failed_to_create_network, msg}}
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -368,6 +405,88 @@ defmodule TestcontainerEx.Docker.Api do
   defp from_container_inspect(%{
          "Id" => id,
          "Image" => image,
+         "Name" => name,
+         "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports, "Networks" => networks},
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      name: parse_container_name(name),
+      labels: labels,
+      ip_address: resolve_ip(ip, networks),
+      exposed_ports: map_ports(ports),
+      environment: parse_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "Name" => name,
+         "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports},
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      name: parse_container_name(name),
+      labels: labels,
+      ip_address: ip,
+      exposed_ports: map_ports(ports),
+      environment: parse_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "Name" => name,
+         "NetworkSettings" => network_settings,
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    ip = Map.get(network_settings, "IPAddress")
+    ports = Map.get(network_settings, "Ports") || %{}
+    networks = Map.get(network_settings, "Networks") || %{}
+
+    %Config{
+      container_id: id,
+      image: image,
+      name: parse_container_name(name),
+      labels: labels,
+      ip_address: resolve_ip(ip, networks),
+      exposed_ports: map_ports(ports),
+      environment: parse_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "Name" => name,
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      name: parse_container_name(name),
+      labels: labels,
+      ip_address: nil,
+      exposed_ports: [],
+      environment: parse_env(env)
+    }
+  end
+
+  # Docker returns names with a leading "/" prefix, e.g. "/my-container".
+  # Strip it for consistency.
+  defp parse_container_name("/" <> name), do: name
+  defp parse_container_name(name), do: name
+
+  # ── Fallback clauses without Name field (for backward compatibility) ──
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
          "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports, "Networks" => networks},
          "Config" => %{"Env" => env, "Labels" => labels}
        }) do
@@ -377,7 +496,7 @@ defmodule TestcontainerEx.Docker.Api do
       labels: labels,
       ip_address: resolve_ip(ip, networks),
       exposed_ports: map_ports(ports),
-      environment: map_env(env)
+      environment: parse_env(env)
     }
   end
 
@@ -393,7 +512,7 @@ defmodule TestcontainerEx.Docker.Api do
       labels: labels,
       ip_address: ip,
       exposed_ports: map_ports(ports),
-      environment: map_env(env)
+      environment: parse_env(env)
     }
   end
 
@@ -413,7 +532,7 @@ defmodule TestcontainerEx.Docker.Api do
       labels: labels,
       ip_address: resolve_ip(ip, networks),
       exposed_ports: map_ports(ports),
-      environment: map_env(env)
+      environment: parse_env(env)
     }
   end
 
@@ -428,64 +547,84 @@ defmodule TestcontainerEx.Docker.Api do
       labels: labels,
       ip_address: nil,
       exposed_ports: [],
-      environment: map_env(env)
+      environment: parse_env(env)
     }
   end
 
   # ── Private helpers ───────────────────────────────────────────────
 
   defp container_create_request(%Config{} = cfg) do
-    base = %{
+    base_container_request(cfg)
+    |> maybe_put_networking_config(cfg)
+  end
+
+  defp maybe_put_networking_config(request, %Config{network: nil}), do: request
+
+  defp maybe_put_networking_config(request, %Config{network: network}) do
+    Map.put(request, "NetworkingConfig", %{"EndpointsConfig" => %{network => %{}}})
+  end
+
+  defp base_container_request(%Config{} = cfg) do
+    %{
       "Image" => cfg.image,
       "Cmd" => cfg.cmd,
       "ExposedPorts" => map_exposed_ports(cfg),
       "Env" => map_env(cfg.environment),
       "Labels" => cfg.labels,
       "Hostname" => cfg.hostname,
-      "HostConfig" => %{
-        "AutoRemove" => cfg.auto_remove,
-        "PortBindings" => map_port_bindings(cfg),
-        "Privileged" => cfg.privileged,
-        "Binds" => map_binds(cfg),
-        "Mounts" => map_volumes(cfg),
-        "NetworkMode" => cfg.network_mode || cfg.network
-      }
+      "HostConfig" => host_config(cfg)
     }
+  end
 
-    base =
-      if cfg.network do
-        endpoint = %{cfg.network => %{}}
-
-        Map.put(base, "NetworkingConfig", %{
-          "EndpointsConfig" => endpoint
-        })
-      else
-        base
-      end
-
-    base
+  defp host_config(%Config{} = cfg) do
+    %{
+      "AutoRemove" => cfg.auto_remove,
+      "PortBindings" => map_port_bindings(cfg),
+      "Privileged" => cfg.privileged,
+      "Binds" => map_binds(cfg),
+      "Mounts" => map_volumes(cfg),
+      "NetworkMode" => cfg.network_mode || cfg.network
+    }
   end
 
   defp map_exposed_ports(%Config{exposed_ports: ports}) do
     Enum.map(ports, fn {port, _} -> {to_string(port), %{}} end) |> Enum.into(%{})
   end
 
-  defp map_env(nil), do: %{}
+  defp map_env(nil), do: []
 
-  defp map_env(env) when is_list(env) do
-    Enum.into(env, %{}, fn
+  # Convert Config.environment (map) to Docker API format (list of "KEY=STRING" strings)
+  defp map_env(env) when is_map(env) do
+    Enum.map(env, fn
+      {key, value} when is_binary(key) ->
+        "#{key}=#{value}"
+
+      {key, value} when is_atom(key) ->
+        "#{key}=#{value}"
+
+      {key, value} ->
+        "#{key}=#{value}"
+    end)
+  end
+
+  # Parse Docker API response (list of "KEY=STRING" strings) into a keyword list
+  defp parse_env(nil), do: []
+
+  defp parse_env(env) when is_list(env) do
+    Enum.map(env, fn
       str when is_binary(str) ->
         case String.split(str, "=", parts: 2) do
           [key, value] -> {String.to_atom(key), value}
           [key] -> {String.to_atom(key), ""}
         end
 
+      {key, value} when is_binary(key) ->
+        {String.to_atom(key), to_string(value)}
+
       other ->
-        {other, ""}
+        {to_string(other), ""}
     end)
   end
-
-  defp map_env(env) when is_map(env), do: Enum.map(env, fn {k, v} -> "#{k}=#{v}" end)
 
   defp map_port_bindings(%Config{exposed_ports: ports}) do
     Enum.map(ports, fn
@@ -550,17 +689,11 @@ defmodule TestcontainerEx.Docker.Api do
     end
   end
 
-  defp create_exec(container_id, command, conn) do
+  def create_exec(container_id, command, conn) do
     body = %{"Cmd" => command}
 
     case post(conn, "/containers/#{container_id}/exec", body) do
-      {:ok, %{status: 201, body: body}} ->
-        case parse_body(body) do
-          %{"Id" => id} -> {:ok, id}
-          _ -> {:error, {:failed_to_create_exec, body}}
-        end
-
-      {:ok, %{status: 200, body: body}} ->
+      {:ok, %{status: status, body: body}} when status in [200, 201] ->
         case parse_body(body) do
           %{"Id" => id} -> {:ok, id}
           _ -> {:error, {:failed_to_create_exec, body}}

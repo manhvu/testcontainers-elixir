@@ -32,8 +32,8 @@ defmodule TestcontainerEx.Debug do
       ["abc123...", "def456..."]
   """
 
-  alias TestcontainerEx.Server
   alias TestcontainerEx.Container.Config
+  alias TestcontainerEx.Server
 
   @doc """
   Returns a summary of the TestcontainerEx server status.

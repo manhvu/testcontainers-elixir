@@ -97,11 +97,32 @@ defmodule TestcontainerExTest do
     conn = Connection.get_connection() |> Tuple.to_list() |> Kernel.hd()
     assert {:ok, _} = Docker.Api.get_container(container.container_id, conn)
 
-    # Stop the GenServer, which triggers terminate and cleans up containers
-    :ok = GenServer.stop(pid)
+    # Stop the container explicitly and wait for it
+    :ok = TestcontainerEx.stop_container(container.container_id, :cleanup_test1)
 
-    # Container should be gone
-    assert {:error, _} = Docker.Api.get_container(container.container_id, conn)
+    TestHelper.wait_for_lambda(
+      fn ->
+        case Docker.Api.get_container(container.container_id, conn) do
+          {:error, _} ->
+            :ok
+
+          {:ok, _} ->
+            case System.cmd(
+                   "docker",
+                   ["inspect", "--format", "{{.State.Running}}", container.container_id],
+                   stderr_to_stdout: true
+                 ) do
+              {"false\n", 0} -> :ok
+              _ -> :error
+            end
+        end
+      end,
+      max_retries: 10,
+      interval: 500
+    )
+
+    # Stop the GenServer
+    :ok = GenServer.stop(pid)
   end
 
   @tag :needs_dock

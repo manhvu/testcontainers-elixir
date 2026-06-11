@@ -45,12 +45,24 @@ defmodule TestcontainerEx.Compose.Cli do
       System.get_env("PODMAN_COMPOSE_PROVIDER") ->
         System.get_env("PODMAN_COMPOSE_PROVIDER")
 
+      docker_compose_available?() ->
+        "docker"
+
       podman_compose_available?() ->
         "podman"
 
       true ->
         "docker"
     end
+  end
+
+  defp docker_compose_available? do
+    case System.cmd("docker", ["compose", "version"], stderr_to_stdout: true) do
+      {_, 0} -> true
+      _ -> false
+    end
+  rescue
+    ErlangError -> false
   end
 
   defp podman_compose_available? do

@@ -41,8 +41,26 @@ defmodule TestcontainerEx.CommandWaitStrategy do
         {:ok, exit_code} ->
           handle_non_zero_exit(wait_strategy, container_id, exit_code, conn, started_at)
 
-        error ->
-          handle_execution_error(error, wait_strategy)
+        {:error, :closed} ->
+          # Docker exec connection was closed (e.g. container restarting).
+          # Retry unless we've timed out.
+          handle_connection_error(wait_strategy, container_id, conn, started_at)
+
+        {:error, reason} ->
+          handle_execution_error(reason, wait_strategy, container_id, conn, started_at)
+      end
+    end
+
+    defp handle_connection_error(wait_strategy, container_id, conn, started_at) do
+      if timed_out?(started_at, wait_strategy.timeout) do
+        {:error, strategy_timed_out(wait_strategy.timeout, started_at), wait_strategy}
+      else
+        Logger.debug(
+          "Docker exec connection closed for container #{container_id}, retrying in #{wait_strategy.retry_delay}ms."
+        )
+
+        :timer.sleep(wait_strategy.retry_delay)
+        perform_recursive_wait(wait_strategy, container_id, conn, started_at)
       end
     end
 
@@ -67,8 +85,18 @@ defmodule TestcontainerEx.CommandWaitStrategy do
       end
     end
 
-    defp handle_execution_error({:error, reason}, wait_strategy),
-      do: {:error, reason, wait_strategy}
+    defp handle_execution_error(reason, wait_strategy, container_id, conn, started_at) do
+      if timed_out?(started_at, wait_strategy.timeout) do
+        {:error, strategy_timed_out(wait_strategy.timeout, started_at), wait_strategy}
+      else
+        Logger.debug(
+          "Command execution error in container #{container_id}: #{inspect(reason)}, retrying in #{wait_strategy.retry_delay}ms."
+        )
+
+        :timer.sleep(wait_strategy.retry_delay)
+        perform_recursive_wait(wait_strategy, container_id, conn, started_at)
+      end
+    end
 
     defp wait_for_command_completion(exec_id, timeout, started_at, retry_delay, conn) do
       case Docker.Api.inspect_exec(exec_id, conn) do
@@ -77,6 +105,13 @@ defmodule TestcontainerEx.CommandWaitStrategy do
 
         {:ok, exec_status} ->
           {:ok, exec_status.exit_code}
+
+        {:error, :closed} ->
+          # Exec connection closed, treat as still running and retry
+          wait_unless_timeout(exec_id, timeout, started_at, retry_delay, conn)
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
 

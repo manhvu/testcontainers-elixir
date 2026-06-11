@@ -9,8 +9,8 @@ defmodule TestcontainerEx.Container.Lifecycle do
   require Logger
 
   alias TestcontainerEx.{
-    Container.BuilderHelper,
     Container.Builder,
+    Container.BuilderHelper,
     Container.Config,
     Docker.Api,
     Docker.Auth,
@@ -85,9 +85,35 @@ defmodule TestcontainerEx.Container.Lifecycle do
     config = resolve_pull_policy(config, state.properties)
 
     with :ok <- maybe_pull_image(config, conn),
-         {:ok, id} <- Api.create_container(config, conn),
+         {:ok, id} <- create_container_with_retry(config, conn),
          :ok <- copy_to_container(id, config, conn) do
       start_and_wait(id, config, builder, conn)
+    end
+  end
+
+  # Retry container creation up to 3 times on transient errors.
+  # The Docker daemon may return :econnrefused or HTTP 500 during startup
+  # or when under resource pressure.
+  defp create_container_with_retry(config, conn, retries_left \\ 2)
+
+  defp create_container_with_retry(config, conn, 0) do
+    Api.create_container(config, conn)
+  end
+
+  defp create_container_with_retry(config, conn, retries_left) do
+    case Api.create_container(config, conn) do
+      {:error, :econnrefused} ->
+        Logger.debug("Container creation got econnrefused, retrying in 500ms...")
+        :timer.sleep(500)
+        create_container_with_retry(config, conn, retries_left - 1)
+
+      {:error, {:http_error, 500}} ->
+        Logger.debug("Container creation got HTTP 500, retrying in 1000ms...")
+        :timer.sleep(1000)
+        create_container_with_retry(config, conn, retries_left - 1)
+
+      other ->
+        other
     end
   end
 
@@ -105,7 +131,7 @@ defmodule TestcontainerEx.Container.Lifecycle do
   def resolve_pull_policy(config, _properties), do: config
 
   defp start_and_wait(id, config, builder, conn) do
-    with :ok <- Api.start_container(id, conn),
+    with :ok <- start_container_with_retry(id, conn),
          {:ok, container} <- Api.get_container(id, conn),
          :ok <- Builder.after_start(builder, container, conn),
          :ok <- wait_for_container(container, config.wait_strategies, conn) do
@@ -115,6 +141,30 @@ defmodule TestcontainerEx.Container.Lifecycle do
         Logger.info("Cleaning up container #{id} after failed start")
         Api.stop_container(id, conn)
         error
+    end
+  end
+
+  # Retry container start up to 3 times on transient errors.
+  defp start_container_with_retry(id, conn, retries_left \\ 2)
+
+  defp start_container_with_retry(id, conn, 0) do
+    Api.start_container(id, conn)
+  end
+
+  defp start_container_with_retry(id, conn, retries_left) do
+    case Api.start_container(id, conn) do
+      {:error, :econnrefused} ->
+        Logger.debug("Container start got econnrefused, retrying in 500ms...")
+        :timer.sleep(500)
+        start_container_with_retry(id, conn, retries_left - 1)
+
+      {:error, {:http_error, 500}} ->
+        Logger.debug("Container start got HTTP 500, retrying in 1000ms...")
+        :timer.sleep(1000)
+        start_container_with_retry(id, conn, retries_left - 1)
+
+      other ->
+        other
     end
   end
 

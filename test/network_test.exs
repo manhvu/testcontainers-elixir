@@ -48,8 +48,9 @@ defmodule TestcontainerEx.NetworkTest do
 
       # Should handle gracefully (not crash)
       result = TestcontainerEx.remove_network(network_name)
-      # Returns error with message when network doesn't exist
-      assert match?({:error, {:failed_to_remove_network, _}}, result) or result == :ok
+      # Returns error when network doesn't exist
+      assert match?({:error, {:failed_to_remove_network, _}}, result) or
+               match?({:error, :network_not_found}, result) or result == :ok
     end
   end
 

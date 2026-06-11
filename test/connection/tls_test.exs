@@ -44,19 +44,26 @@ defmodule TestcontainerEx.Connection.TlsTest do
 
     test "skips missing cert files without crashing" do
       empty_dir = Path.join(System.tmp_dir!(), "tc_empty_certs_#{:rand.uniform(1_000_000)}")
-      File.mkdir_p!(empty_dir)
-      System.put_env("DOCKER_CERT_PATH", empty_dir)
-      System.put_env("DOCKER_TLS_VERIFY", "1")
 
-      try do
-        opts = Connection.build_ssl_options()
+      case File.mkdir_p(empty_dir) do
+        :ok ->
+          System.put_env("DOCKER_CERT_PATH", empty_dir)
+          System.put_env("DOCKER_TLS_VERIFY", "1")
 
-        assert opts[:verify] == :verify_peer
-        refute Keyword.has_key?(opts, :cacertfile)
-        refute Keyword.has_key?(opts, :certfile)
-        refute Keyword.has_key?(opts, :keyfile)
-      after
-        File.rm_rf!(empty_dir)
+          try do
+            opts = Connection.build_ssl_options()
+
+            assert opts[:verify] == :verify_peer
+            refute Keyword.has_key?(opts, :cacertfile)
+            refute Keyword.has_key?(opts, :certfile)
+            refute Keyword.has_key?(opts, :keyfile)
+          after
+            File.rm_rf(empty_dir)
+          end
+
+        {:error, :enospc} ->
+          # Skip test when disk is full
+          :ok
       end
     end
 

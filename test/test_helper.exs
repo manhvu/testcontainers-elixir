@@ -39,7 +39,9 @@ docker_reachable? =
     [
       "/var/run/docker.sock",
       Path.expand("~/.docker/run/docker.sock"),
-      Path.expand("~/.docker/desktop/docker.sock")
+      Path.expand("~/.docker/desktop/docker.sock"),
+      Path.expand("~/.colima/default/docker.sock"),
+      Path.expand("~/.colima/docker.sock")
     ],
     fn path ->
       case File.stat(path) do
@@ -56,11 +58,13 @@ exclude =
     [:dood_limitation]
   else
     if docker_reachable? do
-      # Try to start the GenServer; if it fails (e.g. daemon not responding),
-      # exclude dock-dependent tests.
+      # Try to start the GenServer with a timeout; if it fails (e.g. daemon not
+      # responding), exclude dock-dependent tests.
       try do
-        case TestcontainerEx.start_link() do
-          {:ok, pid} ->
+        task = Task.async(fn -> TestcontainerEx.start_link() end)
+
+        case Task.yield(task, 10_000) || Task.shutdown(task) do
+          {:ok, {:ok, pid}} ->
             if TestcontainerEx.connected?() do
               [:dood_limitation]
             else

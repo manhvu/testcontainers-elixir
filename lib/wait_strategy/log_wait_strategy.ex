@@ -43,7 +43,7 @@ defmodule TestcontainerEx.LogWaitStrategy do
         true ->
           :ok
 
-        _ ->
+        false ->
           log_retry_message(container_id, wait_strategy.log_regex, wait_strategy.retry_delay)
           :timer.sleep(wait_strategy.retry_delay)
           wait_for_log_message(wait_strategy, container_id, conn, start_time)
@@ -55,6 +55,10 @@ defmodule TestcontainerEx.LogWaitStrategy do
         {:ok, log_output} -> Regex.match?(log_regex, log_output)
         _ -> false
       end
+    catch
+      # If the log stream crashes (e.g. hackney chunked encoding error),
+      # treat as not matched and retry.
+      :error, _ -> false
     end
 
     defp get_current_time_millis, do: System.monotonic_time(:millisecond)

@@ -6,7 +6,8 @@ defmodule TestcontainerEx.ContainerBuilderHelperTest do
 
   test "build/2 returns a tuple with false, built config with correct labels and nil for hash" do
     builder =
-      TestcontainerEx.PostgresContainer.new() |> TestcontainerEx.PostgresContainer.with_reuse(true)
+      TestcontainerEx.PostgresContainer.new()
+      |> TestcontainerEx.PostgresContainer.with_reuse(true)
 
     state = %{properties: %{}, session_id: "123"}
     {:noreuse, built, nil} = ContainerBuilderHelper.build(builder, state)
@@ -20,7 +21,8 @@ defmodule TestcontainerEx.ContainerBuilderHelperTest do
 
   test "build/2 returns a tuple with true, built config with correct labels and a non nil hash" do
     builder =
-      TestcontainerEx.PostgresContainer.new() |> TestcontainerEx.PostgresContainer.with_reuse(true)
+      TestcontainerEx.PostgresContainer.new()
+      |> TestcontainerEx.PostgresContainer.with_reuse(true)
 
     state = %{properties: %{"testcontainer_ex.reuse.enable" => "true"}, session_id: "123"}
     {:reuse, built, hash} = ContainerBuilderHelper.build(builder, state)

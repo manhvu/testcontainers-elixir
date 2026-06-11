@@ -52,7 +52,9 @@ defmodule TestcontainerEx.ConnectionTest do
     end
 
     test "returns custom adapter when specified" do
-      adapter = Connection.build_adapter([adapter: {Tesla.Adapter.Hackney, recv_timeout: 5000}], 300_000)
+      adapter =
+        Connection.build_adapter([adapter: {Tesla.Adapter.Hackney, recv_timeout: 5000}], 300_000)
+
       assert {Tesla.Adapter.Hackney, recv_timeout: 5000} = adapter
     end
   end

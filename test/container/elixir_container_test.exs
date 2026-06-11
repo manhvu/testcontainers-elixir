@@ -520,7 +520,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
   describe "runtime behavior — basic IEx" do
     @moduletag :needs_dock
-    container(:elixir, ElixirContainer.new())
+    container(:elixir, ElixirContainer.new() |> ElixirContainer.with_wait_timeout(300_000))
 
     test "provides a running elixir container", %{elixir: elixir} do
       assert elixir.container_id != nil

@@ -3,11 +3,14 @@ defmodule TestcontainerEx.Network do
   Docker network operations.
   """
 
+  require Logger
+
   alias TestcontainerEx.Docker.Api
   alias TestcontainerEx.Telemetry
 
   @doc """
   Creates a Docker network. Returns `{:ok, id}` or `{:ok, :already_exists}`.
+  Retries on transient errors.
   """
   @spec create(String.t(), Tesla.Env.client()) ::
           {:ok, String.t()} | {:ok, :already_exists} | {:error, term()}
@@ -15,7 +18,7 @@ defmodule TestcontainerEx.Network do
     Telemetry.with_telemetry(
       [:testcontainer_ex, :network, :create],
       %{network_name: name},
-      fn -> Api.create_network(name, conn) end
+      fn -> retry_network(fn -> Api.create_network(name, conn) end, 2) end
     )
   end
 
@@ -29,6 +32,28 @@ defmodule TestcontainerEx.Network do
       %{network_name: name},
       fn -> Api.remove_network(name, conn) end
     )
+  end
+
+  # Retry network operations on transient Docker daemon errors.
+  defp retry_network(fun, retries_left)
+
+  defp retry_network(fun, 0), do: fun.()
+
+  defp retry_network(fun, retries_left) do
+    case fun.() do
+      {:error, :econnrefused} ->
+        Logger.debug("Network operation got econnrefused, retrying in 500ms...")
+        :timer.sleep(500)
+        retry_network(fun, retries_left - 1)
+
+      {:error, {:http_error, 500}} ->
+        Logger.debug("Network operation got HTTP 500, retrying in 1000ms...")
+        :timer.sleep(1000)
+        retry_network(fun, retries_left - 1)
+
+      other ->
+        other
+    end
   end
 
   @doc """

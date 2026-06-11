@@ -580,7 +580,7 @@ defmodule TestcontainerEx.ElixirContainer do
           do: to_string(dist_port),
           else: to_string(ElixirContainer.default_dist_port())
 
-      vm_args_str = if length(vm_args) > 0, do: Enum.join(vm_args, " "), else: ""
+      vm_args_str = if vm_args == [], do: "", else: Enum.join(vm_args, " ")
 
       "iex --name #{node_name} --cookie #{System.get_env("RELEASE_COOKIE", "default-cookie")} -kernel inet_dist_listen_min #{dist_port_str} -kernel inet_dist_listen_max #{dist_port_str} #{vm_args_str}"
     end

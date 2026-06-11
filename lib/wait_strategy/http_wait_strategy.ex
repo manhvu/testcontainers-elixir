@@ -5,6 +5,10 @@ defmodule TestcontainerEx.HttpWaitStrategy do
 
   @timeout 60_000
   @max_retries 10
+  @request_timeout 5_000
+
+  @doc false
+  def request_timeout, do: @request_timeout
 
   @typedoc """
   The HttpWaitStrategy struct
@@ -73,6 +77,11 @@ defmodule TestcontainerEx.HttpWaitStrategy do
 
     @impl true
     def wait_until_container_is_ready(wait_strategy, container, _conn) do
+      started_at = get_current_time_millis()
+      do_wait(wait_strategy, container, started_at)
+    end
+
+    defp do_wait(wait_strategy, container, started_at) do
       client = build_request(wait_strategy, container)
 
       raw_response =
@@ -88,9 +97,19 @@ defmodule TestcontainerEx.HttpWaitStrategy do
         :ok
       else
         {:error, reason} ->
-          {:error, reason, wait_strategy}
+          if timed_out?(started_at, wait_strategy.timeout) do
+            {:error, reason, wait_strategy}
+          else
+            :timer.sleep(500)
+            do_wait(wait_strategy, container, started_at)
+          end
       end
     end
+
+    defp timed_out?(started_at, timeout),
+      do: get_current_time_millis() - started_at > timeout
+
+    defp get_current_time_millis, do: System.monotonic_time(:millisecond)
 
     # Response evaluation
 
@@ -121,21 +140,14 @@ defmodule TestcontainerEx.HttpWaitStrategy do
 
     # Request composition
 
+    @request_timeout 5_000
+
     defp build_request(wait_strategy, container) do
       base_url = get_base_url(wait_strategy, container)
-      request_timeout = round(wait_strategy.timeout / wait_strategy.max_retries)
 
       Tesla.client([
         {Tesla.Middleware.BaseUrl, base_url: base_url},
-        {Tesla.Middleware.Timeout, timeout: request_timeout},
-        {Tesla.Middleware.Retry,
-         delay: 500,
-         max_retries: wait_strategy.max_retries,
-         max_delay: 5_000,
-         should_retry: fn
-           {:ok, _response}, _env, _context -> false
-           {:error, _reason}, _env, _context -> true
-         end}
+        {Tesla.Middleware.Timeout, timeout: @request_timeout}
       ])
     end
 

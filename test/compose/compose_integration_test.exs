@@ -4,7 +4,6 @@ defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
   @moduletag :needs_dock
   @moduletag :integration
 
-  alias TestcontainerEx.Compose.ComposeEnvironment
   alias TestcontainerEx.DockerCompose
 
   @fixtures_path Path.expand("../fixtures", __DIR__)
@@ -13,36 +12,39 @@ defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
     test "starts and stops a compose environment with redis" do
       compose = DockerCompose.new(@fixtures_path)
 
-      {:ok, env} = TestcontainerEx.start_compose(compose)
+      assert :ok = TestcontainerEx.start_compose(compose)
 
-      assert %ComposeEnvironment{} = env
-      assert is_binary(env.project_name)
-      assert String.starts_with?(env.project_name, "tc-")
-      assert is_binary(env.docker_host)
+      # Give services a moment to start
+      Process.sleep(2_000)
 
-      # Verify redis service is present
-      redis_service = ComposeEnvironment.get_service(env, "redis")
-      assert redis_service != nil
-      assert redis_service.service_name == "redis"
-      assert redis_service.state == "running"
+      # Verify redis is running by checking docker compose ps
+      {:ok, services} = TestcontainerEx.Compose.Cli.ps(compose)
 
-      # Verify port mapping
-      host = ComposeEnvironment.get_service_host(env, "redis")
-      port = ComposeEnvironment.get_service_port(env, "redis", 6379)
+      redis_service =
+        Enum.find(services, fn s ->
+          Map.get(s, "Service") == "redis" or Map.get(s, "Name") =~ "redis"
+        end)
 
-      assert is_binary(host)
-      assert is_integer(port)
-      assert port > 0
+      assert redis_service != nil, "Expected redis service to be running"
+      assert Map.get(redis_service, "State") =~ "running"
+
+      # Get port mapping
+      publishers = Map.get(redis_service, "Publishers", [])
+      port = TestcontainerEx.Compose.Cli.parse_publishers(publishers) |> List.first()
+      assert port != nil, "Expected port mapping for redis"
+      {container_port, host_port} = port
+      assert container_port == 6379
+      assert host_port > 0
 
       # Verify connectivity to redis
-      {:ok, conn} = :gen_tcp.connect(~c"#{host}", port, [:binary, active: false], 5000)
+      {:ok, conn} = :gen_tcp.connect(~c"127.0.0.1", host_port, [:binary, active: false], 5000)
       :gen_tcp.send(conn, "PING\r\n")
       {:ok, response} = :gen_tcp.recv(conn, 0, 5000)
       assert response =~ "PONG"
       :gen_tcp.close(conn)
 
       # Stop the compose environment
-      assert :ok = TestcontainerEx.stop_compose(env)
+      assert :ok = TestcontainerEx.stop_compose(%{compose: compose})
     end
   end
 end

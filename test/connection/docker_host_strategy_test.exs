@@ -85,13 +85,23 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
       # reads the default user file (~/.testcontainer_ex.properties), we temporarily
       # create it with the unreachable URL.
       fixture_path = Path.expand("~/.testcontainer_ex.properties")
+
+      if File.exists?(fixture_path) do
+        File.cp!(fixture_path, "#{fixture_path}.bak")
+      end
+
       File.write!(fixture_path, "tc.host = tcp://localhost:9999\n")
 
       try do
         assert {:error, {:ping_failed, _reason}} =
                  Strategies.Properties.resolve()
       after
-        File.rm(fixture_path)
+        if File.exists?("#{fixture_path}.bak") do
+          File.cp!("#{fixture_path}.bak", fixture_path)
+          File.rm("#{fixture_path}.bak")
+        else
+          File.rm(fixture_path)
+        end
       end
     end
   end
@@ -277,7 +287,9 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
 
       Enum.each(modules, fn mod ->
         assert Code.ensure_loaded?(mod), "Expected #{inspect(mod)} to be loaded"
-        assert function_exported?(mod, :resolve, 0), "Expected #{inspect(mod)} to export resolve/0"
+
+        assert function_exported?(mod, :resolve, 0),
+               "Expected #{inspect(mod)} to export resolve/0"
       end)
     end
   end

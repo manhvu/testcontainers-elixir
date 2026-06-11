@@ -11,6 +11,7 @@ defmodule TestcontainerEx.Docker.ApiTest do
       %{method: :get, url: "/containers/abc123/json"} ->
         json(%{
           "Id" => "abc123def456",
+          "Name" => "/my-postgres",
           "Image" => "sha256:abcdef123456",
           "NetworkSettings" => %{
             "IPAddress" => "172.17.0.2",
@@ -31,6 +32,7 @@ defmodule TestcontainerEx.Docker.ApiTest do
       %{method: :get, url: "/containers/abc123"} ->
         json(%{
           "Id" => "abc123def456",
+          "Name" => "/my-postgres",
           "Image" => "sha256:abcdef123456",
           "NetworkSettings" => %{
             "IPAddress" => "172.17.0.2",
@@ -170,6 +172,7 @@ defmodule TestcontainerEx.Docker.ApiTest do
       %{method: :get, url: "/containers/abc123def456/json"} ->
         json(%{
           "Id" => "abc123def456",
+          "Name" => "/my-postgres",
           "Image" => "sha256:abcdef123456",
           "NetworkSettings" => %{
             "IPAddress" => "172.17.0.2",
@@ -419,7 +422,7 @@ defmodule TestcontainerEx.Docker.ApiTest do
       end)
 
       conn = Tesla.client([], Tesla.Mock)
-      assert {:error, :unexpected_response} = Api.get_bridge_gateway(conn)
+      assert {:error, :no_gateway} = Api.get_bridge_gateway(conn)
     end
   end
 

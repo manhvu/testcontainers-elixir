@@ -142,9 +142,7 @@ defmodule TestcontainerEx.Connection do
   end
 
   defp format_error_list(errors) do
-    errors
-    |> Enum.map(fn error -> "  - #{format_reason(error)}" end)
-    |> Enum.join("\n")
+    Enum.map_join(errors, "\n", fn error -> "  - #{format_reason(error)}" end)
   end
 
   defp format_reason({:not_found, key}), do: "#{key} not found"
@@ -152,6 +150,7 @@ defmodule TestcontainerEx.Connection do
 
   defp format_reason({:ping_failed, url, {:connection_failed, reason}}),
     do: "ping failed for #{url} (connection failed: #{reason})"
+
   defp format_reason({:ping_failed, url, reason}),
     do: "ping failed for #{url} (#{inspect(reason)})"
 
@@ -161,9 +160,11 @@ defmodule TestcontainerEx.Connection do
   defp format_reason(:colima_not_installed), do: "colima not installed (brew install colima)"
   defp format_reason(:colima_not_running), do: "colima not running (colima start)"
   defp format_reason(:colima_socket_not_found), do: "colima status did not report a Docker socket"
+
   defp format_reason({:colima_socket_unreachable, path, {:connection_failed, reason}}) do
     "colima socket unreachable at #{path} (connection failed: #{reason})"
   end
+
   defp format_reason({:colima_socket_unreachable, path, reason}) do
     "colima socket unreachable at #{path} (#{inspect(reason)})"
   end
