@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.5.0"
+  @version "0.5.1"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -18,6 +18,15 @@ defmodule TestcontainerEx.MixProject do
       aliases: aliases(),
       deps: deps(),
       dialyzer: [plt_add_apps: [:mix]],
+      extras: [
+        "README.md",
+        "guides/connection_helpers.md",
+        "guides/container_control.md",
+        "guides/custom_containers.md",
+        "guides/engine_status.md",
+        "guides/getting_started.md",
+        "guides/wait_strategies.md"
+      ],
       package: [
         files: ~w(lib guides .formatter.exs mix.exs README* LICENSE*),
         links: %{"GitHub" => @source_url},
@@ -85,12 +94,10 @@ defmodule TestcontainerEx.MixProject do
       {:fs, "~> 11.4"},
       {:decimal, "~> 3.0", only: [:dev, :test], override: true},
 
-
       # Code quality
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false},
-
+      {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false}
     ]
   end
 
