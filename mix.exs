@@ -18,15 +18,6 @@ defmodule TestcontainerEx.MixProject do
       aliases: aliases(),
       deps: deps(),
       dialyzer: [plt_add_apps: [:mix]],
-      extras: [
-        "README.md",
-        "guides/connection_helpers.md",
-        "guides/container_control.md",
-        "guides/custom_containers.md",
-        "guides/engine_status.md",
-        "guides/getting_started.md",
-        "guides/wait_strategies.md"
-      ],
       package: [
         files: ~w(lib guides .formatter.exs mix.exs README* LICENSE*),
         links: %{"GitHub" => @source_url},
@@ -39,7 +30,8 @@ defmodule TestcontainerEx.MixProject do
           Inspect.TestcontainerEx.TestUser
         ]
       ],
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      docs: docs()
     ]
   end
 
@@ -54,6 +46,122 @@ defmodule TestcontainerEx.MixProject do
     [
       extra_applications: [:logger],
       mod: {TestcontainerEx.Application, []}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "TestcontainerEx",
+      extras: [
+        "README.md",
+        "guides/connection_helpers.md",
+        "guides/container_control.md",
+        "guides/custom_containers.md",
+        "guides/engine_status.md",
+        "guides/getting_started.md",
+        "guides/wait_strategies.md"
+      ],
+      groups_for_modules: [
+        "Core API": [
+          TestcontainerEx,
+          TestcontainerEx.Application,
+          TestcontainerEx.Server
+        ],
+        "Container Management": [
+          TestcontainerEx.Container,
+          TestcontainerEx.ContainerBuilder,
+          TestcontainerEx.ContainerBuilderHelper,
+          TestcontainerEx.Container.Config,
+          TestcontainerEx.Container.Info,
+          TestcontainerEx.Container.Lifecycle,
+          TestcontainerEx.Container.CustomContainer,
+          TestcontainerEx.Container.Builder,
+          TestcontainerEx.Container.BuilderHelper
+        ],
+        "Pre-built Containers": [
+          TestcontainerEx.CassandraContainer,
+          TestcontainerEx.CephContainer,
+          TestcontainerEx.ElixirContainer,
+          TestcontainerEx.EmqxContainer,
+          TestcontainerEx.KafkaContainer,
+          TestcontainerEx.MinioContainer,
+          TestcontainerEx.MiniStackContainer,
+          TestcontainerEx.MongoContainer,
+          TestcontainerEx.MysqlContainer,
+          TestcontainerEx.PostgresContainer,
+          TestcontainerEx.RabbitmqContainer,
+          TestcontainerEx.RedisContainer,
+          TestcontainerEx.ScyllaContainer,
+          TestcontainerEx.SeleniumContainer,
+          TestcontainerEx.ToxiproxyContainer
+        ],
+        "Docker Engine": [
+          TestcontainerEx.Docker.Control,
+          TestcontainerEx.Docker.Engine,
+          TestcontainerEx.Docker.Status,
+          TestcontainerEx.DockerUrl
+        ],
+        "Docker API": [
+          TestcontainerEx.Docker.Api,
+          TestcontainerEx.Docker.Auth
+        ],
+        "Connection & Resolution": [
+          TestcontainerEx.Connection.Connection,
+          TestcontainerEx.Connection.Resolver,
+          TestcontainerEx.Connection.Ssl,
+          TestcontainerEx.Connection.Url
+        ],
+        "Connection Strategies": [
+          TestcontainerEx.Connection.Strategies.Behaviour,
+          TestcontainerEx.Connection.Strategies.Colima,
+          TestcontainerEx.Connection.Strategies.ContainerEnv,
+          TestcontainerEx.Connection.Strategies.Dotenv,
+          TestcontainerEx.Connection.Strategies.Env,
+          TestcontainerEx.Connection.Strategies.Minikube,
+          TestcontainerEx.Connection.Strategies.Properties,
+          TestcontainerEx.Connection.Strategies.Socket
+        ],
+        "Compose": [
+          TestcontainerEx.Compose.Cli,
+          TestcontainerEx.Compose.ComposeEnvironment,
+          TestcontainerEx.Compose.ComposeService,
+          TestcontainerEx.Compose.DockerCompose
+        ],
+        "Wait Strategies": [
+          TestcontainerEx.WaitStrategy.CommandWaitStrategy,
+          TestcontainerEx.WaitStrategy.HttpWaitStrategy,
+          TestcontainerEx.WaitStrategy.LogWaitStrategy,
+          TestcontainerEx.WaitStrategy.PortWaitStrategy,
+          TestcontainerEx.WaitStrategy.Protocols.WaitStrategy,
+          TestcontainerEx.Wait.Wait
+        ],
+        "Networking": [
+          TestcontainerEx.Network.Network
+        ],
+        "Utilities": [
+          TestcontainerEx.Util.Constants,
+          TestcontainerEx.Util.Hash,
+          TestcontainerEx.Util.Properties,
+          TestcontainerEx.Util.Struct,
+          TestcontainerEx.Constants,
+          TestcontainerEx.Log,
+          TestcontainerEx.PullPolicy,
+          TestcontainerEx.CopyTo
+        ],
+        "Testing & Observability": [
+          TestcontainerEx.ExUnit,
+          TestcontainerEx.Telemetry,
+          TestcontainerEx.Debug,
+          TestcontainerEx.Recon
+        ],
+        "Reaper (Ryuk)": [
+          TestcontainerEx.Ryuk
+        ],
+        "Mix Tasks": [
+          Mix.Tasks.Testcontainers.Run,
+          Mix.Tasks.Testcontainers.Test
+        ]
+      ]
     ]
   end
 
