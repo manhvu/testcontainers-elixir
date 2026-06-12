@@ -30,7 +30,10 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
 
     test "raises if image is not a binary" do
       config = ScyllaContainer.new()
-      assert_raise FunctionClauseError, fn -> ScyllaContainer.with_image(config, 123) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ScyllaContainer, :with_image, [config, 123])
+      end
     end
   end
 
@@ -50,7 +53,7 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        ScyllaContainer.with_wait_timeout(config, "120000")
+        apply(ScyllaContainer, :with_wait_timeout, [config, "120000"])
       end
     end
   end
@@ -92,7 +95,7 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       config = ScyllaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ScyllaContainer.with_reuse(config, "true")
+        apply(ScyllaContainer, :with_reuse, [config, "true"])
       end
     end
   end

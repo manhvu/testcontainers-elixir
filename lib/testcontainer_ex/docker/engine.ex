@@ -11,8 +11,8 @@ defmodule TestcontainerEx.Docker.Engine do
   Detects the container engine type.
 
   Returns one of:
-  - `:podman` — if `CONTAINER_HOST` is set or the daemon identifies as Podman
-  - `:minikube` — if minikube env vars are set or DOCKER_HOST matches minikube subnets
+  - `:podman` — if `CONTAINER_ENGINE_HOST` or `CONTAINER_HOST` is set, or the daemon identifies as Podman
+  - `:minikube` — if minikube env vars are set or the host matches minikube subnets
   - `:docker` — default fallback
 
   Results are cached after the first call.
@@ -62,9 +62,11 @@ defmodule TestcontainerEx.Docker.Engine do
   end
 
   defp minikube_docker_host? do
-    case System.get_env("DOCKER_HOST") do
-      nil -> false
-      url -> minikube_subnet?(url)
+    case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("DOCKER_HOST")} do
+      {nil, nil} -> false
+      {url, _} when is_binary(url) and url != "" -> minikube_subnet?(url)
+      {_, url} when is_binary(url) and url != "" -> minikube_subnet?(url)
+      _ -> false
     end
   end
 
@@ -80,15 +82,17 @@ defmodule TestcontainerEx.Docker.Engine do
   end
 
   defp podman_ping? do
-    client = Tesla.client([], Tesla.Adapter.Hackney)
+    client = Req.new()
 
     url =
-      case System.get_env("DOCKER_HOST") do
-        nil -> "http://d/v1.43/_ping"
-        host -> "#{Url.construct(host)}/_ping"
+      case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("DOCKER_HOST")} do
+        {nil, nil} -> "http://d/v1.43/_ping"
+        {host, _} when is_binary(host) and host != "" -> "#{Url.construct(host)}/_ping"
+        {_, host} when is_binary(host) and host != "" -> "#{Url.construct(host)}/_ping"
+        _ -> "http://d/v1.43/_ping"
       end
 
-    case Tesla.get(client, url) do
+    case Req.get(client, url: url) do
       {:ok, %{headers: headers}} ->
         Enum.any?(headers, fn {_, v} -> String.contains?(v, "Podman") end)
 

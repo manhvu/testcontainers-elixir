@@ -62,7 +62,7 @@ defmodule TestcontainerEx.Container.MinistackContainerTest do
     } do
       health_url = "#{MinistackContainer.connection_url(ministack)}/_ministack/health"
 
-      {:ok, %{status: 200, body: body}} = Tesla.get(health_url)
+      {:ok, %{status: 200, body: body}} = Req.get(health_url)
       {:ok, health} = Jason.decode(body)
 
       assert is_map(health)

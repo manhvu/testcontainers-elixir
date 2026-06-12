@@ -32,11 +32,9 @@ defmodule TestcontainerEx.Connection.Strategies.Properties do
   end
 
   defp probe(url) do
-    case Tesla.get(test_client(), "#{Url.construct(url)}/_ping") do
-      {:ok, _} -> :ok
+    case Req.get("#{Url.construct(url)}/_ping") do
+      {:ok, %{status: 200}} -> :ok
       {:error, reason} -> {:error, {:ping_failed, reason}}
     end
   end
-
-  defp test_client, do: Tesla.client([], Tesla.Adapter.Hackney)
 end

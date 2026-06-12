@@ -1,46 +1,57 @@
 defmodule TestcontainerEx.Connection.Strategies.Env do
   @moduledoc """
-  Resolves the container engine host from the `DOCKER_HOST` environment variable.
+  Resolves the container engine host from environment variables.
+
+  Checks `CONTAINER_ENGINE_HOST` first, then falls back to `DOCKER_HOST`
+  for backward compatibility.
   """
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
-  @default_key "DOCKER_HOST"
+  @primary_key "CONTAINER_ENGINE_HOST"
+  @fallback_key "DOCKER_HOST"
 
   @impl true
   def resolve do
-    case System.get_env(@default_key) do
-      nil ->
-        {:error, {:not_found, @default_key}}
+    case {System.get_env(@primary_key), System.get_env(@fallback_key)} do
+      {nil, nil} ->
+        {:error, {:not_found, @primary_key}}
 
-      "" ->
-        {:error, {:empty, @default_key}}
+      {"", nil} ->
+        {:error, {:empty, @primary_key}}
 
-      url ->
-        probe(url)
+      {nil, ""} ->
+        {:error, {:empty, @fallback_key}}
+
+      {url, _} when is_binary(url) and url != "" ->
+        probe(url, @primary_key)
+
+      {_, url} when is_binary(url) and url != "" ->
+        probe(url, @fallback_key)
+
+      _ ->
+        {:error, {:empty, @primary_key}}
     end
   end
 
-  defp probe(url) do
+  defp probe(url, key) do
     case URI.parse(url) do
       %URI{scheme: "unix", path: path} ->
         if socket_accessible?(path) do
           require Logger
-          Logger.info("Docker host detected via DOCKER_HOST: #{url}")
+          Logger.info("Container engine host detected via #{key}: #{url}")
           {:ok, url}
         else
           {:error, {:socket_not_found, path}}
         end
 
       _ ->
-        case Tesla.get(test_client(), "#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
-          {:ok, _} -> {:ok, url}
+        case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+          {:ok, %{status: 200}} -> {:ok, url}
           {:error, reason} -> {:error, {:ping_failed, url, reason}}
         end
     end
   end
-
-  defp test_client, do: Tesla.client([], Tesla.Adapter.Hackney)
 
   # Check if a path is a readable Unix socket.
   # Uses file mode bits (not File.stat type field) because some

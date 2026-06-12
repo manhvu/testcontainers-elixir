@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 defmodule TestcontainerEx.Docker.Api do
   @moduledoc """
-  Internal Docker API client. All functions require a Tesla connection.
+  Internal Docker API client. All functions require a Req connection.
   """
 
   alias TestcontainerEx.Container.Config
@@ -20,7 +20,7 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, body} when is_map(body) ->
         {:error, {:failed_to_get_container, body}}
 
-      {:error, %Tesla.Env{status: other}} ->
+      {:error, %Req.Response{status: other}} ->
         {:error, {:http_error, other}}
 
       {:error, reason} ->
@@ -45,7 +45,7 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{body: body}} when is_map(body) ->
         {:error, {:failed_to_get_container, body}}
 
-      {:error, %Tesla.Env{status: other}} ->
+      {:error, %Req.Response{status: other}} ->
         {:error, {:http_error, other}}
 
       {:error, reason} ->
@@ -70,13 +70,13 @@ defmodule TestcontainerEx.Docker.Api do
           _ -> {:error, {:failed_to_create_container, body}}
         end
 
-      {:ok, %{body: body}} when is_map(body) ->
-        {:error, {:failed_to_create_container, body}}
-
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
-      {:error, %Tesla.Env{status: other}} ->
+      {:ok, %{body: body}} when is_map(body) ->
+        {:error, {:failed_to_create_container, body}}
+
+      {:error, %Req.Response{status: other}} ->
         {:error, {:http_error, other}}
 
       {:error, reason} ->
@@ -92,13 +92,13 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: 204}} ->
         :ok
 
-      {:ok, %{body: body}} when is_map(body) ->
-        {:error, {:failed_to_start_container, body}}
-
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
-      {:error, %Tesla.Env{status: other}} ->
+      {:ok, %{body: body}} when is_map(body) ->
+        {:error, {:failed_to_start_container, body}}
+
+      {:error, %Req.Response{status: other}} ->
         {:error, {:http_error, other}}
 
       {:error, reason} ->
@@ -144,16 +144,19 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: 200}} ->
         {:ok, nil}
 
-      # Docker returns NDJSON for image pulls; Tesla.Middleware.JSON may fail
+      # Docker returns NDJSON for image pulls; Req may fail
       # to decode the streaming body as a single JSON object. A 200 status
       # still means the pull succeeded.
-      {:error, {Tesla.Middleware.JSON, :decode, _}} ->
+      {:error, {Req, :decode, _}} ->
+        {:ok, nil}
+
+      {:error, %Jason.DecodeError{}} ->
         {:ok, nil}
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
-      {:error, %Tesla.Env{status: other}} ->
+      {:error, %Req.Response{status: other}} ->
         {:error, {:http_error, other}}
 
       {:error, reason} ->
@@ -175,13 +178,13 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
-      {:error, %Tesla.Env{status: 404}} ->
+      {:error, %Req.Response{status: 404}} ->
         {:ok, false}
 
-      {:error, %Tesla.Env{status: 500}} ->
+      {:error, %Req.Response{status: 500}} ->
         {:error, {:http_error, 500}}
 
-      {:error, %Tesla.Env{status: other}} ->
+      {:error, %Req.Response{status: other}} ->
         {:error, {:http_error, other}}
 
       {:error, _reason} ->
@@ -241,45 +244,101 @@ defmodule TestcontainerEx.Docker.Api do
     end
   end
 
-  def stdout_logs(container_id, conn) do
-    case get(
-           conn,
-           "/containers/#{container_id}/logs?stdout=true&stderr=true&timestamps=false"
-         ) do
-      {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        {:ok, body}
+  def logs(container_id, conn, opts \\ []) when is_binary(container_id) do
+    stdout? = Keyword.get(opts, :stdout, true)
+    stderr? = Keyword.get(opts, :stderr, true)
+    timestamps? = Keyword.get(opts, :timestamps, false)
+    follow? = Keyword.get(opts, :follow, false)
 
-      {:ok, %{status: 200, body: body}} when is_reference(body) or is_pid(body) ->
-        # Hackney may return a reference/pid for streaming bodies.
-        # Read the body with a reasonable max size.
-        case read_hackney_body(body, 1_000_000) do
-          {:ok, data} -> {:ok, data}
-          {:error, reason} -> {:error, {:body_read_error, reason}}
-        end
+    query_params = [
+      {"stdout", bool_query(stdout?)},
+      {"stderr", bool_query(stderr?)},
+      {"timestamps", bool_query(timestamps?)},
+      {"follow", bool_query(follow?)}
+    ]
+
+    query_params =
+      opts
+      |> Keyword.take([:tail, :since, :until_time])
+      |> Enum.reduce(query_params, fn
+        {:tail, value}, acc -> [{"tail", to_string(value)} | acc]
+        {:since, value}, acc -> [{"since", to_string(value)} | acc]
+        {:until_time, value}, acc -> [{"until", to_string(value)} | acc]
+        _, acc -> acc
+      end)
+
+    query = URI.encode_query(query_params)
+
+    case get(conn, "/containers/#{container_id}/logs?#{query}") do
+      {:ok, %{status: 200, body: body}} when is_binary(body) ->
+        {:ok, parse_log_body(body, stdout?: stdout?, stderr?: stderr?)}
 
       {:ok, %{body: %{"message" => msg}}} ->
         {:error, msg}
 
       {:ok, %{body: body}} ->
-        {:error, body}
+        {:error, {:failed_to_get_container_logs, body}}
 
-      {:error, {Tesla.Middleware.JSON, :decode, reason}} ->
-        {:error, {:decode_error, reason}}
+      {:error, %Req.Response{status: other}} ->
+        {:error, {:http_error, other}}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  # Read body from a hackney reference or pid.
-  defp read_hackney_body(ref, max_size) when is_reference(ref) or is_pid(ref) do
-    case :hackney.body(ref, max_size) do
-      {:ok, data} -> {:ok, data}
-      {:error, reason} -> {:error, reason}
+  def stdout_logs(container_id, conn) do
+    case logs(container_id, conn, stderr: false) do
+      {:ok, %{stdout: stdout}} -> {:ok, stdout}
+      error -> error
     end
-  rescue
-    _ -> {:error, :body_read_failed}
   end
+
+  def stderr_logs(container_id, conn) do
+    case logs(container_id, conn, stdout: false) do
+      {:ok, %{stderr: stderr}} -> {:ok, stderr}
+      error -> error
+    end
+  end
+
+  @doc false
+  def parse_log_body(body, opts \\ []) when is_binary(body) do
+    stdout? = Keyword.get(opts, :stdout?, Keyword.get(opts, :stdout, true))
+    stderr? = Keyword.get(opts, :stderr?, Keyword.get(opts, :stderr, true))
+
+    case decode_log_frames(body) do
+      {:ok, decoded} ->
+        stdout = if(stdout?, do: decoded.stdout, else: "")
+        stderr = if(stderr?, do: decoded.stderr, else: "")
+        %{stdout: stdout, stderr: stderr}
+
+      :raw ->
+        if stdout?, do: %{stdout: body, stderr: ""}, else: %{stdout: "", stderr: body}
+    end
+  end
+
+  defp decode_log_frames(body), do: collect_log_frames(body, %{stdout: "", stderr: ""})
+
+  defp collect_log_frames(<<>>, acc), do: {:ok, acc}
+
+  defp collect_log_frames(
+         <<type::8, _stream::24, size::32, payload::binary-size(size), rest::binary>>,
+         acc
+       )
+       when type in [1, 2] do
+    acc =
+      case type do
+        1 -> %{acc | stdout: acc.stdout <> payload}
+        2 -> %{acc | stderr: acc.stderr <> payload}
+      end
+
+    collect_log_frames(rest, acc)
+  end
+
+  defp collect_log_frames(_body, _acc), do: :raw
+
+  defp bool_query(true), do: "true"
+  defp bool_query(false), do: "false"
 
   # ── Network operations ────────────────────────────────────────────
 
@@ -350,10 +409,10 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
-      {:error, %Tesla.Env{status: 409}} ->
+      {:error, %Req.Response{status: 409}} ->
         {:ok, :already_exists}
 
-      {:error, %Tesla.Env{status: status}} ->
+      {:error, %Req.Response{status: status}} ->
         {:error, {:http_error, status}}
 
       {:error, reason} ->
@@ -378,10 +437,10 @@ defmodule TestcontainerEx.Docker.Api do
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
-      {:error, %Tesla.Env{status: 404}} ->
+      {:error, %Req.Response{status: 404}} ->
         {:error, :network_not_found}
 
-      {:error, %Tesla.Env{status: status}} ->
+      {:error, %Req.Response{status: status}} ->
         {:error, {:http_error, status}}
 
       {:error, reason} ->
@@ -402,6 +461,7 @@ defmodule TestcontainerEx.Docker.Api do
     from_container_inspect(%{inspect | "ExecIDs" => []})
   end
 
+  # With Name and full NetworkSettings
   defp from_container_inspect(%{
          "Id" => id,
          "Image" => image,
@@ -420,6 +480,7 @@ defmodule TestcontainerEx.Docker.Api do
     }
   end
 
+  # With Name and NetworkSettings without Networks
   defp from_container_inspect(%{
          "Id" => id,
          "Image" => image,
@@ -438,6 +499,7 @@ defmodule TestcontainerEx.Docker.Api do
     }
   end
 
+  # With Name and network_settings as a map (no guaranteed keys)
   defp from_container_inspect(%{
          "Id" => id,
          "Image" => image,
@@ -460,6 +522,7 @@ defmodule TestcontainerEx.Docker.Api do
     }
   end
 
+  # With Name but no NetworkSettings
   defp from_container_inspect(%{
          "Id" => id,
          "Image" => image,
@@ -470,6 +533,75 @@ defmodule TestcontainerEx.Docker.Api do
       container_id: id,
       image: image,
       name: parse_container_name(name),
+      labels: labels,
+      ip_address: nil,
+      exposed_ports: [],
+      environment: parse_env(env)
+    }
+  end
+
+  # Without Name — fallback clauses for backward compatibility
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports, "Networks" => networks},
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      labels: labels,
+      ip_address: resolve_ip(ip, networks),
+      exposed_ports: map_ports(ports),
+      environment: parse_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports},
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
+      labels: labels,
+      ip_address: ip,
+      exposed_ports: map_ports(ports),
+      environment: parse_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "NetworkSettings" => network_settings,
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    ip = Map.get(network_settings, "IPAddress")
+    ports = Map.get(network_settings, "Ports") || %{}
+    networks = Map.get(network_settings, "Networks") || %{}
+
+    %Config{
+      container_id: id,
+      image: image,
+      labels: labels,
+      ip_address: resolve_ip(ip, networks),
+      exposed_ports: map_ports(ports),
+      environment: parse_env(env)
+    }
+  end
+
+  defp from_container_inspect(%{
+         "Id" => id,
+         "Image" => image,
+         "Config" => %{"Env" => env, "Labels" => labels}
+       }) do
+    %Config{
+      container_id: id,
+      image: image,
       labels: labels,
       ip_address: nil,
       exposed_ports: [],
@@ -481,75 +613,6 @@ defmodule TestcontainerEx.Docker.Api do
   # Strip it for consistency.
   defp parse_container_name("/" <> name), do: name
   defp parse_container_name(name), do: name
-
-  # ── Fallback clauses without Name field (for backward compatibility) ──
-
-  defp from_container_inspect(%{
-         "Id" => id,
-         "Image" => image,
-         "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports, "Networks" => networks},
-         "Config" => %{"Env" => env, "Labels" => labels}
-       }) do
-    %Config{
-      container_id: id,
-      image: image,
-      labels: labels,
-      ip_address: resolve_ip(ip, networks),
-      exposed_ports: map_ports(ports),
-      environment: parse_env(env)
-    }
-  end
-
-  defp from_container_inspect(%{
-         "Id" => id,
-         "Image" => image,
-         "NetworkSettings" => %{"IPAddress" => ip, "Ports" => ports},
-         "Config" => %{"Env" => env, "Labels" => labels}
-       }) do
-    %Config{
-      container_id: id,
-      image: image,
-      labels: labels,
-      ip_address: ip,
-      exposed_ports: map_ports(ports),
-      environment: parse_env(env)
-    }
-  end
-
-  defp from_container_inspect(%{
-         "Id" => id,
-         "Image" => image,
-         "NetworkSettings" => network_settings,
-         "Config" => %{"Env" => env, "Labels" => labels}
-       }) do
-    ip = Map.get(network_settings, "IPAddress")
-    ports = Map.get(network_settings, "Ports") || %{}
-    networks = Map.get(network_settings, "Networks") || %{}
-
-    %Config{
-      container_id: id,
-      image: image,
-      labels: labels,
-      ip_address: resolve_ip(ip, networks),
-      exposed_ports: map_ports(ports),
-      environment: parse_env(env)
-    }
-  end
-
-  defp from_container_inspect(%{
-         "Id" => id,
-         "Image" => image,
-         "Config" => %{"Env" => env, "Labels" => labels}
-       }) do
-    %Config{
-      container_id: id,
-      image: image,
-      labels: labels,
-      ip_address: nil,
-      exposed_ports: [],
-      environment: parse_env(env)
-    }
-  end
 
   # ── Private helpers ───────────────────────────────────────────────
 
@@ -731,19 +794,35 @@ defmodule TestcontainerEx.Docker.Api do
   # ── HTTP helpers ──────────────────────────────────────────────────
 
   defp get(conn, path) do
-    Tesla.get(conn, path)
+    Req.get(conn, url: path)
   end
 
   defp post(conn, path, body, opts \\ []) do
-    Tesla.post(conn, path, body || "", opts)
+    body = encode_body(body)
+    headers = Keyword.get(opts, :headers, [])
+
+    options =
+      if body == nil do
+        [url: path, headers: headers]
+      else
+        [url: path, body: body, headers: headers ++ [{"content-type", "application/json"}]]
+      end
+
+    Req.post(conn, options)
   end
 
+  defp encode_body(nil), do: nil
+  defp encode_body(body) when is_map(body), do: Jason.encode!(body)
+  defp encode_body(body) when is_list(body), do: Jason.encode!(body)
+  defp encode_body(body), do: body
+
   defp put_raw(conn, path, body, opts) do
-    Tesla.put(conn, path, body, opts)
+    headers = Keyword.get(opts, :headers, [])
+    Req.put(conn, url: path, body: body, headers: headers)
   end
 
   defp delete(conn, path) do
-    Tesla.delete(conn, path)
+    Req.delete(conn, url: path)
   end
 
   # ── Body parsing ─────────────────────────────────────────────────

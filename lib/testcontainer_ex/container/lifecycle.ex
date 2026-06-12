@@ -32,7 +32,7 @@ defmodule TestcontainerEx.Container.Lifecycle do
   6. Apply wait strategies
   7. Call after_start hook
   """
-  @spec start_container(struct(), Tesla.Env.client(), map()) ::
+  @spec start_container(struct(), Req.Request.t(), map()) ::
           {:ok, Config.t()} | {:error, term()}
   def start_container(builder, conn, state) do
     Telemetry.with_telemetry(
@@ -68,14 +68,98 @@ defmodule TestcontainerEx.Container.Lifecycle do
   end
 
   @doc """
+  Creates and starts multiple containers.
+
+  Returns `{:ok, containers}` when every container starts. If one or more
+  containers fail, returns `{:error, results}` where `results` keeps the input
+  order and contains either `{:ok, container}` or `{:error, reason}`.
+  """
+  @spec start_containers([struct()], Req.Request.t(), map()) ::
+          {:ok, [Config.t()]} | {:error, [term()]}
+  def start_containers(builders, conn, state) when is_list(builders) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :batch_start],
+      %{count: length(builders)},
+      fn -> do_start_containers(builders, conn, state, []) end
+    )
+  end
+
+  @doc """
   Stops a container by ID.
   """
-  @spec stop_container(String.t(), Tesla.Env.client()) :: :ok | {:error, term()}
+  @spec stop_container(String.t(), Req.Request.t()) :: :ok | {:error, term()}
   def stop_container(container_id, conn) do
     Telemetry.with_telemetry(
       [:testcontainer_ex, :container, :stop],
       %{container_id: container_id},
       fn -> Api.stop_container(container_id, conn) end
+    )
+  end
+
+  @doc """
+  Stops multiple containers.
+  """
+  @spec stop_containers([String.t()], Req.Request.t()) :: {:ok, [term()]} | {:error, [term()]}
+  def stop_containers(container_ids, conn) when is_list(container_ids) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :batch_stop],
+      %{count: length(container_ids)},
+      fn -> do_stop_containers(container_ids, conn, []) end
+    )
+  end
+
+  @doc """
+  Inspects a container by ID.
+  """
+  @spec inspect_container(String.t(), Req.Request.t()) :: {:ok, Config.t()} | {:error, term()}
+  def inspect_container(container_id, conn) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :inspect],
+      %{container_id: container_id},
+      fn -> Api.get_container(container_id, conn) end
+    )
+  end
+
+  @doc """
+  Fetches container logs.
+  """
+  @spec container_logs(String.t(), Req.Request.t(), keyword()) ::
+          {:ok, map()} | {:ok, reference() | pid()} | {:error, term()}
+  def container_logs(container_id, conn, opts \\ []) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :logs],
+      %{container_id: container_id, opts: opts},
+      fn -> Api.logs(container_id, conn, opts) end
+    )
+  end
+
+  @doc """
+  Executes a command inside a container.
+  """
+  @spec exec(String.t(), [String.t()], Req.Request.t()) :: {:ok, String.t()} | {:error, term()}
+  def exec(container_id, command, conn) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :exec],
+      %{container_id: container_id, command: command},
+      fn -> do_exec(container_id, command, conn) end
+    )
+  end
+
+  @doc """
+  Monitors a container until a predicate succeeds or the timeout elapses.
+  """
+  @spec monitor_container(
+          String.t(),
+          (Config.t() -> {:ok, term()} | {:error, term()}),
+          Req.Request.t(),
+          keyword()
+        ) ::
+          {:ok, term()} | {:error, term()}
+  def monitor_container(container_id, predicate, conn, opts \\ []) do
+    Telemetry.with_telemetry(
+      [:testcontainer_ex, :container, :monitor],
+      %{container_id: container_id},
+      fn -> do_monitor_container(container_id, predicate, conn, opts) end
     )
   end
 
@@ -89,6 +173,99 @@ defmodule TestcontainerEx.Container.Lifecycle do
          :ok <- copy_to_container(id, config, conn) do
       start_and_wait(id, config, builder, conn)
     end
+  end
+
+  defp do_start_containers([], _conn, _state, acc) do
+    acc
+    |> Enum.reverse()
+    |> finalize_batch_result()
+  end
+
+  defp do_start_containers([builder | rest], conn, state, acc) do
+    result = start_container(builder, conn, state)
+    do_start_containers(rest, conn, state, [result | acc])
+  end
+
+  defp do_stop_containers([], _conn, acc) do
+    {:ok, Enum.reverse(acc)}
+  end
+
+  defp do_stop_containers([container_id | rest], conn, acc) do
+    do_stop_containers(rest, conn, [stop_container(container_id, conn) | acc])
+  end
+
+  defp finalize_batch_result(results) do
+    if Enum.all?(results, &match?({:ok, _}, &1)) do
+      {:ok, Enum.map(results, fn {:ok, container} -> container end)}
+    else
+      {:error, results}
+    end
+  end
+
+  defp do_exec(container_id, command, conn) do
+    with {:ok, exec_id} <- Api.start_exec(container_id, command, conn),
+         {:ok, status} <- wait_for_exec(exec_id, conn, 10_000, 100) do
+      {:ok, %{exec_id: exec_id, exit_code: status.exit_code}}
+    end
+  end
+
+  defp wait_for_exec(exec_id, conn, timeout, retry_delay) do
+    started_at = System.monotonic_time(:millisecond)
+    do_wait_for_exec(exec_id, conn, timeout, retry_delay, started_at)
+  end
+
+  defp do_wait_for_exec(exec_id, conn, timeout, retry_delay, started_at) do
+    cond do
+      System.monotonic_time(:millisecond) - started_at > timeout ->
+        {:error, {:exec_timeout, timeout}}
+
+      true ->
+        case Api.inspect_exec(exec_id, conn) do
+          {:ok, %{running: true}} ->
+            Process.sleep(retry_delay)
+            do_wait_for_exec(exec_id, conn, timeout, retry_delay, started_at)
+
+          {:ok, status} ->
+            {:ok, status}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+    end
+  end
+
+  defp do_monitor_container(container_id, predicate, conn, opts) do
+    timeout = Keyword.get(opts, :timeout, 30_000)
+    retry_delay = Keyword.get(opts, :retry_delay, 250)
+    started_at = System.monotonic_time(:millisecond)
+    do_monitor_container(container_id, predicate, conn, timeout, retry_delay, started_at)
+  end
+
+  defp do_monitor_container(container_id, predicate, conn, timeout, retry_delay, started_at) do
+    with {:ok, container} <- Api.get_container(container_id, conn) do
+      case safe_predicate(predicate, container) do
+        {:ok, value} ->
+          {:ok, value}
+
+        {:error, reason} ->
+          if System.monotonic_time(:millisecond) - started_at > timeout do
+            {:error, {:monitor_timeout, reason, timeout}}
+          else
+            Process.sleep(retry_delay)
+            do_monitor_container(container_id, predicate, conn, timeout, retry_delay, started_at)
+          end
+      end
+    end
+  end
+
+  defp safe_predicate(predicate, container) do
+    predicate.(container)
+  rescue
+    exception ->
+      {:error, {exception.__struct__, Exception.message(exception), __STACKTRACE__}}
+  catch
+    kind, reason ->
+      {:error, {kind, reason}}
   end
 
   # Retry container creation up to 3 times on transient errors.

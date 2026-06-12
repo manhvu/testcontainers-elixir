@@ -165,7 +165,7 @@ defmodule Mix.Tasks.TestcontainerEx.Test do
     # Detect Docker socket
     docker_socket_path = detect_docker_socket_path()
     Mix.shell().info("[testcontainer_ex] Using Docker socket: #{docker_socket_path}")
-    System.put_env("DOCKER_HOST", "unix://#{docker_socket_path}")
+    System.put_env("CONTAINER_ENGINE_HOST", "unix://#{docker_socket_path}")
 
     # Determine how to give Ryuk access to Docker:
     # - Linux: bind-mount the Docker socket directly

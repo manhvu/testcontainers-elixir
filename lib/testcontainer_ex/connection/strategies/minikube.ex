@@ -6,7 +6,7 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
   - `MINIKUBE_ACTIVE_DOCKERD` or `MINIKUBE_PROFILE` is set, OR
   - The `minikube` binary is available on PATH
 
-  It runs `minikube docker-env --shell none` to extract `DOCKER_HOST`.
+  It runs `minikube docker-env --shell none` to extract the container engine host.
   """
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
@@ -18,6 +18,9 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
   @impl true
   def resolve do
     cond do
+      System.get_env("MINIKUBE_ACTIVE_DOCKERD") && System.get_env("CONTAINER_ENGINE_HOST") ->
+        probe(System.get_env("CONTAINER_ENGINE_HOST"))
+
       System.get_env("MINIKUBE_ACTIVE_DOCKERD") && System.get_env("DOCKER_HOST") ->
         probe(System.get_env("DOCKER_HOST"))
 
@@ -45,6 +48,10 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
         |> String.split("\n")
         |> Enum.map(&String.trim/1)
         |> Enum.find_value({:error, :no_docker_host_in_output}, fn
+          "CONTAINER_ENGINE_HOST=" <> rest ->
+            url = String.trim(rest) |> String.trim("\"")
+            if url != "", do: {:ok, url}, else: nil
+
           "DOCKER_HOST=" <> rest ->
             url = String.trim(rest) |> String.trim("\"")
             if url != "", do: {:ok, url}, else: nil
@@ -54,7 +61,7 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
         end)
         |> case do
           {:ok, url} ->
-            Logger.info("Connected to Docker via minikube: #{url}")
+            Logger.info("Connected to container engine via minikube: #{url}")
             probe(url)
 
           error ->
@@ -67,11 +74,9 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
   end
 
   defp probe(url) do
-    case Tesla.get(test_client(), "#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
-      {:ok, _} -> {:ok, url}
+    case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+      {:ok, %{status: 200}} -> {:ok, url}
       {:error, reason} -> {:error, {:ping_failed, url, reason}}
     end
   end
-
-  defp test_client, do: Tesla.client([], Tesla.Adapter.Hackney)
 end

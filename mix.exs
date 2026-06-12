@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.4.0"
+  @version "0.5.0"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -11,7 +11,7 @@ defmodule TestcontainerEx.MixProject do
       name: "#{@app}",
       version: @version,
       description:
-        "TestcontainerEx supports ExUnit tests, providing lightweight, throwaway instances of common databases or anything else that can run in a Docker/Podman container. TestcontainerEx is reworked from Testcontainers lib.",
+        "TestcontainerEx is an Elixir library for integration testing with containerized services. Start, stop, and monitor Docker, Podman, Minikube, or Colima containers with a unified API. Supports custom containers.",
       elixir: "~> 1.18",
       source_url: @source_url,
       homepage_url: @source_url,
@@ -19,12 +19,12 @@ defmodule TestcontainerEx.MixProject do
       deps: deps(),
       dialyzer: [plt_add_apps: [:mix]],
       package: [
-        files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
+        files: ~w(lib guides .formatter.exs mix.exs README* LICENSE*),
         links: %{"GitHub" => @source_url},
         licenses: ["MIT"]
       ],
       test_coverage: [
-        summary: [threshold: 50],
+        summary: [threshold: 80],
         ignore_modules: [
           TestHelper,
           Inspect.TestcontainerEx.TestUser
@@ -53,12 +53,10 @@ defmodule TestcontainerEx.MixProject do
       {:uniq, "~> 0.6"},
       {:telemetry, "~> 1.4"},
       {:recon, "~> 2.5", only: [:dev, :test]},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
-      {:tesla, "~> 1.7"},
+      {:req, "~> 0.5"},
+      {:plug, "~> 1.15", only: [:dev, :test]},
       {:jason, "~> 1.4"},
-      {:hackney, "~> 4.2"},
       # mysql
       {:myxql, "~> 0.9", only: [:dev, :test]},
       # postgres
@@ -85,14 +83,25 @@ defmodule TestcontainerEx.MixProject do
       {:toxiproxy_ex, "~> 2.0", only: [:dev, :test]},
       # For watching directories for file changes in mix task
       {:fs, "~> 11.4"},
-      {:decimal, "~> 3.0", only: [:dev, :test], override: true}
+      {:decimal, "~> 3.0", only: [:dev, :test], override: true},
+
+
+      # Code quality
+      {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false},
+
     ]
   end
 
   defp aliases do
     [
       setup: ["deps.get"],
-      citest: ["test --exclude flaky --cover"]
+      citest: ["test --exclude flaky --cover"],
+      # Testing & Coverage
+      coveralls: ["test --cover", "coveralls.html"],
+      # Code Quality
+      quality: ["format --check-formatted", "credo --strict", "dialyzer"]
     ]
   end
 end

@@ -18,7 +18,7 @@ defmodule CopyToTest do
 
     host = TestcontainerEx.get_host(container)
     mapped_port = TestcontainerEx.get_port(container, port)
-    {:ok, %{body: body}} = Tesla.get("http://#{host}:#{mapped_port}/hello.txt")
+    {:ok, %{body: body}} = Req.get("http://#{host}:#{mapped_port}/hello.txt")
 
     assert contents == body
     assert :ok = TestcontainerEx.stop_container(container.container_id)

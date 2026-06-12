@@ -9,7 +9,7 @@ defmodule TestcontainerEx.PullPolicy do
   @type t :: %__MODULE__{
           always_pull: boolean() | nil,
           pull_if_missing: boolean() | nil,
-          pull_condition: (struct(), Tesla.Env.t() -> boolean()) | nil
+          pull_condition: (struct(), Req.Response.t() -> boolean()) | nil
         }
 
   defstruct [:always_pull, :pull_if_missing, :pull_condition]
@@ -31,7 +31,7 @@ defmodule TestcontainerEx.PullPolicy do
 
   @spec pull_condition(
           expr ::
-            (config :: struct(), conn :: Tesla.Env.t() -> true | false)
+            (config :: struct(), conn :: Req.Response.t() -> true | false)
         ) ::
           PullPolicy.t()
   def pull_condition(expr) do

@@ -1,6 +1,6 @@
 defmodule TestcontainerEx.Connection do
   @moduledoc """
-  Builds a Tesla client connected to the container engine.
+  Builds an Req client connected to the container engine.
 
   Composes URL resolution, SSL configuration, and HTTP client setup.
   """
@@ -13,14 +13,14 @@ defmodule TestcontainerEx.Connection do
   @default_recv_timeout 300_000
 
   @doc """
-  Builds a Tesla client connected to the detected container engine.
+  Builds an Req client connected to the detected container engine.
 
   Returns `{conn, url, raw_url}` where:
-  - `conn` is a configured Tesla client
-  - `url` is the Tesla-compatible base URL
+  - `conn` is a configured Req request struct
+  - `url` is the base URL
   - `raw_url` is the original URL string
   """
-  @spec get_connection(keyword()) :: {Tesla.Env.client(), String.t(), String.t()}
+  @spec get_connection(keyword()) :: {Req.Request.t(), String.t(), String.t()}
   def get_connection(options \\ []) do
     {url, raw_url} =
       case Resolver.resolve() do
@@ -31,19 +31,17 @@ defmodule TestcontainerEx.Connection do
           exit(format_errors(reasons))
       end
 
-    Logger.info("Docker host: #{inspect(url, pretty: false)}")
+    Logger.info("Container engine host: #{inspect(url, pretty: false)}")
 
-    conn_options =
+    req_options =
       options
       |> Keyword.merge(
         base_url: url,
         recv_timeout: Keyword.get(options, :recv_timeout, @default_recv_timeout),
         user_agent: Keyword.get(options, :user_agent, Constants.user_agent())
       )
-      |> maybe_add_tls_options(url)
-      |> maybe_disable_pool(url)
 
-    {build_client(conn_options), url, raw_url}
+    {build_client(req_options), url, raw_url}
   end
 
   @doc """
@@ -54,85 +52,60 @@ defmodule TestcontainerEx.Connection do
   def build_ssl_options, do: Ssl.build_options()
 
   @doc false
-  @spec build_client(keyword()) :: Tesla.Env.client()
+  @spec build_client(keyword()) :: Req.Request.t()
   def build_client(options) do
     base_url = Keyword.get(options, :base_url)
     user_agent = Keyword.get(options, :user_agent, Constants.user_agent())
     recv_timeout = Keyword.get(options, :recv_timeout, @default_recv_timeout)
 
-    middleware = [
-      {Tesla.Middleware.BaseUrl, base_url},
-      {Tesla.Middleware.Headers, [{"user-agent", user_agent}]},
-      Tesla.Middleware.JSON
-    ]
+    uri = URI.parse(base_url)
 
-    adapter = build_adapter(options, recv_timeout)
+    {req_base_url, unix_socket} =
+      case uri do
+        %URI{scheme: "http+unix"} ->
+          {"http://localhost", decode_unix_socket_path(uri)}
 
-    Tesla.client(middleware, adapter)
+        _ ->
+          {base_url, nil}
+      end
+
+    transport_opts =
+      if Url.https?(base_url) do
+        Ssl.build_options()
+      else
+        []
+      end
+
+    req_options =
+      [
+        base_url: req_base_url,
+        user_agent: user_agent,
+        receive_timeout: recv_timeout,
+        unix_socket: unix_socket
+      ] ++ if transport_opts == [], do: [], else: [connect_options: [transport_opts: transport_opts]]
+
+    Req.new(req_options)
   end
 
-  @doc false
-  @spec build_adapter(keyword(), integer()) :: {module(), keyword()}
-  def build_adapter(options, recv_timeout) do
-    case Keyword.get(options, :adapter) do
-      nil ->
-        base_opts = Keyword.put(adapter_opts(options), :recv_timeout, recv_timeout)
-
-        case Keyword.get(options, :ssl_options) do
-          nil ->
-            {Tesla.Adapter.Hackney, base_opts}
-
-          ssl_opts ->
-            {Tesla.Adapter.Hackney, Keyword.put(base_opts, :ssl_options, ssl_opts)}
-        end
-
-      adapter ->
-        adapter
-    end
+  defp decode_unix_socket_path(%URI{authority: nil, path: path}) do
+    URI.decode(path)
   end
 
-  # Returns adapter-specific options, including pool settings.
-  # Unix socket connections must bypass Hackney's pool (which routes through
-  # hackney_happy DNS resolution and returns :nxdomain for local sockets).
-  defp adapter_opts(options) do
-    case Keyword.get(options, :pool) do
-      nil -> []
-      pool -> [pool: pool]
-    end
-  end
-
-  defp maybe_add_tls_options(options, url) do
-    if Url.https?(url) do
-      ssl_options = Ssl.build_options()
-      Keyword.put(options, :ssl_options, ssl_options)
-    else
-      options
-    end
-  end
-
-  # Disable Hackney's connection pool for Unix socket URLs.
-  # Hackney's pool routes connections through hackney_happy (happy eyeballs
-  # DNS resolution), which does not understand Unix domain sockets and returns
-  # {:error, :nxdomain}. Direct connections (pool: false) use hackney_local_tcp
-  # which correctly calls gen_tcp:connect({:local, Path}, ...).
-  defp maybe_disable_pool(options, url) do
-    case URI.parse(url) do
-      %URI{scheme: "http+unix"} -> Keyword.put(options, :pool, false)
-      _ -> options
-    end
+  defp decode_unix_socket_path(%URI{authority: authority}) do
+    URI.decode_www_form(authority)
   end
 
   defp format_errors(errors) do
     """
-    Failed to find a Docker host.
+    Failed to find a container engine host.
 
     Resolution attempted the following strategies, all of which failed:
     #{format_error_list(errors)}
 
     To fix this, ensure one of the following:
-      1. Docker Desktop or Colima is running
-      2. DOCKER_HOST environment variable is set correctly
-      3. A .env file with DOCKER_HOST exists in the project root
+      1. Docker Desktop, Colima, or Podman is running
+      2. CONTAINER_ENGINE_HOST environment variable is set correctly
+      3. A .env file with CONTAINER_ENGINE_HOST exists in the project root
       4. A Docker socket exists at a standard path (e.g. /var/run/docker.sock)
 
     For Colima users:

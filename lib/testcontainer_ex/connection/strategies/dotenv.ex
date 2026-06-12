@@ -2,10 +2,12 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
   @moduledoc """
   Resolves the container engine host from a `.env` file in the project root.
 
-  Reads `DOCKER_HOST` from `.env` (if present) so that developers can
+  Reads `CONTAINER_ENGINE_HOST` from `.env` (if present) so that developers can
   commit a project-local default without modifying their shell profile.
-  Only activates when `DOCKER_HOST` is *not* already set in the environment,
-  making this a fallback rather than an override.
+  Falls back to `DOCKER_HOST` for backward compatibility.
+
+  Only activates when neither `CONTAINER_ENGINE_HOST` nor `DOCKER_HOST` is
+  already set in the environment, making this a fallback rather than an override.
 
   The `.env` file uses simple `KEY=VALUE` syntax, one per line.
   Lines starting with `#` are treated as comments.
@@ -14,23 +16,32 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
   @default_file ".env"
-  @key "DOCKER_HOST"
+  @primary_key "CONTAINER_ENGINE_HOST"
+  @fallback_key "DOCKER_HOST"
 
   require Logger
 
   @impl true
   def resolve do
-    # Only consult .env when the env var is not already set
-    case System.get_env(@key) do
-      nil ->
+    # Only consult .env when neither env var is already set
+    case {System.get_env(@primary_key), System.get_env(@fallback_key)} do
+      {nil, nil} ->
         read_from_dotenv()
 
-      "" ->
+      {"", nil} ->
         read_from_dotenv()
 
-      env_url ->
-        # Already set in the environment — skip .env and let the Env strategy handle it
-        {:error, {:env_already_set, @key, env_url}}
+      {nil, ""} ->
+        read_from_dotenv()
+
+      {url, _} when is_binary(url) and url != "" ->
+        {:error, {:env_already_set, @primary_key, url}}
+
+      {_, url} when is_binary(url) and url != "" ->
+        {:error, {:env_already_set, @fallback_key, url}}
+
+      _ ->
+        read_from_dotenv()
     end
   end
 
@@ -40,13 +51,22 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
     if File.exists?(path) do
       case File.read(path) do
         {:ok, content} ->
-          case parse_env(content) do
-            %{@key => url} when is_binary(url) and url != "" ->
-              Logger.info("Read DOCKER_HOST from #{@default_file}: #{url}")
+          parsed = parse_env(content)
+
+          case Map.get(parsed, @primary_key) do
+            url when is_binary(url) and url != "" ->
+              Logger.info("Read #{@primary_key} from #{@default_file}: #{url}")
               probe(url)
 
             _ ->
-              {:error, {:key_not_found_in_file, @key, path}}
+              case Map.get(parsed, @fallback_key) do
+                url when is_binary(url) and url != "" ->
+                  Logger.info("Read #{@fallback_key} from #{@default_file}: #{url}")
+                  probe(url)
+
+                _ ->
+                  {:error, {:key_not_found_in_file, @primary_key, path}}
+              end
           end
 
         {:error, reason} ->
@@ -80,21 +100,19 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
     case URI.parse(url) do
       %URI{scheme: "unix", path: path} ->
         if socket_accessible?(path) do
-          Logger.info("Docker host detected via .env: #{url}")
+          Logger.info("Container engine host detected via .env: #{url}")
           {:ok, url}
         else
           {:error, {:socket_not_found, path}}
         end
 
       _ ->
-        case Tesla.get(test_client(), "#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
-          {:ok, _} -> {:ok, url}
+        case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+          {:ok, %{status: 200}} -> {:ok, url}
           {:error, reason} -> {:error, {:ping_failed, url, reason}}
         end
     end
   end
-
-  defp test_client, do: Tesla.client([], Tesla.Adapter.Hackney)
 
   # Check if a path is a readable Unix socket.
   # Uses file mode bits (not File.stat type field) because some

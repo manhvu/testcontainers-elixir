@@ -12,7 +12,7 @@ defmodule TestcontainerEx.Network do
   Creates a Docker network. Returns `{:ok, id}` or `{:ok, :already_exists}`.
   Retries on transient errors.
   """
-  @spec create(String.t(), Tesla.Env.client()) ::
+  @spec create(String.t(), Req.Request.t()) ::
           {:ok, String.t()} | {:ok, :already_exists} | {:error, term()}
   def create(name, conn) do
     Telemetry.with_telemetry(
@@ -25,7 +25,7 @@ defmodule TestcontainerEx.Network do
   @doc """
   Removes a Docker network.
   """
-  @spec remove(String.t(), Tesla.Env.client()) :: :ok | {:error, term()}
+  @spec remove(String.t(), Req.Request.t()) :: :ok | {:error, term()}
   def remove(name, conn) do
     Telemetry.with_telemetry(
       [:testcontainer_ex, :network, :remove],
@@ -59,7 +59,7 @@ defmodule TestcontainerEx.Network do
   @doc """
   Checks if a network exists.
   """
-  @spec exists?(String.t(), Tesla.Env.client()) :: boolean()
+  @spec exists?(String.t(), Req.Request.t()) :: boolean()
   def exists?(name, conn) do
     Api.network_exists?(name, conn)
   end
@@ -68,7 +68,7 @@ defmodule TestcontainerEx.Network do
   Inspects the default bridge network and returns its gateway IP.
   Used for Docker-outside-of-Docker (DooD) detection.
   """
-  @spec bridge_gateway(Tesla.Env.client()) :: {:ok, String.t()} | {:error, term()}
+  @spec bridge_gateway(Req.Request.t()) :: {:ok, String.t()} | {:error, term()}
   def bridge_gateway(conn) do
     Api.get_bridge_gateway(conn)
   end

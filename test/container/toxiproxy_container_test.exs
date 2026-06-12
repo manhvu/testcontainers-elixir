@@ -27,7 +27,10 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
 
     test "raises if the image is not a binary" do
       config = ToxiproxyContainer.new()
-      assert_raise FunctionClauseError, fn -> ToxiproxyContainer.with_image(config, 123) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ToxiproxyContainer, :with_image, [config, 123])
+      end
     end
   end
 
@@ -43,7 +46,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ToxiproxyContainer.with_wait_timeout(config, "30000")
+        apply(ToxiproxyContainer, :with_wait_timeout, [config, "30000"])
       end
     end
   end
@@ -69,7 +72,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ToxiproxyContainer.with_reuse(config, "true")
+        apply(ToxiproxyContainer, :with_reuse, [config, "true"])
       end
     end
   end

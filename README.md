@@ -24,6 +24,7 @@ TestcontainerEx is an Elixir library that supports ExUnit tests, providing light
 - [Docker Host Resolution](#docker-host-resolution)
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
+- [Guides](#guides)
 - [Windows support](#windows-support)
 - [Contributing](#contributing)
 - [License](#license)
@@ -81,19 +82,23 @@ TestcontainerEx needs to know where your Docker/Podman daemon is listening. The 
 cp .env.example .env
 ```
 
-### Step 2: Uncomment the right DOCKER_HOST
+### Step 2: Uncomment the right CONTAINER_ENGINE_HOST
 
 Open `.env` and uncomment the line that matches your container runtime:
 
 | Runtime | Line to uncomment |
 |---------|------------------|
-| **Colima** (macOS) | `DOCKER_HOST=unix:///Users/$USER/.colima/default/docker.sock` |
-| **Docker Desktop** (macOS/Windows) | `DOCKER_HOST=unix:///Users/$USER/.docker/run/docker.sock` |
-| **Docker Engine** (Linux) | `DOCKER_HOST=unix:///var/run/docker.sock` |
-| **Podman** (Linux rootless) | `DOCKER_HOST=unix:///run/user/1000/podman/podman.sock` |
-| **Remote Docker** (TCP) | `DOCKER_HOST=tcp://192.168.1.100:2375` |
+| **Colima** (macOS/Linux) | `CONTAINER_ENGINE_HOST=unix://$HOME/.colima/default/docker.sock` |
+| **Docker Desktop** (macOS) | `CONTAINER_ENGINE_HOST=unix://$HOME/.docker/run/docker.sock` |
+| **Docker Desktop** (Windows) | `CONTAINER_ENGINE_HOST=unix://$HOME/.docker/desktop/docker.sock` |
+| **Docker Engine** (Linux) | `CONTAINER_ENGINE_HOST=unix:///var/run/docker.sock` |
+| **Podman** (Linux rootless) | `CONTAINER_ENGINE_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock` |
+| **Minikube** | `CONTAINER_ENGINE_HOST=tcp://$(minikube ip):2375` |
+| **Remote Docker** (TCP) | `CONTAINER_ENGINE_HOST=tcp://192.168.1.100:2375` |
 
-> **Tip:** Replace `$USER` with your actual macOS username, or use `$HOME`.
+> **Tip:** Use `$HOME` instead of hardcoded paths — it expands to your home directory on any OS. For Podman, `$XDG_RUNTIME_DIR` is typically `/run/user/<uid>`.
+>
+> **Note:** `DOCKER_HOST` is also recognized for backward compatibility. `CONTAINER_ENGINE_HOST` takes precedence.
 
 ### Step 3: Run your tests
 
@@ -105,22 +110,23 @@ That's it! The `.env` file is read automatically by the Dotenv connection strate
 
 ### How it works
 
-When TestcontainerEx starts, it resolves the Docker host using this priority order:
+When TestcontainerEx starts, it resolves the container engine host using this priority order:
 
 1. `~/.testcontainer_ex.properties` (global user config)
-2. `DOCKER_HOST` environment variable (shell/profile)
-3. **`.env` file** in project root ← this is what we just set up
-4. `CONTAINER_HOST` environment variable (Podman)
-5. Minikube auto-detection
-6. Socket path auto-scan
+2. `CONTAINER_ENGINE_HOST` environment variable (shell/profile)
+3. `DOCKER_HOST` environment variable (backward compatibility)
+4. **`.env` file** in project root ← this is what we just set up (checks `CONTAINER_ENGINE_HOST` first, then `DOCKER_HOST`)
+5. `CONTAINER_HOST` environment variable (Podman)
+6. Minikube auto-detection
+7. Socket path auto-scan
 
-The `.env` file is **only** consulted when `DOCKER_HOST` is not already set in your shell. Shell settings always win.
+The `.env` file is **only** consulted when neither `CONTAINER_ENGINE_HOST` nor `DOCKER_HOST` is already set in your shell. Shell settings always win.
 
 ### .env file format
 
 ```bash
-# Docker host (required — uncomment one)
-DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+# Container engine host (required — uncomment one)
+CONTAINER_ENGINE_HOST=unix://$HOME/.colima/default/docker.sock
 
 # TestcontainerEx options (optional)
 TESTCONTAINERS_RYUK_DISABLED=false          # Disable auto-cleanup
@@ -602,14 +608,15 @@ TestcontainerEx Elixir supports [Podman](https://podman.io/) as a drop-in replac
 
 ### Environment Variables
 
-Podman uses `CONTAINER_HOST` instead of `DOCKER_HOST`:
+Podman uses `CONTAINER_HOST` as the equivalent of Docker's `DOCKER_HOST`:
 
 | Variable | Description |
 |----------|-------------|
-| `CONTAINER_HOST` | Podman socket path, e.g. `unix:///run/user/1000/podman/podman.sock` |
-| `DOCKER_HOST` | Also supported for compatibility |
+| `CONTAINER_ENGINE_HOST` | Primary env var for any container engine |
+| `CONTAINER_HOST` | Podman socket path |
+| `DOCKER_HOST` | Backward-compatible fallback |
 
-Both `DOCKER_HOST` and `CONTAINER_HOST` are recognized. `DOCKER_HOST` is checked first, then `CONTAINER_HOST`.
+All three are recognized. `CONTAINER_ENGINE_HOST` takes precedence, then `CONTAINER_HOST`, then `DOCKER_HOST`.
 
 ### Compose Support
 
@@ -641,11 +648,13 @@ echo "ryuk.container.privileged=true" >> ~/.testcontainer_ex.properties
 
 The library automatically detects Podman sockets at these locations:
 
-- `$XDG_RUNTIME_DIR/podman/podman.sock` (rootless Podman)
+- `$XDG_RUNTIME_DIR/podman/podman.sock` (rootless Podman — typically `/run/user/<uid>/podman/podman.sock`)
 - `$XDG_RUNTIME_DIR/containers/podman.sock`
 - `$XDG_RUNTIME_DIR/docker.sock`
 - `/var/run/docker.sock` (rootful Podman with Docker compatibility)
-- `~/.colima/default/docker.sock` (Colima with Podman runtime)
+- `$HOME/.colima/default/docker.sock` (Colima with Podman runtime)
+
+> **Tip:** Set `CONTAINER_ENGINE_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock` in your `.env` file for rootless Podman.
 
 See [Docker Host Resolution](#docker-host-resolution) for the full list of detected socket paths.
 
@@ -668,9 +677,9 @@ TestcontainerEx works with [minikube](https://minikube.sigs.k8s.io/)'s Docker da
    MIX_ENV=test mix test
    ```
 
-   The `minikube docker-env` command sets `DOCKER_HOST`, `DOCKER_CERT_PATH`, and
-   `DOCKER_TLS_VERIFY` environment variables. TestcontainerEx reads all of these
-   automatically.
+   The `minikube docker-env` command sets `DOCKER_HOST` (and optionally
+   `CONTAINER_ENGINE_HOST`), `DOCKER_CERT_PATH`, and `DOCKER_TLS_VERIFY`
+   environment variables. TestcontainerEx reads all of these automatically.
 
 3. **Or use the none driver** (runs directly on the host):
 
@@ -688,7 +697,7 @@ TestcontainerEx automatically detects a minikube environment by checking for:
 
 - The `MINIKUBE_ACTIVE_DOCKERD` environment variable
 - The `MINIKUBE_PROFILE` environment variable
-- A `DOCKER_HOST` value in the `192.168.49.0/24` subnet (minikube's default)
+- A `CONTAINER_ENGINE_HOST` or `DOCKER_HOST` value in the `192.168.49.0/24` subnet (minikube's default)
 - The presence of the `minikube` binary (evaluates `minikube docker-env`)
 
 When detected, the engine is logged as `minikube` during initialization.
@@ -731,7 +740,7 @@ TestcontainerEx works with [Colima](https://github.com/abiosoft/colima), a light
    MIX_ENV=test mix test
    ```
 
-   TestcontainerEx automatically detects the Colima socket at `~/.colima/default/docker.sock`.
+   TestcontainerEx automatically detects the Colima socket at `$HOME/.colima/default/docker.sock`.
 
 ### Specifying the Colima socket explicitly
 
@@ -739,22 +748,22 @@ If auto-detection does not work (e.g. you use a named Colima profile), you can s
 
 ```bash
 # Environment variable
-export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+export CONTAINER_ENGINE_HOST=unix://$HOME/.colima/default/docker.sock
 
 # Or in ~/.testcontainer_ex.properties
 echo "tc.host=unix://$HOME/.colima/default/docker.sock" >> ~/.testcontainer_ex.properties
 
 # Or in a project .env file
-echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> .env
+echo "CONTAINER_ENGINE_HOST=unix://$HOME/.colima/default/docker.sock" >> .env
 ```
 
 ### Detected Socket Path
 
 The library automatically detects the Colima socket at:
 
-- `~/.colima/default/docker.sock` (default profile)
+- `$HOME/.colima/default/docker.sock` (default profile)
 
-For named profiles, the socket is at `~/.colima/<profile>/docker.sock` — set `DOCKER_HOST` explicitly for these.
+For named profiles, the socket is at `$HOME/.colima/<profile>/docker.sock` — set `CONTAINER_ENGINE_HOST` explicitly for these.
 
 See [Docker Host Resolution](#docker-host-resolution) for the full list of detected socket paths.
 
@@ -767,38 +776,41 @@ TestcontainerEx resolves the container engine host by trying several strategies 
 | Priority | Strategy | Source | Notes |
 |----------|----------|--------|-------|
 | 1 | **Properties file** | `~/.testcontainer_ex.properties` | Checks `tc.host`, then `docker.host` |
-| 2 | **Environment variable** | `DOCKER_HOST` | Standard Docker env var (shell/profile) |
-| 3 | **`.env` file** | `.env` in project root | Project-local default; only used when `DOCKER_HOST` is unset |
-| 4 | **Container env var** | `CONTAINER_HOST` | Podman equivalent of `DOCKER_HOST` |
-| 5 | **Minikube** | `minikube docker-env` | Auto-detected when minikube is available |
-| 6 | **Socket scan** | Well-known paths | Docker Desktop, Docker Engine, Podman, Colima sockets |
+| 2 | **Environment variable** | `CONTAINER_ENGINE_HOST` | Primary env var (shell/profile) |
+| 3 | **Fallback env var** | `DOCKER_HOST` | Backward-compatible fallback |
+| 4 | **`.env` file** | `.env` in project root | Checks `CONTAINER_ENGINE_HOST` first, then `DOCKER_HOST` |
+| 5 | **Container env var** | `CONTAINER_HOST` | Podman equivalent |
+| 6 | **Minikube** | `minikube docker-env` | Auto-detected when minikube is available |
+| 7 | **Socket scan** | Well-known paths | Docker Desktop, Docker Engine, Podman, Colima sockets |
 
 ### `.env` file
 
-You can place a `.env` file in your project root to configure the Docker host without modifying your shell profile. A `.env.example` template is provided — copy it and uncomment the right line:
+You can place a `.env` file in your project root to configure the container engine host without modifying your shell profile. A `.env.example` template is provided — copy it and uncomment the right line:
 
 ```bash
 cp .env.example .env
-# Edit .env and uncomment the DOCKER_HOST for your runtime
+# Edit .env and uncomment the CONTAINER_ENGINE_HOST for your runtime
 ```
 
 ```bash
 # .env
-DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+CONTAINER_ENGINE_HOST=unix://$HOME/.colima/default/docker.sock
 ```
 
-This is especially useful for Colima users on macOS, where the socket path is not in the default search list and `DOCKER_HOST` is not automatically exported.
+This is especially useful for Colima users on macOS, where the socket path is not in the default search list.
+
+> **Tip:** Use `$HOME` in your `.env` file instead of hardcoded paths like `/Users/yourname/...`. The `$HOME` variable expands automatically on any OS.
 
 The `.env` file uses simple `KEY=VALUE` syntax, one per line. Lines starting with `#` are comments. You can also set TestcontainerEx options:
 
 ```bash
-# .env — project-local Docker host config
-DOCKER_HOST=unix:///Users/you/.colima/default/docker.sock
+# .env — project-local container engine host config
+CONTAINER_ENGINE_HOST=unix://$HOME/.colima/default/docker.sock
 TESTCONTAINERS_PULL_POLICY=missing
 TESTCONTAINERS_REUSE_ENABLE=false
 ```
 
-> **Note:** The `.env` file is only consulted when `DOCKER_HOST` is not already set in your environment. Shell/profile settings always take precedence.
+> **Note:** The `.env` file is only consulted when neither `CONTAINER_ENGINE_HOST` nor `DOCKER_HOST` is already set in your environment. Shell/profile settings always take precedence.
 >
 > **Security:** `.env` is in `.gitignore` by default. Use `.env.example` for sharing with your team.
 
@@ -809,13 +821,16 @@ When no explicit host is configured, TestcontainerEx scans these socket paths:
 | Path | Runtime |
 |------|---------|
 | `/var/run/docker.sock` | Docker Engine (Linux) |
-| `~/.docker/run/docker.sock` | Docker Desktop (macOS/Windows) |
-| `~/.docker/desktop/docker.sock` | Docker Desktop (alternate) |
-| `~/.colima/default/docker.sock` | Colima (default profile) |
+| `$HOME/.docker/run/docker.sock` | Docker Desktop (macOS/Windows) |
+| `$HOME/.docker/desktop/docker.sock` | Docker Desktop (alternate) |
+| `$HOME/.colima/default/docker.sock` | Colima (default profile) |
+| `$HOME/.colima/<profile>/docker.sock` | Colima (named profile) |
 | `$XDG_RUNTIME_DIR/podman/podman.sock` | Podman (rootless) |
 | `$XDG_RUNTIME_DIR/containers/podman.sock` | Podman (alternate) |
 | `$XDG_RUNTIME_DIR/docker.sock` | Generic XDG socket |
 | `/var/run/minikube/docker.sock` | Minikube |
+
+> **Tip:** `$HOME` expands to your home directory. `$XDG_RUNTIME_DIR` is typically `/run/user/<uid>` on Linux. Both work in `.env` files and shell exports.
 
 Only paths that exist on disk are probed. Each candidate is validated with a ping to the Docker Engine API.
 
@@ -893,8 +908,8 @@ docker login myregistry.example.com
 
 TestcontainerEx recognizes TLS-secured Docker daemons out of the box. Point it at one with:
 
-- `DOCKER_HOST=https://docker.example.internal:2376`, or
-- `DOCKER_HOST=tcp://docker.example.internal:2376` plus `DOCKER_TLS_VERIFY=1`.
+- `CONTAINER_ENGINE_HOST=https://docker.example.internal:2376`, or
+- `CONTAINER_ENGINE_HOST=tcp://docker.example.internal:2376` plus `DOCKER_TLS_VERIFY=1`.
 
 The client looks for `ca.pem`, `cert.pem`, and `key.pem` in the directory named by `DOCKER_CERT_PATH` (or `~/.docker` if unset); whichever files are present are used to build the SSL context, matching the Docker CLI's behavior. When `DOCKER_TLS_VERIFY` is unset, peer verification is disabled and a warning is logged.
 
@@ -910,6 +925,19 @@ Ryuk only runs privileged when one of these is set to `true` or `1`.
 ## API Documentation
 
 For more detailed information about the API, different container configurations, and advanced usage scenarios, please refer to the [API documentation](https://hexdocs.pm/testcontainer_ex/api-reference.html).
+
+## Guides
+
+Step-by-step guides for common tasks:
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](guides/getting_started.md) | Installation, setup, and your first container |
+| [Custom Containers](guides/custom_containers.md) | Build and manage your own container configurations |
+| [Container Control](guides/container_control.md) | Pause, restart, stats, file operations, and more |
+| [Engine Status](guides/engine_status.md) | Query Docker/Podman/Minikube/Colima status via API |
+| [Wait Strategies](guides/wait_strategies.md) | Wait for containers to be ready |
+| [Connection Helpers](guides/connection_helpers.md) | Extract connection URLs and parameters |
 
 ## Windows support
 
@@ -928,11 +956,13 @@ Enable "Expose daemon on tcp://localhost:2375 without TLS" in Docker settings.
 
 for powershell:
 
-`$Env:DOCKER_HOST = "tcp://localhost:2375"`
+`$Env:CONTAINER_ENGINE_HOST = "tcp://localhost:2375"`
 
 for cmd:
 
-`set DOCKER_HOST=tcp://localhost:2375`
+`set CONTAINER_ENGINE_HOST=tcp://localhost:2375`
+
+> **Note:** `DOCKER_HOST` is also recognized on Windows for backward compatibility.
 
 Compile and run tests:
 

@@ -41,7 +41,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
     test "raises if image is not a binary" do
       config = ElixirContainer.new()
-      assert_raise FunctionClauseError, fn -> ElixirContainer.with_image(config, 123) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ElixirContainer, :with_image, [config, 123])
+      end
     end
   end
 
@@ -61,7 +64,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_wait_timeout(config, "120000")
+        apply(ElixirContainer, :with_wait_timeout, [config, "120000"])
       end
     end
   end
@@ -76,7 +79,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
     test "raises if cookie is not a binary" do
       config = ElixirContainer.new()
-      assert_raise FunctionClauseError, fn -> ElixirContainer.with_cookie(config, :atom) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ElixirContainer, :with_cookie, [config, :atom])
+      end
     end
   end
 
@@ -97,7 +103,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
     test "raises if node_name is not a binary" do
       config = ElixirContainer.new()
-      assert_raise FunctionClauseError, fn -> ElixirContainer.with_node_name(config, 123) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ElixirContainer, :with_node_name, [config, 123])
+      end
     end
   end
 
@@ -117,7 +126,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_distribution_port(config, "9100")
+        apply(ElixirContainer, :with_distribution_port, [config, "9100"])
       end
     end
   end
@@ -133,7 +142,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
     test "raises if path is not a binary" do
       config = ElixirContainer.new()
-      assert_raise FunctionClauseError, fn -> ElixirContainer.with_project(config, 123) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ElixirContainer, :with_project, [config, 123])
+      end
     end
   end
 
@@ -147,7 +159,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
     test "raises if name is not a binary" do
       config = ElixirContainer.new()
-      assert_raise FunctionClauseError, fn -> ElixirContainer.with_release(config, :my_app) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ElixirContainer, :with_release, [config, :my_app])
+      end
     end
   end
 
@@ -163,7 +178,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_release_args(config, "start")
+        apply(ElixirContainer, :with_release_args, [config, "start"])
       end
     end
   end
@@ -188,7 +203,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_vm_args(config, "-kernel foo")
+        apply(ElixirContainer, :with_vm_args, [config, "-kernel foo"])
       end
     end
   end
@@ -221,7 +236,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_env_vars(config, "MIX_ENV=prod")
+        apply(ElixirContainer, :with_env_vars, [config, "MIX_ENV=prod"])
       end
     end
   end
@@ -236,7 +251,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
 
     test "raises if cmd is not a list" do
       config = ElixirContainer.new()
-      assert_raise FunctionClauseError, fn -> ElixirContainer.with_cmd(config, "mix test") end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(ElixirContainer, :with_cmd, [config, "mix test"])
+      end
     end
   end
 

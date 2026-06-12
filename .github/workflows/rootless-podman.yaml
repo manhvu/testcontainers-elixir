@@ -39,5 +39,5 @@ jobs:
         run: mix deps.get
       - name: Run tests
         run: |
-          export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+          export CONTAINER_ENGINE_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
           MIX_ENV=test mix citest --exclude needs_root

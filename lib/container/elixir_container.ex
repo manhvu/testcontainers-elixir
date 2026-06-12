@@ -361,7 +361,7 @@ defmodule TestcontainerEx.ElixirContainer do
       ElixirContainer.connect(container, conn)
       # => true
   """
-  @spec connect(Config.t(), Tesla.Env.client()) :: boolean()
+  @spec connect(Config.t(), Req.Request.t()) :: boolean()
   def connect(%Config{} = container, _conn) do
     case connection_node(container) do
       nil -> false
@@ -383,7 +383,7 @@ defmodule TestcontainerEx.ElixirContainer do
   The source file is expected to be at `lib/<module_path>.ex` relative
   to the project root, or at the given `source_path`.
   """
-  @spec copy_module(Config.t(), module(), Tesla.Env.client(), String.t() | nil) ::
+  @spec copy_module(Config.t(), module(), Req.Request.t(), String.t() | nil) ::
           :ok | {:error, term()}
   def copy_module(%Config{} = container, module, conn, source_path \\ nil) do
     source_path = source_path || default_source_path(module)
@@ -409,7 +409,7 @@ defmodule TestcontainerEx.ElixirContainer do
       ElixirContainer.remote_eval(container, conn, "IO.puts(:hello)")
       # => "hello"
   """
-  @spec remote_eval(Config.t(), Tesla.Env.client(), String.t()) ::
+  @spec remote_eval(Config.t(), Req.Request.t(), String.t()) ::
           {:ok, term()} | {:error, term()}
   def remote_eval(%Config{} = container, conn, code) do
     case connection_node(container) do
@@ -443,7 +443,7 @@ defmodule TestcontainerEx.ElixirContainer do
       ElixirContainer.run_mix(container, conn, "test")
       ElixirContainer.run_mix(container, conn, "ecto.migrate")
   """
-  @spec run_mix(Config.t(), Tesla.Env.client(), String.t()) :: :ok | {:error, term()}
+  @spec run_mix(Config.t(), Req.Request.t(), String.t()) :: :ok | {:error, term()}
   def run_mix(%Config{} = container, conn, task) do
     case Docker.Api.start_exec(container.container_id, ["mix", task], conn) do
       {:ok, exec_id} ->

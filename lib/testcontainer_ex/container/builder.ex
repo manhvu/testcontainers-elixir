@@ -13,7 +13,7 @@ defprotocol TestcontainerEx.Container.Builder do
   Hook called after the container has started successfully.
   Use for post-start validation or configuration.
   """
-  @spec after_start(t(), TestcontainerEx.Container.Config.t(), Tesla.Env.t()) ::
+  @spec after_start(t(), TestcontainerEx.Container.Config.t(), Req.Response.t()) ::
           :ok | {:error, term()}
   def after_start(builder, container, connection)
 end

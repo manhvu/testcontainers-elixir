@@ -17,7 +17,7 @@ defmodule Mix.Tasks.TestcontainerEx.Run do
   """
 
   def run(args) do
-    Enum.each([:tesla, :hackney, :fs, :logger], fn app ->
+    Enum.each([:req, :fs, :logger], fn app ->
       {:ok, _} = Application.ensure_all_started(app)
     end)
 

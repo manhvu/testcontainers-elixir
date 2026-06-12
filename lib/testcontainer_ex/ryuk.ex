@@ -26,9 +26,9 @@ defmodule TestcontainerEx.Ryuk do
   Returns `{:ok}` on success or `{:error, reason}` on failure.
   Ryuk failures are non-fatal — tests can still run without auto-cleanup.
   """
-  @spec start(Tesla.Env.client(), String.t(), map(), String.t(), String.t()) ::
+  @spec start(Req.Request.t(), String.t(), map(), String.t(), String.t()) ::
           {:ok} | {:error, term()}
-  def start(conn, session_id, properties, docker_host, docker_hostname) do
+  def start(conn, session_id, properties, container_engine_host, docker_hostname) do
     ryuk_disabled = Map.get(properties, "ryuk.disabled", "false") == "true"
 
     if ryuk_disabled do
@@ -39,7 +39,7 @@ defmodule TestcontainerEx.Ryuk do
 
       {:ok}
     else
-      do_start(conn, session_id, properties, docker_host, docker_hostname)
+      do_start(conn, session_id, properties, container_engine_host, docker_hostname)
     end
   end
 
@@ -70,7 +70,7 @@ defmodule TestcontainerEx.Ryuk do
 
   Returns `{:ok}` on success or `{:error, reason}` on failure.
   """
-  @spec start_host_reaper(Tesla.Env.client(), String.t(), map()) :: {:ok} | {:error, term()}
+  @spec start_host_reaper(Req.Request.t(), String.t(), map()) :: {:ok} | {:error, term()}
   def start_host_reaper(conn, session_id, properties) do
     ryuk_disabled = Map.get(properties, "ryuk.disabled", "false") == "true"
 
@@ -159,12 +159,12 @@ defmodule TestcontainerEx.Ryuk do
     end
   end
 
-  defp get(conn, path), do: Tesla.get(conn, path)
-  defp delete(conn, path), do: Tesla.delete(conn, path)
+  defp get(conn, path), do: Req.get(conn, url: path)
+  defp delete(conn, path), do: Req.delete(conn, url: path)
 
   # ── Private ───────────────────────────────────────────────────────
 
-  defp do_start(conn, session_id, properties, docker_host, docker_hostname) do
+  defp do_start(conn, session_id, properties, container_engine_host, docker_hostname) do
     # On macOS with Colima/Docker Desktop, the Docker daemon runs inside a VM.
     # Containers can't bind-mount the host's unix socket, so the Ryuk container
     # can't reach Docker. Use a host-based reaper instead.
@@ -172,17 +172,29 @@ defmodule TestcontainerEx.Ryuk do
       Logger.info("Using host-based Ryuk reaper on macOS (Colima/Docker Desktop)")
       start_host_reaper(conn, session_id, properties)
     else
-      do_start_container_reaper(conn, session_id, properties, docker_host, docker_hostname)
+      do_start_container_reaper(
+        conn,
+        session_id,
+        properties,
+        container_engine_host,
+        docker_hostname
+      )
     end
   end
 
-  defp do_start_container_reaper(conn, session_id, properties, docker_host, docker_hostname) do
+  defp do_start_container_reaper(
+         conn,
+         session_id,
+         properties,
+         container_engine_host,
+         docker_hostname
+       ) do
     ryuk_privileged = privileged?(properties)
 
     config =
       Config.new("#{@ryuk_image}:#{ryuk_version()}")
       |> Config.with_exposed_port(@ryuk_port)
-      |> apply_docker_socket_mount(docker_host)
+      |> apply_docker_socket_mount(container_engine_host)
       |> Config.with_auto_remove(true)
       |> Config.with_privileged(ryuk_privileged)
 
@@ -319,13 +331,13 @@ defmodule TestcontainerEx.Ryuk do
     end
   end
 
-  defp apply_docker_socket_mount(config, docker_host) do
+  defp apply_docker_socket_mount(config, container_engine_host) do
     override = System.get_env("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE")
 
     if override do
       Config.with_bind_mount(config, override, "/var/run/docker.sock", "rw")
     else
-      case {Config.os_type(), URI.parse(docker_host)} do
+      case {Config.os_type(), URI.parse(container_engine_host)} do
         {:linux, %URI{scheme: "unix", path: path}} ->
           Config.with_bind_mount(config, path, "/var/run/docker.sock", "rw")
 

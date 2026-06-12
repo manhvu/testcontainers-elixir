@@ -1,36 +1,47 @@
 defmodule TestcontainerEx.Connection.Strategies.ContainerEnv do
   @moduledoc """
-  Resolves the container engine host from the `CONTAINER_HOST` environment variable.
+  Resolves the container engine host from Podman-style environment variables.
 
-  Podman uses `CONTAINER_HOST` as the equivalent of Docker's `DOCKER_HOST`.
-  When set, it points to the Podman service socket, e.g.
-  `unix:///run/user/1000/podman/podman.sock`.
+  Checks `CONTAINER_ENGINE_HOST` first, then `CONTAINER_HOST` for Podman
+  compatibility, then falls back to `DOCKER_HOST`.
   """
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
-  @key "CONTAINER_HOST"
-
   @impl true
   def resolve do
-    case System.get_env(@key) do
-      nil ->
-        {:error, {:not_found, @key}}
+    case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("CONTAINER_HOST"),
+          System.get_env("DOCKER_HOST")} do
+      {nil, nil, nil} ->
+        {:error, {:not_found, "CONTAINER_ENGINE_HOST"}}
 
-      "" ->
-        {:error, {:empty, @key}}
+      {"", nil, nil} ->
+        {:error, {:empty, "CONTAINER_ENGINE_HOST"}}
 
-      url ->
+      {nil, "", nil} ->
+        {:error, {:empty, "CONTAINER_HOST"}}
+
+      {nil, nil, ""} ->
+        {:error, {:empty, "DOCKER_HOST"}}
+
+      {url, _, _} when is_binary(url) and url != "" ->
         probe(url)
+
+      {_, url, _} when is_binary(url) and url != "" ->
+        probe(url)
+
+      {_, _, url} when is_binary(url) and url != "" ->
+        probe(url)
+
+      _ ->
+        {:error, {:empty, "CONTAINER_ENGINE_HOST"}}
     end
   end
 
   defp probe(url) do
-    case Tesla.get(test_client(), "#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
-      {:ok, _} -> {:ok, url}
+    case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+      {:ok, %{status: 200}} -> {:ok, url}
       {:error, reason} -> {:error, {:ping_failed, url, reason}}
     end
   end
-
-  defp test_client, do: Tesla.client([], Tesla.Adapter.Hackney)
 end

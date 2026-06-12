@@ -12,7 +12,7 @@
 # Environment variables:
 #   RYUK_IMAGE    - Ryuk image to use (default: testcontainers/ryuk:0.14.0)
 #   RYUK_PORT     - Host port for Ryuk (default: auto-assigned)
-#   DOCKER_HOST   - Docker daemon socket (auto-detected if not set)
+#   CONTAINER_ENGINE_HOST - Container engine socket (auto-detected if not set)
 #   TEST_TIMEOUT  - ExUnit timeout in ms (default: 300000)
 
 set -euo pipefail
@@ -323,8 +323,8 @@ main() {
     error "Could not find Docker socket. Is Docker running?"
     exit 1
   }
-  export DOCKER_HOST="$docker_socket"
-  info "DOCKER_HOST=${DOCKER_HOST}"
+  export CONTAINER_ENGINE_HOST="$docker_socket"
+  info "CONTAINER_ENGINE_HOST=${CONTAINER_ENGINE_HOST}"
 
   # Step 5: Start Ryuk
   SETUP_ONLY="$setup_only"

@@ -4,7 +4,7 @@ defmodule TestcontainerEx.Connection.Url do
   """
 
   @doc """
-  Constructs a Tesla-compatible URL from a raw container engine URL.
+  Constructs an HTTP client-compatible URL from a raw container engine URL.
 
   - `unix:///path` → `http+unix://<encoded_path>`
   - `tcp://host:port` → `http://` or `https://` (depending on TLS)

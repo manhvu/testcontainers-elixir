@@ -73,6 +73,16 @@ defmodule TestcontainerEx.Server do
   end
 
   @impl true
+  def handle_call({:start_containers, builders}, from, state) when is_list(builders) do
+    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
+      result = Lifecycle.start_containers(builders, state.conn, state)
+      GenServer.reply(from, result)
+    end)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_call(:list_containers, _from, state) do
     {:reply, MapSet.to_list(state.containers), state}
   end
@@ -94,6 +104,18 @@ defmodule TestcontainerEx.Server do
   end
 
   @impl true
+  def handle_call({:stop_containers, container_ids}, _from, %{conn: nil} = state)
+      when is_list(container_ids) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
+  def handle_call({:stop_containers, container_ids}, _from, state) when is_list(container_ids) do
+    result = Lifecycle.stop_containers(container_ids, state.conn)
+    {:reply, result, untrack_containers(state, container_ids)}
+  end
+
+  @impl true
   def handle_call(:get_host, _from, state) do
     {:reply, state.docker_hostname, state}
   end
@@ -101,6 +123,58 @@ defmodule TestcontainerEx.Server do
   @impl true
   def handle_call(:get_connection_mode, _from, state) do
     {:reply, if(state.use_container_ip, do: :container_ip, else: :standard), state}
+  end
+
+  @impl true
+  def handle_call({:inspect_container, _container_id}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
+  def handle_call({:inspect_container, container_id}, _from, state) do
+    result = Lifecycle.inspect_container(container_id, state.conn)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:container_logs, _container_id, _opts}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
+  def handle_call({:container_logs, container_id, opts}, _from, state) do
+    result = Lifecycle.container_logs(container_id, state.conn, opts)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:exec, _container_id, _command}, _from, %{conn: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
+  def handle_call({:exec, container_id, command}, _from, state) do
+    result = Lifecycle.exec(container_id, command, state.conn)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call(
+        {:monitor_container, _container_id, _predicate, _opts},
+        _from,
+        %{conn: nil} = state
+      ) do
+    {:reply, {:error, :not_connected}, state}
+  end
+
+  @impl true
+  def handle_call({:monitor_container, container_id, predicate, opts}, from, state) do
+    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
+      result = Lifecycle.monitor_container(container_id, predicate, state.conn, opts)
+      GenServer.reply(from, result)
+    end)
+
+    {:noreply, state}
   end
 
   @impl true
@@ -364,4 +438,8 @@ defmodule TestcontainerEx.Server do
 
   defp track_network(state, name), do: %{state | networks: MapSet.put(state.networks, name)}
   defp untrack_network(state, name), do: %{state | networks: MapSet.delete(state.networks, name)}
+
+  defp untrack_containers(state, container_ids) when is_list(container_ids) do
+    %{state | containers: Enum.reduce(container_ids, state.containers, &MapSet.delete(&2, &1))}
+  end
 end

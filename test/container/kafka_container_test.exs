@@ -29,7 +29,10 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
 
     test "raises if the image is not a binary" do
       config = KafkaContainer.new()
-      assert_raise FunctionClauseError, fn -> KafkaContainer.with_image(config, 6.2) end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(KafkaContainer, :with_image, [config, 6.2])
+      end
     end
   end
 
@@ -43,7 +46,10 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
 
     test "raises if the kafka port is not an integer" do
       config = KafkaContainer.new()
-      assert_raise FunctionClauseError, fn -> KafkaContainer.with_kafka_port(config, "9094") end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(KafkaContainer, :with_kafka_port, [config, "9094"])
+      end
     end
   end
 
@@ -59,7 +65,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_controller_port(config, "9095")
+        apply(KafkaContainer, :with_controller_port, [config, "9095"])
       end
     end
   end
@@ -74,7 +80,10 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
 
     test "raises if the node id is not integer" do
       config = KafkaContainer.new()
-      assert_raise FunctionClauseError, fn -> KafkaContainer.with_node_id(config, "2") end
+
+      assert_raise FunctionClauseError, fn ->
+        apply(KafkaContainer, :with_node_id, [config, "2"])
+      end
     end
   end
 
@@ -90,7 +99,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_cluster_id(config, 123)
+        apply(KafkaContainer, :with_cluster_id, [config, 123])
       end
     end
   end
@@ -107,7 +116,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_wait_timeout(config, "60_001")
+        apply(KafkaContainer, :with_wait_timeout, [config, "60_001"])
       end
     end
   end
@@ -124,7 +133,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_topics(config, "topic1")
+        apply(KafkaContainer, :with_topics, [config, "topic1"])
       end
     end
   end

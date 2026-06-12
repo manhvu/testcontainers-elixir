@@ -85,11 +85,12 @@ defmodule TestcontainerEx.HttpWaitStrategy do
       client = build_request(wait_strategy, container)
 
       raw_response =
-        Tesla.request(client,
-          url: wait_strategy.endpoint,
-          method: wait_strategy.method,
-          headers: wait_strategy.headers
-        )
+        Req.request(client,
+            url: wait_strategy.endpoint,
+            method: wait_strategy.method,
+            headers: wait_strategy.headers,
+            receive_timeout: 5_000
+          )
 
       with {:ok, response} <- validate_response(raw_response),
            :ok <- verify_status_code(wait_strategy, response),
@@ -140,15 +141,13 @@ defmodule TestcontainerEx.HttpWaitStrategy do
 
     # Request composition
 
-    @request_timeout 5_000
-
     defp build_request(wait_strategy, container) do
       base_url = get_base_url(wait_strategy, container)
 
-      Tesla.client([
-        {Tesla.Middleware.BaseUrl, base_url: base_url},
-        {Tesla.Middleware.Timeout, timeout: @request_timeout}
-      ])
+      Req.new(
+        base_url: base_url,
+        receive_timeout: 5_000
+      )
     end
 
     defp get_base_url(
