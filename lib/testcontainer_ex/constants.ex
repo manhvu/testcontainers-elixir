@@ -3,7 +3,7 @@ defmodule TestcontainerEx.Constants do
   Library metadata constants.
 
   This module delegates to `TestcontainerEx.Util.Constants` for static values
-  and to `TestcontainerEx.Docker.Engine` for runtime engine detection.
+  and to `TestcontainerEx.Engine` for runtime engine detection.
   """
 
   # ── Delegates to Util.Constants ──────────────────────────────────
@@ -29,13 +29,13 @@ defmodule TestcontainerEx.Constants do
   Results are cached after the first call.
   """
   def container_engine do
-    TestcontainerEx.Docker.Engine.detect()
+    TestcontainerEx.Engine.detect()
   end
 
   @doc """
   Returns `true` when running in a minikube environment.
   """
   def minikube_env? do
-    TestcontainerEx.Docker.Engine.minikube?()
+    TestcontainerEx.Engine.minikube?()
   end
 end

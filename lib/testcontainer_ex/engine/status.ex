@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule TestcontainerEx.Docker.Status do
+defmodule TestcontainerEx.Engine.Status do
   @moduledoc """
   Query runtime status of container engines (Docker, Podman, Minikube, Colima)
   directly via their APIs or CLI.
@@ -35,28 +35,28 @@ defmodule TestcontainerEx.Docker.Status do
   ## Usage
 
       # Quick check — is any container engine reachable?
-      TestcontainerEx.Docker.Status.reachable?()
+      TestcontainerEx.Engine.Status.reachable?()
       # => true
 
       # Full status of the detected engine
-      TestcontainerEx.Docker.Status.status()
+      TestcontainerEx.Engine.Status.status()
       # => %{engine: :docker, running: true, version: "27.0.3", ...}
 
       # Query a specific engine
-      TestcontainerEx.Docker.Status.status(:podman)
+      TestcontainerEx.Engine.Status.status(:podman)
       # => %{engine: :podman, running: true, ...}
 
       # Engine-specific details
-      TestcontainerEx.Docker.Status.colima_status()
+      TestcontainerEx.Engine.Status.colima_status()
       # => %{running: true, profile: "default", cpu: 2, memory: 4294967296, ...}
 
-      TestcontainerEx.Docker.Status.minikube_status()
+      TestcontainerEx.Engine.Status.minikube_status()
       # => %{running: true, profile: "minikube", cpus: 2, memory: 4096, ...}
   """
 
   alias TestcontainerEx.Connection.Url
 
-  @type engine :: :docker | :podman | :minikube | :colima
+  @type engine :: :docker | :podman | :minikube | :colima | :apple_container
   @type status_map :: %{
           engine: engine(),
           running: boolean(),
@@ -104,7 +104,7 @@ defmodule TestcontainerEx.Docker.Status do
   def status(engine \\ nil)
 
   def status(nil) do
-    engine = TestcontainerEx.Docker.Engine.detect()
+    engine = TestcontainerEx.Engine.detect()
     status(engine)
   end
 
@@ -114,6 +114,10 @@ defmodule TestcontainerEx.Docker.Status do
 
   def status(:minikube) do
     from_minikube()
+  end
+
+  def status(:apple_container) do
+    from_apple_container()
   end
 
   def status(:podman) do
@@ -557,6 +561,105 @@ defmodule TestcontainerEx.Docker.Status do
       }
     end
   end
+
+  defp from_apple_container do
+    container = apple_container_status()
+
+    if container.running do
+      %{
+        engine: :apple_container,
+        running: true,
+        version: Map.get(container, :version),
+        api_version: nil,
+        os: "linux",
+        arch: "arm64",
+        cpus: Map.get(container, :cpus),
+        memory_bytes: Map.get(container, :memory_bytes),
+        hostname: nil,
+        kernel_version: Map.get(container, :kernel_version),
+        storage_driver: nil,
+        logging_driver: nil,
+        cgroup_driver: nil,
+        cgroup_version: nil,
+        plugins: [],
+        registries: [],
+        server_time: nil,
+        labels: %{},
+        experimental: false,
+        raw: container
+      }
+    else
+      %{
+        engine: :apple_container,
+        running: false,
+        version: nil,
+        api_version: nil,
+        os: nil,
+        arch: nil,
+        cpus: nil,
+        memory_bytes: nil,
+        hostname: nil,
+        kernel_version: nil,
+        storage_driver: nil,
+        logging_driver: nil,
+        cgroup_driver: nil,
+        cgroup_version: nil,
+        plugins: [],
+        registries: [],
+        server_time: nil,
+        labels: %{},
+        experimental: false,
+        raw: container
+      }
+    end
+  end
+
+  @doc """
+  Returns detailed Apple Container status by querying the `container` CLI.
+
+  Returns a map with Apple Container-specific fields:
+
+      %{
+        running: boolean(),
+        version: String.t() | nil,
+        kernel_version: String.t() | nil,
+        cpus: integer() | nil,
+        memory_bytes: integer() | nil
+      }
+  """
+  @spec apple_container_status() :: map()
+  def apple_container_status do
+    with {:ok, output} <- exec_cmd("container", ["system", "version", "--format", "json"]),
+         {:ok, parsed} <- Jason.decode(output) do
+      parse_apple_container_version(parsed)
+    else
+      {:error, :not_installed} ->
+        %{running: false, error: :apple_container_not_installed}
+
+      {:error, :not_running} ->
+        %{running: false, error: :apple_container_not_running}
+
+      {:error, reason} ->
+        %{running: false, error: reason}
+    end
+  end
+
+  defp parse_apple_container_version(parsed) when is_list(parsed) do
+    base = %{running: true, version: nil, cpus: nil, memory_bytes: nil, kernel_version: nil}
+
+    case Enum.find(parsed, fn item -> Map.get(item, "appName") == "container-apiserver" end) do
+      nil ->
+        case Enum.find(parsed, fn item -> Map.get(item, "appName") == "container" end) do
+          nil -> base
+          item -> %{base | version: Map.get(item, "version")}
+        end
+
+      item ->
+        %{base | version: Map.get(item, "version")}
+    end
+  end
+
+  defp parse_apple_container_version(_), do: %{running: true, version: nil, cpus: nil, memory_bytes: nil, kernel_version: nil}
 
   defp from_engine(engine) do
     case engine_info() do

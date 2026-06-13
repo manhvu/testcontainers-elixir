@@ -33,7 +33,7 @@ defmodule TestcontainerEx.KafkaContainer do
 
   alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.Container.Config
-  alias TestcontainerEx.Docker
+  alias TestcontainerEx.Engine
   alias TestcontainerEx.KafkaContainer
   alias TestcontainerEx.LogWaitStrategy
 
@@ -246,7 +246,7 @@ defmodule TestcontainerEx.KafkaContainer do
       ]
 
       result =
-        case Docker.Api.start_exec(container_id, cmd, conn) do
+        case Engine.Api.start_exec(container_id, cmd, conn) do
           {:ok, exec_id} ->
             wait_for_exec(exec_id, conn)
 
@@ -260,7 +260,7 @@ defmodule TestcontainerEx.KafkaContainer do
     end
 
     defp wait_for_exec(exec_id, conn) do
-      case Docker.Api.inspect_exec(exec_id, conn) do
+      case Engine.Api.inspect_exec(exec_id, conn) do
         {:ok, %{running: true}} ->
           Process.sleep(100)
           wait_for_exec(exec_id, conn)

@@ -9,17 +9,29 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
 
   describe "Strategies.Env" do
     setup do
-      original = System.get_env("DOCKER_HOST")
-      on_exit(fn -> restore_env("DOCKER_HOST", original) end)
+      original_docker = System.get_env("DOCKER_HOST")
+      original_engine = System.get_env("CONTAINER_ENGINE_HOST")
+      on_exit(fn ->
+        restore_env("DOCKER_HOST", original_docker)
+        restore_env("CONTAINER_ENGINE_HOST", original_engine)
+      end)
       :ok
     end
 
-    test "returns error when DOCKER_HOST is not set" do
+    test "returns error when neither CONTAINER_ENGINE_HOST nor DOCKER_HOST is set" do
+      System.delete_env("CONTAINER_ENGINE_HOST")
       System.delete_env("DOCKER_HOST")
-      assert {:error, {:not_found, "DOCKER_HOST"}} = Strategies.Env.resolve()
+      assert {:error, {:not_found, "CONTAINER_ENGINE_HOST"}} = Strategies.Env.resolve()
     end
 
-    test "returns error when DOCKER_HOST is empty" do
+    test "returns error when CONTAINER_ENGINE_HOST is empty and DOCKER_HOST is not set" do
+      System.put_env("CONTAINER_ENGINE_HOST", "")
+      System.delete_env("DOCKER_HOST")
+      assert {:error, {:empty, "CONTAINER_ENGINE_HOST"}} = Strategies.Env.resolve()
+    end
+
+    test "returns error when DOCKER_HOST is empty and CONTAINER_ENGINE_HOST is not set" do
+      System.delete_env("CONTAINER_ENGINE_HOST")
       System.put_env("DOCKER_HOST", "")
       assert {:error, {:empty, "DOCKER_HOST"}} = Strategies.Env.resolve()
     end
@@ -48,25 +60,37 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
 
   describe "Strategies.ContainerEnv" do
     setup do
-      original = System.get_env("CONTAINER_HOST")
-      on_exit(fn -> restore_env("CONTAINER_HOST", original) end)
+      original_container = System.get_env("CONTAINER_HOST")
+      original_engine = System.get_env("CONTAINER_ENGINE_HOST")
+      original_docker = System.get_env("DOCKER_HOST")
+      on_exit(fn ->
+        restore_env("CONTAINER_HOST", original_container)
+        restore_env("CONTAINER_ENGINE_HOST", original_engine)
+        restore_env("DOCKER_HOST", original_docker)
+      end)
       :ok
     end
 
-    test "returns error when CONTAINER_HOST is not set" do
+    test "returns error when no container env vars are set" do
+      System.delete_env("CONTAINER_ENGINE_HOST")
       System.delete_env("CONTAINER_HOST")
-      assert {:error, {:not_found, "CONTAINER_HOST"}} = Strategies.ContainerEnv.resolve()
+      System.delete_env("DOCKER_HOST")
+      assert {:error, {:not_found, "CONTAINER_ENGINE_HOST"}} = Strategies.ContainerEnv.resolve()
     end
 
     test "returns error when CONTAINER_HOST is empty" do
+      System.delete_env("CONTAINER_ENGINE_HOST")
       System.put_env("CONTAINER_HOST", "")
+      System.delete_env("DOCKER_HOST")
       assert {:error, {:empty, "CONTAINER_HOST"}} = Strategies.ContainerEnv.resolve()
     end
 
     test "returns error when CONTAINER_HOST is set but unreachable" do
+      System.delete_env("CONTAINER_ENGINE_HOST")
       System.put_env("CONTAINER_HOST", "unix:///run/user/1000/podman/podman.sock")
+      System.delete_env("DOCKER_HOST")
 
-      assert {:error, {:ping_failed, "unix:///run/user/1000/podman/podman.sock", _reason}} =
+      assert {:error, {:socket_not_found, "/run/user/1000/podman/podman.sock"}} =
                Strategies.ContainerEnv.resolve()
     end
   end
@@ -277,6 +301,7 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
     test "all strategies implement the Behaviour protocol" do
       # Ensure modules are loaded before checking exports
       modules = [
+        Strategies.AppleContainer,
         Strategies.Env,
         Strategies.ContainerEnv,
         Strategies.Properties,

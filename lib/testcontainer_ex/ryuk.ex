@@ -11,7 +11,7 @@ defmodule TestcontainerEx.Ryuk do
 
   alias TestcontainerEx.{
     Container.Config,
-    Docker.Api,
+    Engine.Api,
     Util.Constants
   }
 
@@ -309,7 +309,7 @@ defmodule TestcontainerEx.Ryuk do
 
   defp register_filter(value, socket) do
     engine_label =
-      case TestcontainerEx.Docker.Engine.detect() do
+      case TestcontainerEx.Engine.detect() do
         :podman -> "label=io.container.manager=podman&"
         _ -> ""
       end

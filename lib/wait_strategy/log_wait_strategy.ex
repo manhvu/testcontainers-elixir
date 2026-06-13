@@ -21,7 +21,7 @@ defmodule TestcontainerEx.LogWaitStrategy do
   # Private functions and implementations
 
   defimpl TestcontainerEx.WaitStrategy do
-    alias TestcontainerEx.Docker
+    alias TestcontainerEx.Engine
 
     @impl true
     def wait_until_container_is_ready(wait_strategy, container, conn) do
@@ -51,7 +51,7 @@ defmodule TestcontainerEx.LogWaitStrategy do
     end
 
     defp log_matches?(container_id, log_regex, conn) do
-      case Docker.Api.stdout_logs(container_id, conn) do
+      case Engine.Api.stdout_logs(container_id, conn) do
         {:ok, log_output} -> Regex.match?(log_regex, log_output)
         _ -> false
       end

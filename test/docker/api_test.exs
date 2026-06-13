@@ -1,10 +1,10 @@
-defmodule TestcontainerEx.Docker.ApiTest do
+defmodule TestcontainerEx.Engine.ApiTest do
   use ExUnit.Case, async: true
 
   import TestcontainerEx.ApiTestHelper
 
   alias TestcontainerEx.Container.Config
-  alias TestcontainerEx.Docker.Api
+  alias TestcontainerEx.Engine.Api
 
   @base_stubs %{
     {:get, "/containers/abc123/json"} =>

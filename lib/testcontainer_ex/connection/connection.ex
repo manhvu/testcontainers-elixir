@@ -20,28 +20,27 @@ defmodule TestcontainerEx.Connection do
   - `url` is the base URL
   - `raw_url` is the original URL string
   """
-  @spec get_connection(keyword()) :: {Req.Request.t(), String.t(), String.t()}
+  @spec get_connection(keyword()) ::
+          {Req.Request.t(), String.t(), String.t()} | {:error, String.t()}
   def get_connection(options \\ []) do
-    {url, raw_url} =
-      case Resolver.resolve() do
-        {:ok, resolved} ->
-          {Url.construct(resolved), resolved}
+    case Resolver.resolve(options) do
+      {:ok, resolved} ->
+        url = Url.construct(resolved)
+        Logger.info("Container engine host: #{inspect(url, pretty: false)}")
 
-        {:error, reasons} ->
-          exit(format_errors(reasons))
-      end
+        req_options =
+          options
+          |> Keyword.merge(
+            base_url: url,
+            recv_timeout: Keyword.get(options, :recv_timeout, @default_recv_timeout),
+            user_agent: Keyword.get(options, :user_agent, Constants.user_agent())
+          )
 
-    Logger.info("Container engine host: #{inspect(url, pretty: false)}")
+        {build_client(req_options), url, resolved}
 
-    req_options =
-      options
-      |> Keyword.merge(
-        base_url: url,
-        recv_timeout: Keyword.get(options, :recv_timeout, @default_recv_timeout),
-        user_agent: Keyword.get(options, :user_agent, Constants.user_agent())
-      )
-
-    {build_client(req_options), url, raw_url}
+      {:error, reasons} ->
+        {:error, format_errors(reasons)}
+    end
   end
 
   @doc """
@@ -82,7 +81,8 @@ defmodule TestcontainerEx.Connection do
         user_agent: user_agent,
         receive_timeout: recv_timeout,
         unix_socket: unix_socket
-      ] ++ if transport_opts == [], do: [], else: [connect_options: [transport_opts: transport_opts]]
+      ] ++
+        if transport_opts == [], do: [], else: [connect_options: [transport_opts: transport_opts]]
 
     Req.new(req_options)
   end
@@ -103,14 +103,19 @@ defmodule TestcontainerEx.Connection do
     #{format_error_list(errors)}
 
     To fix this, ensure one of the following:
-      1. Docker Desktop, Colima, or Podman is running
-      2. CONTAINER_ENGINE_HOST environment variable is set correctly
-      3. A .env file with CONTAINER_ENGINE_HOST exists in the project root
-      4. A Docker socket exists at a standard path (e.g. /var/run/docker.sock)
+      1. Docker Desktop, Colima, Podman, or Apple Container is running
+      2. CONTAINER_ENGINE environment variable is set (e.g. `CONTAINER_ENGINE=docker`)
+      3. CONTAINER_ENGINE_HOST environment variable is set correctly
+      4. A .env file with CONTAINER_ENGINE_HOST exists in the project root
+      5. A Docker socket exists at a standard path (e.g. /var/run/docker.sock)
 
     For Colima users:
       colima start
       # Verify with: docker ps
+
+    For Apple Container users (macOS 26+, Apple silicon):
+      container system start
+      # Verify with: container system status
     """
   end
 
@@ -156,6 +161,18 @@ defmodule TestcontainerEx.Connection do
 
   defp format_reason({:file_read_failed, path, reason}) do
     "failed to read #{path}: #{inspect(reason)}"
+  end
+
+  defp format_reason(:apple_container_not_installed) do
+    "Apple Container not installed (https://github.com/apple/container)"
+  end
+
+  defp format_reason(:apple_container_not_running) do
+    "Apple Container not running (container system start)"
+  end
+
+  defp format_reason({:apple_container_bin_not_found, path}) do
+    "CONTAINER_BIN points to non-existent file: #{path}"
   end
 
   defp format_reason(other) do

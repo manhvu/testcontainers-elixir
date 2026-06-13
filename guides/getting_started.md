@@ -5,7 +5,7 @@ This guide walks you through setting up and using TestcontainerEx for the first 
 ## Prerequisites
 
 - **Elixir** 1.18 or later
-- **Docker**, **Podman**, **Colima**, or **Minikube** installed and running
+- **Docker**, **Podman**, **Colima**, **Minikube**, or **Apple Container** installed and running
 - A `Dockerfile` or container image you want to test against
 
 ## Installation
@@ -53,6 +53,7 @@ Open `.env` and uncomment the line matching your runtime:
 | **Docker Engine** (Linux) | `CONTAINER_ENGINE_HOST=unix:///var/run/docker.sock` |
 | **Podman** (Linux rootless) | `CONTAINER_ENGINE_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock` |
 | **Minikube** | `eval $(minikube docker-env)` |
+| **Apple Container** (macOS 26+, Apple silicon) | Auto-detected via `container system status` |
 | **Remote Docker** (TCP) | `CONTAINER_ENGINE_HOST=tcp://192.168.1.100:2375` |
 
 > **Note:** `DOCKER_HOST` is also recognized for backward compatibility. `CONTAINER_ENGINE_HOST` takes precedence.
@@ -163,6 +164,6 @@ info = TestcontainerEx.inspect_container(container.container_id)
 
 - [Custom Containers](custom_containers.md) — Build and manage your own container configurations
 - [Container Control](container_control.md) — Pause, restart, stats, file operations, and more
-- [Engine Status](engine_status.md) — Query Docker/Podman/Minikube/Colima status via API
+- [Engine Status](engine_status.md) — Query Docker/Podman/Minikube/Colima/Apple Container status via API
 - [Wait Strategies](wait_strategies.md) — Wait for containers to be ready
 - [Connection Helpers](connection_helpers.md) — Extract connection URLs and parameters

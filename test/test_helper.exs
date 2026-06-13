@@ -30,9 +30,9 @@ if System.find_executable("colima") do
   end
 end
 
-# Detect whether a Docker/Podman daemon is reachable before starting the
+# Detect whether a Docker/Podman/Minikube/Apple Container daemon is reachable before starting the
 # TestcontainerEx GenServer. We avoid calling Connection.get_connection/1
-# because it calls exit/1 on failure. Instead we do a quick probe of the
+# because it returns {:error, _} on failure. Instead we do a quick probe of the
 # well-known socket paths and env vars.
 docker_reachable? =
   Enum.any?(
@@ -51,7 +51,18 @@ docker_reachable? =
     end
   ) or
     System.get_env("DOCKER_HOST") != nil or
-    System.get_env("CONTAINER_HOST") != nil
+    System.get_env("CONTAINER_HOST") != nil or
+    (
+      case System.find_executable("container") do
+        nil -> false
+        bin ->
+          case System.cmd(bin, ["system", "status"], stderr_to_stdout: true) do
+            {output, 0} ->
+              String.contains?(output, "running") or String.contains?(output, "Running")
+            _ -> false
+          end
+      end
+    )
 
 exclude =
   if TestcontainerEx.running_in_container?() do

@@ -39,9 +39,26 @@ defmodule TestcontainerEx.Connection.Strategies.ContainerEnv do
   end
 
   defp probe(url) do
-    case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
-      {:ok, %{status: 200}} -> {:ok, url}
-      {:error, reason} -> {:error, {:ping_failed, url, reason}}
+    case URI.parse(url) do
+      %URI{scheme: "unix", path: path} ->
+        if socket_accessible?(path) do
+          {:ok, url}
+        else
+          {:error, {:socket_not_found, path}}
+        end
+
+      _ ->
+        case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+          {:ok, %{status: 200}} -> {:ok, url}
+          {:error, reason} -> {:error, {:ping_failed, url, reason}}
+        end
+    end
+  end
+
+  defp socket_accessible?(path) do
+    case File.stat(path) do
+      {:ok, stat} -> :erlang.band(stat.mode, 0o170000) == 0o140000
+      _ -> false
     end
   end
 end

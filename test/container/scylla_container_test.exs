@@ -239,6 +239,9 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       host = TestcontainerEx.get_host(scylla)
       port = ScyllaContainer.port(scylla)
 
+      # Give Scylla a moment to fully accept CQL connections after nodetool status passes
+      Process.sleep(1000)
+
       {:ok, conn} = Xandra.start_link(nodes: ["#{host}:#{port}"])
 
       {:ok, result} = Xandra.execute(conn, "SELECT now() FROM system.local")
@@ -248,6 +251,9 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
     test "can create keyspace and table", %{scylla: scylla} do
       host = TestcontainerEx.get_host(scylla)
       port = ScyllaContainer.port(scylla)
+
+      # Give Scylla a moment to fully accept CQL connections after nodetool status passes
+      Process.sleep(1000)
 
       {:ok, conn} = Xandra.start_link(nodes: ["#{host}:#{port}"])
 
@@ -267,7 +273,7 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
         Xandra.execute(conn, "INSERT INTO test_ks.users (id, name) VALUES (1, 'Test User')")
 
       {:ok, result} = Xandra.execute(conn, "SELECT name FROM test_ks.users WHERE id = 1")
-      [[name]] = result.rows
+      [%{"name" => name}] = result.rows
       assert name == "Test User"
     end
   end

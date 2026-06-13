@@ -218,7 +218,8 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
           RABBITMQ_DEFAULT_PASS: "guest",
           RABBITMQ_DEFAULT_VHOST: "/"
         },
-        exposed_ports: [{5672, 15672}]
+        exposed_ports: [{5672, 15672}],
+        ip_address: "localhost"
       }
 
       url = RabbitMQContainer.connection_url(container)
@@ -234,7 +235,8 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
           RABBITMQ_DEFAULT_PASS: "secret",
           RABBITMQ_DEFAULT_VHOST: "/myapp"
         },
-        exposed_ports: [{5672, 15672}]
+        exposed_ports: [{5672, 15672}],
+        ip_address: "localhost"
       }
 
       url = RabbitMQContainer.connection_url(container)

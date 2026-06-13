@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule TestcontainerEx.Docker.Control do
+defmodule TestcontainerEx.Engine.Control do
   @moduledoc """
   Low-level container control operations via the Docker Engine API.
 
@@ -14,19 +14,19 @@ defmodule TestcontainerEx.Docker.Control do
   ## Usage
 
       # Pause a container
-      :ok = TestcontainerEx.Docker.Control.pause("abc123")
+      :ok = TestcontainerEx.Engine.Control.pause("abc123")
 
       # Get live resource stats
-      stats = TestcontainerEx.Docker.Control.stats("abc123")
+      stats = TestcontainerEx.Engine.Control.stats("abc123")
 
       # Upload a file
-      :ok = TestcontainerEx.Docker.Control.upload("abc123", "/app/config.yml", "config.yml")
+      :ok = TestcontainerEx.Engine.Control.upload("abc123", "/app/config.yml", "config.yml")
 
       # Download a file
-      {:ok, data} = TestcontainerEx.Docker.Control.download("abc123", "/app/data.json")
+      {:ok, data} = TestcontainerEx.Engine.Control.download("abc123", "/app/data.json")
 
       # Commit container to a new image
-      {:ok, image_id} = TestcontainerEx.Docker.Control.commit("abc123", "my-snapshot:v1")
+      {:ok, image_id} = TestcontainerEx.Engine.Control.commit("abc123", "my-snapshot:v1")
   """
 
   alias TestcontainerEx.Connection.Url

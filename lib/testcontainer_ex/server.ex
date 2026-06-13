@@ -14,7 +14,7 @@ defmodule TestcontainerEx.Server do
     Connection,
     Container.Config,
     Container.Lifecycle,
-    Docker.Engine,
+    Engine,
     Network,
     Ryuk,
     Util.PropertiesParser
@@ -314,30 +314,41 @@ defmodule TestcontainerEx.Server do
   end
 
   defp initialize_connection(options, state) do
-    {conn, docker_host_url, docker_host} = Connection.get_connection(options)
-    {:ok, properties} = PropertiesParser.read_property_sources()
+    case Connection.get_connection(options) do
+      {conn, docker_host_url, docker_host} ->
+        {:ok, properties} = PropertiesParser.read_property_sources()
 
-    with {:ok, docker_hostname} <- resolve_docker_hostname(docker_host_url, conn, properties),
-         use_container_ip <- should_use_container_ip?(docker_hostname),
-         {:ok} <- Ryuk.start(conn, state.session_id, properties, docker_host, docker_hostname) do
-      engine = Engine.detect()
+        with {:ok, docker_hostname} <- resolve_docker_hostname(docker_host_url, conn, properties),
+             use_container_ip <- should_use_container_ip?(docker_hostname),
+             {:ok} <- Ryuk.start(conn, state.session_id, properties, docker_host, docker_hostname) do
+          engine = Engine.detect()
 
-      if use_container_ip do
-        Logger.info(
-          "TestcontainerEx initialized with #{engine} in container networking mode (using container IPs directly)"
+          if use_container_ip do
+            Logger.info(
+              "TestcontainerEx initialized with #{engine} in container networking mode (using container IPs directly)"
+            )
+          else
+            Logger.info("TestcontainerEx initialized with #{engine}")
+          end
+
+          {:ok,
+           %{
+             state
+             | conn: conn,
+               docker_hostname: docker_hostname,
+               use_container_ip: use_container_ip,
+               properties: properties
+           }}
+        end
+
+      {:error, reason} ->
+        Logger.warning(
+          "No container engine available at startup: #{inspect(reason)}. " <>
+            "TestcontainerEx will start in disconnected mode. " <>
+            "Call TestcontainerEx.start_link/1 again after the engine is running."
         )
-      else
-        Logger.info("TestcontainerEx initialized with #{engine}")
-      end
 
-      {:ok,
-       %{
-         state
-         | conn: conn,
-           docker_hostname: docker_hostname,
-           use_container_ip: use_container_ip,
-           properties: properties
-       }}
+        {:ok, %{state | properties: %{}, conn: nil}}
     end
   end
 
@@ -358,6 +369,7 @@ defmodule TestcontainerEx.Server do
       %URI{scheme: "http"} -> {:ok, URI.parse(docker_host_url).host}
       %URI{scheme: "https"} -> {:ok, URI.parse(docker_host_url).host}
       %URI{scheme: "http+unix"} -> resolve_unix_hostname(conn)
+      %URI{scheme: "apple-container"} -> {:ok, "localhost"}
     end
   end
 

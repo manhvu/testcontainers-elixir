@@ -5,7 +5,7 @@ defmodule TestcontainerEx.Network do
 
   require Logger
 
-  alias TestcontainerEx.Docker.Api
+  alias TestcontainerEx.Engine.Api
   alias TestcontainerEx.Telemetry
 
   @doc """

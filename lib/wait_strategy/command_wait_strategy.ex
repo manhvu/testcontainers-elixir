@@ -24,7 +24,7 @@ defmodule TestcontainerEx.CommandWaitStrategy do
   # Private functions and implementations
 
   defimpl TestcontainerEx.WaitStrategy do
-    alias TestcontainerEx.Docker
+    alias TestcontainerEx.Engine
 
     @impl true
     def wait_until_container_is_ready(wait_strategy, container, conn) do
@@ -69,7 +69,7 @@ defmodule TestcontainerEx.CommandWaitStrategy do
            container_id,
            conn
          ) do
-      with {:ok, exec_id} <- Docker.Api.start_exec(container_id, command, conn) do
+      with {:ok, exec_id} <- Engine.Api.start_exec(container_id, command, conn) do
         started_at = get_current_time_millis()
         wait_for_command_completion(exec_id, timeout, started_at, retry_delay, conn)
       end
@@ -99,7 +99,7 @@ defmodule TestcontainerEx.CommandWaitStrategy do
     end
 
     defp wait_for_command_completion(exec_id, timeout, started_at, retry_delay, conn) do
-      case Docker.Api.inspect_exec(exec_id, conn) do
+      case Engine.Api.inspect_exec(exec_id, conn) do
         {:ok, %{running: true}} ->
           wait_unless_timeout(exec_id, timeout, started_at, retry_delay, conn)
 

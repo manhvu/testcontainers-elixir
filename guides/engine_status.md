@@ -1,6 +1,6 @@
 # Engine Status
 
-The `TestcontainerEx.Docker.Status` module lets you query the runtime status of container engines (Docker, Podman, Minikube, Colima) directly via their APIs or CLI. These functions don't require the TestcontainerEx GenServer — they work standalone.
+The `TestcontainerEx.Engine.Status` module lets you query the runtime status of container engines (Docker, Podman, Minikube, Colima, Apple Container) directly via their APIs or CLI. These functions don't require the TestcontainerEx GenServer — they work standalone.
 
 ## Quick Checks
 
@@ -48,6 +48,7 @@ status = TestcontainerEx.engine_status()
 TestcontainerEx.engine_status(:podman)
 TestcontainerEx.engine_status(:colima)
 TestcontainerEx.engine_status(:minikube)
+TestcontainerEx.engine_status(:apple_container)
 ```
 
 ## Colima Status
@@ -85,6 +86,17 @@ status = TestcontainerEx.minikube_status()
 #   container_runtime: "docker",
 #   kubernetes_version: "v1.30.0",
 #   apiserver: true,
+#   raw: %{...}
+# }
+```
+
+## Apple Container Status
+
+```elixir
+status = TestcontainerEx.apple_container_status()
+# %{
+#   running: true,
+#   version: "container-apiserver version 1.2.3 (build: release, commit: 1234abc)",
 #   raw: %{...}
 # }
 ```
@@ -150,7 +162,7 @@ IO.puts(version["ApiVersion"])   # "1.43"
 For more control, use the module directly:
 
 ```elixir
-alias TestcontainerEx.Docker.Status
+alias TestcontainerEx.Engine.Status
 
 # Check reachability
 Status.reachable?()
@@ -158,12 +170,16 @@ Status.reachable?()
 # Query specific engine
 Status.status(:docker)
 Status.status(:colima)
+Status.status(:apple_container)
 
 # Colima-specific details
 Status.colima_status()
 
 # Minikube-specific details
 Status.minikube_status()
+
+# Apple Container-specific details
+Status.apple_container_status()
 
 # Raw Docker Engine API
 Status.engine_info("http://remote-docker:2375")
@@ -203,7 +219,8 @@ engines = [
   docker: TestcontainerEx.engine_status(:docker),
   podman: TestcontainerEx.engine_status(:podman),
   colima: TestcontainerEx.engine_status(:colima),
-  minikube: TestcontainerEx.engine_status(:minikube)
+  minikube: TestcontainerEx.engine_status(:minikube),
+  apple_container: TestcontainerEx.engine_status(:apple_container)
 ]
 
 running = for {name, %{running: true}} <- engines, do: name

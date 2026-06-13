@@ -1,7 +1,7 @@
 defmodule TestcontainerExTest do
   alias TestcontainerEx.Connection
   alias TestcontainerEx.Container.Config
-  alias TestcontainerEx.Docker
+  alias TestcontainerEx.Engine
   alias TestcontainerEx.HttpWaitStrategy
   # async: false because ryuk_privileged? tests mutate process environment
   use ExUnit.Case, async: false
@@ -94,15 +94,15 @@ defmodule TestcontainerExTest do
     {:ok, container} = TestcontainerEx.start_container(config, :cleanup_test1)
 
     # Verify the container is running
-    conn = Connection.get_connection() |> Tuple.to_list() |> Kernel.hd()
-    assert {:ok, _} = Docker.Api.get_container(container.container_id, conn)
+    assert {conn, _url, _host} = Connection.get_connection()
+    assert {:ok, _} = Engine.Api.get_container(container.container_id, conn)
 
     # Stop the container explicitly and wait for it
     :ok = TestcontainerEx.stop_container(container.container_id, :cleanup_test1)
 
     TestHelper.wait_for_lambda(
       fn ->
-        case Docker.Api.get_container(container.container_id, conn) do
+        case Engine.Api.get_container(container.container_id, conn) do
           {:error, _} ->
             :ok
 
@@ -157,9 +157,9 @@ defmodule TestcontainerExTest do
     {:ok, pid} = TestcontainerEx.start_link(name: :name_test)
     {:ok, container} = TestcontainerEx.start_container(config, :name_test)
 
-    conn = Connection.get_connection() |> Tuple.to_list() |> Kernel.hd()
+    assert {conn, _url, _host} = Connection.get_connection()
 
-    {:ok, %Config{}} = Docker.Api.get_container(container.container_id, conn)
+    {:ok, %Config{}} = Engine.Api.get_container(container.container_id, conn)
 
     # Verify the container was created with the correct name
     assert container.name == name

@@ -3,7 +3,7 @@ defmodule TestcontainerEx.PullPolicyTest do
 
   alias TestcontainerEx.Connection
   alias TestcontainerEx.Container.Config
-  alias TestcontainerEx.Docker.Api
+  alias TestcontainerEx.Engine.Api
   alias TestcontainerEx.PullPolicy
 
   @moduletag :needs_dock
@@ -20,7 +20,7 @@ defmodule TestcontainerEx.PullPolicyTest do
   end
 
   test "never_pull/0 does not fetch image from remote repository" do
-    {conn, _url, _host} = Connection.get_connection()
+    assert {conn, _url, _host} = Connection.get_connection()
     {:ok, _nil} = Api.pull_image("alpine:latest", conn)
     {:ok, _name} = Api.tag_image("alpine", "local_alpine", "latest", conn)
 
@@ -47,7 +47,7 @@ defmodule TestcontainerEx.PullPolicyTest do
   end
 
   test "pull_condition/1 does not fetch image if expression evaluates to a falsey value" do
-    {conn, _url, _host} = Connection.get_connection()
+    assert {conn, _url, _host} = Connection.get_connection()
     {:ok, _nil} = Api.pull_image("alpine:latest", conn)
     {:ok, _name} = Api.tag_image("alpine", "local_alpine2", "latest", conn)
 
@@ -64,7 +64,7 @@ defmodule TestcontainerEx.PullPolicyTest do
   end
 
   test "pull_if_missing/0 starts a container when image already exists locally" do
-    {conn, _url, _host} = Connection.get_connection()
+    assert {conn, _url, _host} = Connection.get_connection()
     {:ok, _nil} = Api.pull_image("alpine:latest", conn)
     {:ok, _name} = Api.tag_image("alpine", "local_alpine3", "latest", conn)
 
@@ -78,7 +78,7 @@ defmodule TestcontainerEx.PullPolicyTest do
   end
 
   test "pull_if_missing/0 fetches image when not present locally" do
-    {conn, _url, _host} = Connection.get_connection()
+    assert {conn, _url, _host} = Connection.get_connection()
     _ = Api.delete_image("alpine:3.19", conn)
 
     config = %Config{

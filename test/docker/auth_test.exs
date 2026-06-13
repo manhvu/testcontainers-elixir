@@ -1,7 +1,7 @@
-defmodule TestcontainerEx.Docker.AuthTest do
+defmodule TestcontainerEx.Engine.AuthTest do
   use ExUnit.Case, async: true
 
-  alias TestcontainerEx.Docker.Auth
+  alias TestcontainerEx.Engine.Auth
 
   @fixture Path.expand("../fixtures/docker_config.json", __DIR__)
 

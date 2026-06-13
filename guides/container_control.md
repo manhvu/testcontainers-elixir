@@ -1,13 +1,13 @@
 # Container Control
 
-The `TestcontainerEx.Docker.Control` module provides low-level container operations via the Docker Engine API. These functions work with raw container IDs and don't require the TestcontainerEx GenServer — they create their own HTTP clients.
+The `TestcontainerEx.Engine.Control` module provides low-level container operations via the Docker Engine API (or equivalent CLI for Apple Container). These functions work with raw container IDs and don't require the TestcontainerEx GenServer — they create their own HTTP clients.
 
 All functions accept an optional `base_url` parameter. When omitted, it's derived from `CONTAINER_ENGINE_HOST` (or `DOCKER_HOST` as fallback), or defaults to `http://d`.
 
 ## Lifecycle Operations
 
 ```elixir
-alias TestcontainerEx.Docker.Control
+alias TestcontainerEx.Engine.Control
 
 # Start a stopped container
 :ok = Control.start("abc123")
@@ -230,10 +230,10 @@ All control functions can be called without starting the GenServer — just pass
 # Connect to a remote Docker host
 base_url = "http://192.168.1.100:2375"
 
-{:ok, info} = TestcontainerEx.Docker.Control.inspect("abc123", base_url)
-:ok = TestcontainerEx.Docker.Control.pause("abc123", base_url)
+{:ok, info} = TestcontainerEx.Engine.Control.inspect("abc123", base_url)
+:ok = TestcontainerEx.Engine.Control.pause("abc123", base_url)
 
 # Connect via unix socket
 base_url = "unix:///var/run/docker.sock"
-{:ok, stats} = TestcontainerEx.Docker.Control.stats("abc123", base_url)
+{:ok, stats} = TestcontainerEx.Engine.Control.stats("abc123", base_url)
 ```

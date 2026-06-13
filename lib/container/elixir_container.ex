@@ -62,7 +62,7 @@ defmodule TestcontainerEx.ElixirContainer do
   alias TestcontainerEx.{
     Container.Builder,
     Container.Config,
-    Docker,
+    Engine,
     ElixirContainer,
     LogWaitStrategy,
     PortWaitStrategy
@@ -390,7 +390,7 @@ defmodule TestcontainerEx.ElixirContainer do
 
     case File.read(source_path) do
       {:ok, contents} ->
-        Docker.Api.put_file(
+        Engine.Api.put_file(
           container.container_id,
           conn,
           "/app/lib",
@@ -419,7 +419,7 @@ defmodule TestcontainerEx.ElixirContainer do
       node_str ->
         _node = String.to_atom(node_str)
 
-        case Docker.Api.start_exec(
+        case Engine.Api.start_exec(
                container.container_id,
                [
                  "iex",
@@ -445,7 +445,7 @@ defmodule TestcontainerEx.ElixirContainer do
   """
   @spec run_mix(Config.t(), Req.Request.t(), String.t()) :: :ok | {:error, term()}
   def run_mix(%Config{} = container, conn, task) do
-    case Docker.Api.start_exec(container.container_id, ["mix", task], conn) do
+    case Engine.Api.start_exec(container.container_id, ["mix", task], conn) do
       {:ok, exec_id} ->
         wait_for_exec(exec_id, container, conn)
 
@@ -605,7 +605,7 @@ defmodule TestcontainerEx.ElixirContainer do
   end
 
   defp wait_for_exec(exec_id, container, conn) do
-    case Docker.Api.inspect_exec(exec_id, conn) do
+    case Engine.Api.inspect_exec(exec_id, conn) do
       {:ok, %{running: true}} ->
         Process.sleep(100)
         wait_for_exec(exec_id, container, conn)

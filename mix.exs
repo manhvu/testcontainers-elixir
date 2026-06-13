@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.5.1"
+  @version "0.6.0"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -11,7 +11,7 @@ defmodule TestcontainerEx.MixProject do
       name: "#{@app}",
       version: @version,
       description:
-        "TestcontainerEx is an Elixir library for integration testing with containerized services. Start, stop, and monitor Docker, Podman, Minikube, or Colima containers with a unified API. Supports custom containers.",
+        "TestcontainerEx is an Elixir library for integration testing with containerized services. Start, stop, and monitor Docker, Podman, Minikube, Colima, or Apple Container containers with a unified API. Supports custom containers.",
       elixir: "~> 1.18",
       source_url: @source_url,
       homepage_url: @source_url,
@@ -95,15 +95,15 @@ defmodule TestcontainerEx.MixProject do
           TestcontainerEx.SeleniumContainer,
           TestcontainerEx.ToxiproxyContainer
         ],
-        "Docker Engine": [
-          TestcontainerEx.Docker.Control,
-          TestcontainerEx.Docker.Engine,
-          TestcontainerEx.Docker.Status,
+        Engine: [
+          TestcontainerEx.Engine.Control,
+          TestcontainerEx.Engine,
+          TestcontainerEx.Engine.Status,
           TestcontainerEx.DockerUrl
         ],
-        "Docker API": [
-          TestcontainerEx.Docker.Api,
-          TestcontainerEx.Docker.Auth
+        "Engine API": [
+          TestcontainerEx.Engine.Api,
+          TestcontainerEx.Engine.Auth
         ],
         "Connection & Resolution": [
           TestcontainerEx.Connection.Connection,
@@ -112,6 +112,7 @@ defmodule TestcontainerEx.MixProject do
           TestcontainerEx.Connection.Url
         ],
         "Connection Strategies": [
+          TestcontainerEx.Connection.Strategies.AppleContainer,
           TestcontainerEx.Connection.Strategies.Behaviour,
           TestcontainerEx.Connection.Strategies.Colima,
           TestcontainerEx.Connection.Strategies.ContainerEnv,
@@ -121,7 +122,7 @@ defmodule TestcontainerEx.MixProject do
           TestcontainerEx.Connection.Strategies.Properties,
           TestcontainerEx.Connection.Strategies.Socket
         ],
-        "Compose": [
+        Compose: [
           TestcontainerEx.Compose.Cli,
           TestcontainerEx.Compose.ComposeEnvironment,
           TestcontainerEx.Compose.ComposeService,
@@ -135,10 +136,10 @@ defmodule TestcontainerEx.MixProject do
           TestcontainerEx.WaitStrategy.Protocols.WaitStrategy,
           TestcontainerEx.Wait.Wait
         ],
-        "Networking": [
+        Networking: [
           TestcontainerEx.Network.Network
         ],
-        "Utilities": [
+        Utilities: [
           TestcontainerEx.Util.Constants,
           TestcontainerEx.Util.Hash,
           TestcontainerEx.Util.Properties,
@@ -185,6 +186,7 @@ defmodule TestcontainerEx.MixProject do
       # ceph and minio
       {:ex_aws, "~> 2.7", only: [:dev, :test]},
       {:ex_aws_s3, "~> 2.5", only: [:dev, :test]},
+      {:hackney, "~> 4.2", only: [:dev, :test]},
       {:sweet_xml, "~> 0.7", only: [:dev, :test]},
       # cassandra
       {:xandra, "~> 0.19", only: [:dev, :test]},
@@ -216,7 +218,47 @@ defmodule TestcontainerEx.MixProject do
       # Testing & Coverage
       coveralls: ["test --cover", "coveralls.html"],
       # Code Quality
-      quality: ["format --check-formatted", "credo --strict", "dialyzer"]
+      quality: ["format --check-formatted", "credo --strict", "dialyzer"],
+
+      # ── Integration tests by container type ──────────────────────────
+      # Usage: mix test.podman           → all :needs_dock tests (Podman)
+      #        mix test.postgres          → Postgres container tests only
+      #        mix test.redis             → Redis container tests only
+      #        mix test.mysql             → MySQL container tests only
+      #        mix test.mongo             → Mongo container tests only
+      #        mix test.cassandra         → Cassandra container tests only
+      #        mix test.scylla            → Scylla container tests only
+      #        mix test.kafka             → Kafka container tests only
+      #        mix test.rabbitmq          → RabbitMQ container tests only
+      #        mix test.elixir            → Elixir container tests only
+      #        mix test.emqx              → EMQX container tests only
+      #        mix test.minio             → Minio container tests only
+      #        mix test.ceph              → Ceph container tests only
+      #        mix test.ministack         → Ministack container tests only
+      #        mix test.selenium          → Selenium container tests only
+      #        mix test.toxiproxy         → Toxiproxy container tests only
+      #        mix test.generic           → Generic container tests only
+      #        mix test.compose           → Compose integration tests only
+      #        mix test.all_containers    → all container integration tests
+      "test.podman": ["test --include needs_dock --exclude dood_limitation --exclude flaky"],
+      "test.postgres": ["test test/container/postgres_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.redis": ["test test/container/redis_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.mysql": ["test test/container/mysql_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.mongo": ["test test/container/mongo_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.cassandra": ["test test/container/cassandra_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.scylla": ["test test/container/scylla_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.kafka": ["test test/container/kafka_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.rabbitmq": ["test test/container/rabbitmq_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.elixir": ["test test/container/elixir_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.emqx": ["test test/container/emqx_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.minio": ["test test/container/minio_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.ceph": ["test test/container/ceph_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.ministack": ["test test/container/ministack_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.selenium": ["test test/container/selenium_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.toxiproxy": ["test test/container/toxiproxy_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.generic": ["test test/generic_container_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.compose": ["test test/compose/compose_integration_test.exs --include needs_dock --exclude dood_limitation"],
+      "test.all_containers": ["test --include needs_dock --exclude dood_limitation --exclude flaky"]
     ]
   end
 end

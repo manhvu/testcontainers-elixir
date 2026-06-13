@@ -4,11 +4,32 @@ defmodule TestcontainerEx do
 
   This module is a thin facade that delegates to the GenServer
   (`TestcontainerEx.Server`) and domain modules.
+
+  ## Engine Selection
+
+  By default, TestcontainerEx auto-detects the container engine. You can
+  explicitly select an engine via the `:engine` option or the `CONTAINER_ENGINE`
+  environment variable:
+
+      # Via option
+      TestcontainerEx.start_link(engine: :docker)
+
+      # Via environment variable
+      CONTAINER_ENGINE=docker mix test
+
+  Supported engine values:
+
+    * `:auto` — auto-detect (default)
+    * `:docker` — Docker Desktop, Colima, or socket-based Docker
+    * `:podman` — Podman socket or container env
+    * `:colima` — Colima only
+    * `:minikube` — Minikube only
+    * `:apple_container` — Apple Container only
   """
 
   alias TestcontainerEx.{
     Container.Config,
-    Docker.Engine,
+    Engine,
     Server
   }
 
@@ -128,8 +149,13 @@ defmodule TestcontainerEx do
          is_nil(container.network) do
       container.ip_address
     else
-      GenServer.call(name, :get_host, @timeout)
+      case GenServer.call(name, :get_host, @timeout) do
+        nil -> "localhost"
+        host -> host
+      end
     end
+  catch
+    :exit, {:noproc, _} -> "localhost"
   end
 
   def get_port(%Config{} = container, port), do: get_port(container, port, __MODULE__)
@@ -143,6 +169,8 @@ defmodule TestcontainerEx do
     else
       Config.mapped_port(container, port)
     end
+  catch
+    :exit, {:noproc, _} -> Config.mapped_port(container, port)
   end
 
   # ── Network operations ────────────────────────────────────────────
@@ -195,385 +223,385 @@ defmodule TestcontainerEx do
   # ── Container control (low-level Docker Engine API) ───────────────
 
   defdelegate container_start(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :start
 
   defdelegate container_start(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :start
 
   defdelegate container_stop(container_id, timeout, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :stop
 
   defdelegate container_stop(container_id, timeout),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :stop
 
   defdelegate container_stop(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :stop
 
   defdelegate container_restart(container_id, timeout, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :restart
 
   defdelegate container_restart(container_id, timeout),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :restart
 
   defdelegate container_restart(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :restart
 
   defdelegate container_kill(container_id, signal, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :kill
 
   defdelegate container_kill(container_id, signal),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :kill
 
   defdelegate container_kill(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :kill
 
   defdelegate container_pause(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :pause
 
   defdelegate container_pause(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :pause
 
   defdelegate container_unpause(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :unpause
 
   defdelegate container_unpause(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :unpause
 
   defdelegate container_remove(container_id, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :remove
 
   defdelegate container_remove(container_id, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :remove
 
   defdelegate container_remove(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :remove
 
   defdelegate container_rename(container_id, new_name, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :rename
 
   defdelegate container_rename(container_id, new_name),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :rename
 
   defdelegate container_update(container_id, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :update
 
   defdelegate container_update(container_id, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :update
 
   defdelegate container_inspect(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :inspect_container
 
   defdelegate container_inspect(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :inspect_container
 
   defdelegate container_state(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :state
 
   defdelegate container_state(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :state
 
   defdelegate container_running?(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :running?
 
   defdelegate container_running?(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :running?
 
   defdelegate container_wait(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :wait
 
   defdelegate container_wait(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :wait
 
   defdelegate container_stats(container_id, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :stats
 
   defdelegate container_stats(container_id, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :stats
 
   defdelegate container_stats(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :stats
 
   defdelegate container_top(container_id, ps_args, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :top
 
   defdelegate container_top(container_id, ps_args),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :top
 
   defdelegate container_top(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :top
 
   defdelegate container_upload(container_id, path, source, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :upload
 
   defdelegate container_upload(container_id, path, source),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :upload
 
   defdelegate container_download(container_id, path, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :download
 
   defdelegate container_download(container_id, path),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :download
 
   defdelegate container_download_file(container_id, path, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :download_file
 
   defdelegate container_download_file(container_id, path),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :download_file
 
   defdelegate container_commit(container_id, repo_tag, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :commit
 
   defdelegate container_commit(container_id, repo_tag, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :commit
 
   defdelegate container_commit(container_id, repo_tag),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :commit
 
   defdelegate container_export(container_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :export
 
   defdelegate container_export(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :export
 
   defdelegate container_resize(container_id, width, height, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :resize
 
   defdelegate container_resize(container_id, width, height),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :resize
 
   defdelegate container_attach(container_id, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :attach
 
   defdelegate container_attach(container_id, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :attach
 
   defdelegate container_attach(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :attach
 
   defdelegate container_create(config, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create
 
   defdelegate container_create(config),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create
 
   defdelegate container_create_named(name, config, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create_named
 
   defdelegate container_create_named(name, config),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create_named
 
   defdelegate container_logs_raw(container_id, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :logs
 
   defdelegate container_logs_raw(container_id, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :logs
 
   defdelegate container_logs_raw(container_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :logs
 
   defdelegate exec_create(container_id, command, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create_exec
 
   defdelegate exec_create(container_id, command, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create_exec
 
   defdelegate exec_create(container_id, command),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :create_exec
 
   defdelegate exec_start(exec_id, opts, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :start_exec
 
   defdelegate exec_start(exec_id, opts),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :start_exec
 
   defdelegate exec_start(exec_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :start_exec
 
   defdelegate exec_inspect(exec_id, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :inspect_exec
 
   defdelegate exec_inspect(exec_id),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :inspect_exec
 
   defdelegate exec_resize(exec_id, width, height, base_url),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :resize_exec
 
   defdelegate exec_resize(exec_id, width, height),
-    to: TestcontainerEx.Docker.Control,
+    to: TestcontainerEx.Engine.Control,
     as: :resize_exec
 
   # ── Engine status (via Docker/Podman/Minikube/Colima API) ─────────
 
   defdelegate engine_status(engine),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :status
 
   defdelegate engine_status(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :status
 
   defdelegate engine_reachable?(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :reachable?
 
   defdelegate colima_status(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :colima_status
 
   defdelegate minikube_status(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :minikube_status
 
   defdelegate engine_info(base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :engine_info
 
   defdelegate engine_info(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :engine_info
 
   defdelegate engine_version(base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :engine_version
 
   defdelegate engine_version(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :engine_version
 
   defdelegate list_containers(opts, base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_containers
 
   defdelegate list_containers(opts),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_containers
 
   defdelegate list_containers(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_containers
 
   defdelegate list_images(opts, base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_images
 
   defdelegate list_images(opts),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_images
 
   defdelegate list_images(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_images
 
   defdelegate list_networks(base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_networks
 
   defdelegate list_networks(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_networks
 
   defdelegate list_volumes(base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_volumes
 
   defdelegate list_volumes(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :list_volumes
 
   defdelegate disk_usage(base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :disk_usage
 
   defdelegate disk_usage(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :disk_usage
 
   defdelegate engine_ping(base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :ping
 
   defdelegate engine_ping(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :ping
 
   defdelegate engine_events(opts, base_url),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :events
 
   defdelegate engine_events(opts),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :events
 
   defdelegate engine_events(),
-    to: TestcontainerEx.Docker.Status,
+    to: TestcontainerEx.Engine.Status,
     as: :events
 
   # ── Debugging ─────────────────────────────────────────────────────

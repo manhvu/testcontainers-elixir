@@ -9,6 +9,7 @@ defmodule TestcontainerEx.Connection.Url do
   - `unix:///path` → `http+unix://<encoded_path>`
   - `tcp://host:port` → `http://` or `https://` (depending on TLS)
   - `https://` / `http://` → passed through
+  - `apple-container://` → `http+unix://<encoded_socket_path>` (Apple Container API server socket)
   """
   @spec construct(String.t()) :: String.t()
   def construct(docker_host) do
@@ -28,6 +29,9 @@ defmodule TestcontainerEx.Connection.Url do
 
       %URI{scheme: "http"} = uri ->
         URI.to_string(uri)
+
+      %URI{scheme: "apple-container"} ->
+        "http+unix://#{URI.encode_www_form("/var/run/com.apple.container.apiserver")}"
 
       %URI{scheme: _, authority: _} = uri ->
         URI.to_string(uri)

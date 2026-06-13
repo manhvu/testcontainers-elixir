@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule TestcontainerEx.Docker.Api do
+defmodule TestcontainerEx.Engine.Api do
   @moduledoc """
   Internal Docker API client. All functions require a Req connection.
   """
@@ -518,24 +518,6 @@ defmodule TestcontainerEx.Docker.Api do
       labels: labels,
       ip_address: resolve_ip(ip, networks),
       exposed_ports: map_ports(ports),
-      environment: parse_env(env)
-    }
-  end
-
-  # With Name but no NetworkSettings
-  defp from_container_inspect(%{
-         "Id" => id,
-         "Image" => image,
-         "Name" => name,
-         "Config" => %{"Env" => env, "Labels" => labels}
-       }) do
-    %Config{
-      container_id: id,
-      image: image,
-      name: parse_container_name(name),
-      labels: labels,
-      ip_address: nil,
-      exposed_ports: [],
       environment: parse_env(env)
     }
   end

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-defmodule TestcontainerEx.Docker.Auth do
+defmodule TestcontainerEx.Engine.Auth do
   @moduledoc """
   Resolves Docker registry credentials from the user's Docker config file
   (typically `~/.docker/config.json`) and returns a ready-to-send
@@ -75,28 +75,28 @@ defmodule TestcontainerEx.Docker.Auth do
 
   ## Examples
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("nginx")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("nginx")
       "https://index.docker.io/v1/"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("library/nginx")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("library/nginx")
       "https://index.docker.io/v1/"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("docker.io/library/nginx")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("docker.io/library/nginx")
       "https://index.docker.io/v1/"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("quay.io/org/image")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("quay.io/org/image")
       "quay.io"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("ghcr.io/org/image")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("ghcr.io/org/image")
       "ghcr.io"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("gcr.io/project/image")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("gcr.io/project/image")
       "gcr.io"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("registry.gitlab.com/org/image")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("registry.gitlab.com/org/image")
       "registry.gitlab.com"
 
-      iex> TestcontainerEx.Docker.Auth.registry_for_image("myregistry:5000/image")
+      iex> TestcontainerEx.Engine.Auth.registry_for_image("myregistry:5000/image")
       "myregistry:5000"
   """
   @spec registry_for_image(String.t()) :: String.t()
@@ -138,7 +138,7 @@ defmodule TestcontainerEx.Docker.Auth do
     else
       {:error, reason} ->
         Logger.debug(
-          "TestcontainerEx.Docker.Auth: could not read Docker config at #{path}: #{inspect(reason)}"
+          "TestcontainerEx.Engine.Auth: could not read Docker config at #{path}: #{inspect(reason)}"
         )
 
         :error
@@ -198,10 +198,10 @@ defmodule TestcontainerEx.Docker.Auth do
 
   ## Examples
 
-      iex> TestcontainerEx.Docker.Auth.candidate_keys("quay.io")
+      iex> TestcontainerEx.Engine.Auth.candidate_keys("quay.io")
       ["quay.io", "https://quay.io", "http://quay.io", "https://quay.io/", "http://quay.io/"]
 
-      iex> TestcontainerEx.Docker.Auth.candidate_keys("https://index.docker.io/v1/")
+      iex> TestcontainerEx.Engine.Auth.candidate_keys("https://index.docker.io/v1/")
       ["https://index.docker.io/v1/", "index.docker.io", "docker.io", "https://index.docker.io/v1", "https://index.docker.io", "https://docker.io"]
   """
   @spec candidate_keys(String.t()) :: [String.t()]
@@ -261,7 +261,7 @@ defmodule TestcontainerEx.Docker.Auth do
     else
       _ ->
         Logger.debug(
-          "TestcontainerEx.Docker.Auth: could not decode auth entry for #{server_address}"
+          "TestcontainerEx.Engine.Auth: could not decode auth entry for #{server_address}"
         )
 
         nil
@@ -301,14 +301,14 @@ defmodule TestcontainerEx.Docker.Auth do
     cond do
       Map.has_key?(config, "credsStore") ->
         Logger.debug(
-          "TestcontainerEx.Docker.Auth: credsStore present in Docker config; " <>
+          "TestcontainerEx.Engine.Auth: credsStore present in Docker config; " <>
             "credential helpers are not supported, returning nil for #{registry}"
         )
 
       is_map(Map.get(config, "credHelpers")) and
           Map.has_key?(config["credHelpers"], registry) ->
         Logger.debug(
-          "TestcontainerEx.Docker.Auth: credHelpers entry for #{registry} present; " <>
+          "TestcontainerEx.Engine.Auth: credHelpers entry for #{registry} present; " <>
             "credential helpers are not supported, returning nil"
         )
 

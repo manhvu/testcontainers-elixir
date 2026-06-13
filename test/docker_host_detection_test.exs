@@ -1,5 +1,5 @@
 defmodule TestcontainerEx.DockerHostDetectionTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   # ── Gateway parsing from /proc/net/route ──────────────────────────
 
@@ -199,8 +199,8 @@ defmodule TestcontainerEx.DockerHostDetectionTest do
 
   describe "container_engine/0" do
     setup do
-      :persistent_term.erase({TestcontainerEx.Docker.Engine, :engine})
-      on_exit(fn -> :persistent_term.erase({TestcontainerEx.Docker.Engine, :engine}) end)
+      :persistent_term.erase({TestcontainerEx.Engine, :engine})
+      on_exit(fn -> :persistent_term.erase({TestcontainerEx.Engine, :engine}) end)
       :ok
     end
 
