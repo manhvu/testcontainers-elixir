@@ -8,14 +8,33 @@ defmodule TestcontainerEx do
   ## Engine Selection
 
   By default, TestcontainerEx auto-detects the container engine. You can
-  explicitly select an engine via the `:engine` option or the `CONTAINER_ENGINE`
-  environment variable:
+  explicitly select an engine in three ways (in order of precedence):
 
-      # Via option
+  ### 1. Runtime override (highest priority)
+
+  Use `set_engine/1` to switch engines at runtime, per-process:
+
+      TestcontainerEx.set_engine(:podman)
+      TestcontainerEx.container_engine() # => :podman
+
+  To reset back to auto-detection:
+
+      TestcontainerEx.clear_engine()
+
+  ### 2. Via `start_link/1` option
+
       TestcontainerEx.start_link(engine: :docker)
 
-      # Via environment variable
+  ### 3. Via `CONTAINER_ENGINE` environment variable
+
       CONTAINER_ENGINE=docker mix test
+
+  ### Runtime reconnection
+
+  Use `reconnect/1` to switch engines on a running server. This stops all
+  tracked containers and re-initializes the connection:
+
+      TestcontainerEx.reconnect(engine: :podman)
 
   Supported engine values:
 
@@ -197,6 +216,11 @@ defmodule TestcontainerEx do
 
   def container_engine, do: Engine.detect()
   def running_in_container?, do: Config.running_in_container?()
+
+  defdelegate set_engine(engine), to: Engine, as: :set_engine
+  defdelegate clear_engine(), to: Engine, as: :clear_engine
+  defdelegate get_engine(name), to: Server, as: :get_engine
+  defdelegate reconnect(options, name), to: Server, as: :reconnect
 
   # ── Custom container ──────────────────────────────────────────────
 

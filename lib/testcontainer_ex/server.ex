@@ -31,6 +31,40 @@ defmodule TestcontainerEx.Server do
   end
 
   @doc """
+  Returns the engine currently in use by the given server.
+
+  Returns an engine atom (`:docker`, `:podman`, `:colima`, `:minikube`,
+  `:apple_container`) or `:auto` if no explicit engine was selected.
+  """
+  def get_engine(name \\ __MODULE__) do
+    GenServer.call(name, :get_engine)
+  end
+
+  @doc """
+  Reconnects the server to a different container engine at runtime.
+
+  This stops all tracked containers, tears down the existing connection,
+  and re-initializes with the specified engine.
+
+  ## Options
+
+    * `:engine` — the engine to switch to (e.g., `:docker`, `:podman`, `:colima`,
+      `:minikube`, `:apple_container`, or `:auto` for auto-detection)
+
+  ## Examples
+
+      # Switch to Podman
+      TestcontainerEx.reconnect(engine: :podman)
+
+      # Switch back to auto-detection
+      TestcontainerEx.reconnect(engine: :auto)
+
+  """
+  def reconnect(options, name \\ __MODULE__) do
+    GenServer.call(name, {:reconnect, options})
+  end
+
+  @doc """
   Returns true if the server has a working Docker connection.
   """
   def connected?(name \\ __MODULE__) do
@@ -55,6 +89,76 @@ defmodule TestcontainerEx.Server do
   @impl true
   def handle_call(:connected?, _from, state) do
     {:reply, !is_nil(state.conn), state}
+  end
+
+  @impl true
+  def handle_call(:get_engine, _from, state) do
+    {:reply, state.engine, state}
+  end
+
+  @impl true
+  def handle_call({:reconnect, options}, _from, state) do
+    engine_opt = Keyword.get(options, :engine, :auto)
+
+    # Stop tracked containers before switching
+    Enum.each(state.containers, &Lifecycle.stop_container(&1, state.conn))
+    Enum.each(state.compose_envs, &TestcontainerEx.Compose.Cli.down(&1.compose))
+    Enum.each(state.networks, &Network.remove(&1, state.conn))
+
+    # Clear the persistent-term cache so auto-detection re-runs
+    :persistent_term.erase({Engine, :cached_engine})
+
+    # Build new options for connection, preserving the server name
+    conn_options = [engine: engine_opt, name: state.server_name]
+
+    case Connection.get_connection(conn_options) do
+      {conn, docker_host_url, docker_host} ->
+        {:ok, properties} = PropertiesParser.read_property_sources()
+
+        with {:ok, docker_hostname} <- resolve_docker_hostname(docker_host_url, conn, properties),
+             use_container_ip <- should_use_container_ip?(docker_hostname),
+             {:ok} <- Ryuk.start(conn, state.session_id, properties, docker_host, docker_hostname) do
+          resolved_engine = Engine.detect()
+
+          new_state = %{
+            state
+            | conn: conn,
+              docker_hostname: docker_hostname,
+              use_container_ip: use_container_ip,
+              properties: properties,
+              engine: engine_opt,
+              containers: MapSet.new(),
+              networks: MapSet.new(),
+              compose_envs: []
+          }
+
+          Logger.info(
+            "TestcontainerEx reconnected to #{resolved_engine} (requested: #{engine_opt})"
+          )
+
+          {:reply, {:ok, resolved_engine}, new_state}
+        end
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to reconnect to #{engine_opt}: #{inspect(reason)}. " <>
+            "Server is now disconnected."
+        )
+
+        disconnected_state = %{
+          state
+          | conn: nil,
+            docker_hostname: nil,
+            use_container_ip: false,
+            properties: %{},
+            engine: engine_opt,
+            containers: MapSet.new(),
+            networks: MapSet.new(),
+            compose_envs: []
+        }
+
+        {:reply, {:error, reason}, disconnected_state}
+    end
   end
 
   @impl true
@@ -298,6 +402,9 @@ defmodule TestcontainerEx.Server do
       :crypto.hash(:sha, "#{inspect(self())}#{DateTime.utc_now() |> DateTime.to_string()}")
       |> Base.encode16()
 
+    engine_opt = Keyword.get(options, :engine, :auto)
+    server_name = Keyword.get(options, :name, __MODULE__)
+
     state = %{
       conn: nil,
       docker_hostname: nil,
@@ -307,7 +414,9 @@ defmodule TestcontainerEx.Server do
       networks: MapSet.new(),
       containers: MapSet.new(),
       images: MapSet.new(),
-      compose_envs: []
+      compose_envs: [],
+      engine: engine_opt,
+      server_name: server_name
     }
 
     initialize_connection(options, state)

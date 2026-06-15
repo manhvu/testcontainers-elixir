@@ -1,45 +1,36 @@
 defmodule TestcontainerEx.Connection.Strategies.Env do
   @moduledoc """
-  Resolves the container engine host from environment variables.
-
-  Checks `CONTAINER_ENGINE_HOST` first, then falls back to `DOCKER_HOST`
-  for backward compatibility.
+  Resolves the container engine host from the `CONTAINER_ENGINE_HOST`
+  environment variable.
   """
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
   @primary_key "CONTAINER_ENGINE_HOST"
-  @fallback_key "DOCKER_HOST"
 
   @impl true
   def resolve do
-    case {System.get_env(@primary_key), System.get_env(@fallback_key)} do
-      {nil, nil} ->
+    case System.get_env(@primary_key) do
+      nil ->
         {:error, {:not_found, @primary_key}}
 
-      {"", nil} ->
+      "" ->
         {:error, {:empty, @primary_key}}
 
-      {nil, ""} ->
-        {:error, {:empty, @fallback_key}}
-
-      {url, _} when is_binary(url) and url != "" ->
-        probe(url, @primary_key)
-
-      {_, url} when is_binary(url) and url != "" ->
-        probe(url, @fallback_key)
+      url when is_binary(url) and url != "" ->
+        probe(url)
 
       _ ->
         {:error, {:empty, @primary_key}}
     end
   end
 
-  defp probe(url, key) do
+  defp probe(url) do
     case URI.parse(url) do
       %URI{scheme: "unix", path: path} ->
         if socket_accessible?(path) do
           require Logger
-          Logger.info("Container engine host detected via #{key}: #{url}")
+          Logger.info("Container engine host detected via #{@primary_key}: #{url}")
           {:ok, url}
         else
           {:error, {:socket_not_found, path}}

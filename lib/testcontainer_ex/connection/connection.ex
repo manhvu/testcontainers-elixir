@@ -107,7 +107,7 @@ defmodule TestcontainerEx.Connection do
       2. CONTAINER_ENGINE environment variable is set (e.g. `CONTAINER_ENGINE=docker`)
       3. CONTAINER_ENGINE_HOST environment variable is set correctly
       4. A .env file with CONTAINER_ENGINE_HOST exists in the project root
-      5. A Docker socket exists at a standard path (e.g. /var/run/docker.sock)
+      5. A container engine socket exists at a standard path (e.g. /var/run/docker.sock)
 
     For Colima users:
       colima start

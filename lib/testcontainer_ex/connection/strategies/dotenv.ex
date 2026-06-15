@@ -4,10 +4,9 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
 
   Reads `CONTAINER_ENGINE_HOST` from `.env` (if present) so that developers can
   commit a project-local default without modifying their shell profile.
-  Falls back to `DOCKER_HOST` for backward compatibility.
 
-  Only activates when neither `CONTAINER_ENGINE_HOST` nor `DOCKER_HOST` is
-  already set in the environment, making this a fallback rather than an override.
+  Only activates when `CONTAINER_ENGINE_HOST` is not already set in the
+  environment, making this a fallback rather than an override.
 
   The `.env` file uses simple `KEY=VALUE` syntax, one per line.
   Lines starting with `#` are treated as comments.
@@ -17,28 +16,21 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
 
   @default_file ".env"
   @primary_key "CONTAINER_ENGINE_HOST"
-  @fallback_key "DOCKER_HOST"
 
   require Logger
 
   @impl true
   def resolve do
-    # Only consult .env when neither env var is already set
-    case {System.get_env(@primary_key), System.get_env(@fallback_key)} do
-      {nil, nil} ->
+    # Only consult .env when env var is not already set
+    case System.get_env(@primary_key) do
+      nil ->
         read_from_dotenv()
 
-      {"", nil} ->
+      "" ->
         read_from_dotenv()
 
-      {nil, ""} ->
-        read_from_dotenv()
-
-      {url, _} when is_binary(url) and url != "" ->
+      url when is_binary(url) and url != "" ->
         {:error, {:env_already_set, @primary_key, url}}
-
-      {_, url} when is_binary(url) and url != "" ->
-        {:error, {:env_already_set, @fallback_key, url}}
 
       _ ->
         read_from_dotenv()
@@ -59,14 +51,7 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
               probe(url)
 
             _ ->
-              case Map.get(parsed, @fallback_key) do
-                url when is_binary(url) and url != "" ->
-                  Logger.info("Read #{@fallback_key} from #{@default_file}: #{url}")
-                  probe(url)
-
-                _ ->
-                  {:error, {:key_not_found_in_file, @primary_key, path}}
-              end
+              {:error, {:key_not_found_in_file, @primary_key, path}}
           end
 
         {:error, reason} ->

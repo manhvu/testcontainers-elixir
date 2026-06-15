@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.6.0"
+  @version "0.7.0"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -59,6 +59,7 @@ defmodule TestcontainerEx.MixProject do
         "guides/custom_containers.md",
         "guides/engine_status.md",
         "guides/getting_started.md",
+        "guides/runtime_engine_selection.md",
         "guides/wait_strategies.md"
       ],
       groups_for_modules: [
@@ -241,24 +242,60 @@ defmodule TestcontainerEx.MixProject do
       #        mix test.compose           → Compose integration tests only
       #        mix test.all_containers    → all container integration tests
       "test.podman": ["test --include needs_dock --exclude dood_limitation --exclude flaky"],
-      "test.postgres": ["test test/container/postgres_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.redis": ["test test/container/redis_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.mysql": ["test test/container/mysql_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.mongo": ["test test/container/mongo_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.cassandra": ["test test/container/cassandra_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.scylla": ["test test/container/scylla_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.kafka": ["test test/container/kafka_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.rabbitmq": ["test test/container/rabbitmq_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.elixir": ["test test/container/elixir_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.emqx": ["test test/container/emqx_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.minio": ["test test/container/minio_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.ceph": ["test test/container/ceph_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.ministack": ["test test/container/ministack_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.selenium": ["test test/container/selenium_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.toxiproxy": ["test test/container/toxiproxy_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.generic": ["test test/generic_container_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.compose": ["test test/compose/compose_integration_test.exs --include needs_dock --exclude dood_limitation"],
-      "test.all_containers": ["test --include needs_dock --exclude dood_limitation --exclude flaky"]
+      "test.postgres": [
+        "test test/container/postgres_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.redis": [
+        "test test/container/redis_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.mysql": [
+        "test test/container/mysql_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.mongo": [
+        "test test/container/mongo_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.cassandra": [
+        "test test/container/cassandra_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.scylla": [
+        "test test/container/scylla_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.kafka": [
+        "test test/container/kafka_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.rabbitmq": [
+        "test test/container/rabbitmq_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.elixir": [
+        "test test/container/elixir_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.emqx": [
+        "test test/container/emqx_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.minio": [
+        "test test/container/minio_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.ceph": [
+        "test test/container/ceph_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.ministack": [
+        "test test/container/ministack_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.selenium": [
+        "test test/container/selenium_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.toxiproxy": [
+        "test test/container/toxiproxy_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.generic": [
+        "test test/generic_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.compose": [
+        "test test/compose/compose_integration_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.all_containers": [
+        "test --include needs_dock --exclude dood_limitation --exclude flaky"
+      ]
     ]
   end
 end

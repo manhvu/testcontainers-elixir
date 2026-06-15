@@ -8,7 +8,7 @@ defmodule TestcontainerEx.Engine.Control do
   what the high-level `TestcontainerEx` API provides.
 
   All functions accept an optional `base_url` parameter. When omitted,
-  the URL is derived from `CONTAINER_ENGINE_HOST` (or `DOCKER_HOST` as fallback),
+  the URL is derived from `CONTAINER_ENGINE_HOST`,
   or defaults to `http://d`.
 
   ## Usage
@@ -744,11 +744,10 @@ defmodule TestcontainerEx.Engine.Control do
   # ── Private ───────────────────────────────────────────────────────
 
   defp default_url do
-    case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("DOCKER_HOST")} do
-      {nil, nil} -> "http://d"
-      {url, _} when is_binary(url) and url != "" -> Url.construct(url)
-      {_, url} when is_binary(url) and url != "" -> Url.construct(url)
-      _ -> "http://d"
+    case System.get_env("CONTAINER_ENGINE_HOST") do
+      nil -> "http://d"
+      "" -> "http://d"
+      url when is_binary(url) -> Url.construct(url)
     end
   end
 end

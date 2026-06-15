@@ -97,8 +97,6 @@ Open `.env` and uncomment the line that matches your container runtime:
 | **Remote Docker** (TCP) | `CONTAINER_ENGINE_HOST=tcp://192.168.1.100:2375` |
 
 > **Tip:** Use `$HOME` instead of hardcoded paths — it expands to your home directory on any OS. For Podman, `$XDG_RUNTIME_DIR` is typically `/run/user/<uid>`.
->
-> **Note:** `DOCKER_HOST` is also recognized for backward compatibility. `CONTAINER_ENGINE_HOST` takes precedence.
 
 ### Step 3: Run your tests
 
@@ -108,19 +106,39 @@ mix test
 
 That's it! The `.env` file is read automatically by the Dotenv connection strategy.
 
+### Selecting a specific engine
+
+You can set `CONTAINER_ENGINE` to control which engine is started and used. This is useful when you have multiple engines installed and want to target a specific one:
+
+```bash
+# Use Docker Desktop (doesn't start Colima)
+CONTAINER_ENGINE=docker mix test
+
+# Use Podman
+CONTAINER_ENGINE=podman mix test
+
+# Use Minikube
+CONTAINER_ENGINE=minikube mix test
+
+# Auto-detect (default behavior)
+CONTAINER_ENGINE=auto mix test
+```
+
+When `CONTAINER_ENGINE` is set to a specific engine, TestcontainerEx only starts/checks that engine — it won't start Colima or scan for other engines. See the [Runtime Engine Selection guide](guides/runtime_engine_selection.md) for details.
+
 ### How it works
 
 When TestcontainerEx starts, it resolves the container engine host using this priority order:
 
-1. `~/.testcontainer_ex.properties` (global user config)
-2. `CONTAINER_ENGINE_HOST` environment variable (shell/profile)
-3. `DOCKER_HOST` environment variable (backward compatibility)
+1. `CONTAINER_ENGINE` environment variable — if set to a specific engine (`docker`, `podman`, `colima`, `minikube`, `apple_container`), only that engine's strategies are tried
+2. `~/.testcontainer_ex.properties` (global user config)
+3. `CONTAINER_ENGINE_HOST` environment variable (shell/profile)
 4. **`.env` file** in project root ← this is what we just set up (checks `CONTAINER_ENGINE_HOST` first, then `DOCKER_HOST`)
 5. `CONTAINER_HOST` environment variable (Podman)
 6. Minikube auto-detection
 7. Socket path auto-scan
 
-The `.env` file is **only** consulted when neither `CONTAINER_ENGINE_HOST` nor `DOCKER_HOST` is already set in your shell. Shell settings always win.
+The `.env` file is **only** consulted when `CONTAINER_ENGINE_HOST` is already set in your shell. Shell settings always win.
 
 ### .env file format
 
@@ -608,15 +626,14 @@ TestcontainerEx Elixir supports [Podman](https://podman.io/) as a drop-in replac
 
 ### Environment Variables
 
-Podman uses `CONTAINER_HOST` as the equivalent of Docker's `DOCKER_HOST`:
+Podman uses `CONTAINER_HOST`:
 
 | Variable | Description |
 |----------|-------------|
 | `CONTAINER_ENGINE_HOST` | Primary env var for any container engine |
 | `CONTAINER_HOST` | Podman socket path |
-| `DOCKER_HOST` | Backward-compatible fallback |
 
-All three are recognized. `CONTAINER_ENGINE_HOST` takes precedence, then `CONTAINER_HOST`, then `DOCKER_HOST`.
+All three are recognized. `CONTAINER_ENGINE_HOST` takes precedence, then `CONTAINER_HOST`.
 
 ### Compose Support
 
@@ -677,8 +694,7 @@ TestcontainerEx works with [minikube](https://minikube.sigs.k8s.io/)'s Docker da
    MIX_ENV=test mix test
    ```
 
-   The `minikube docker-env` command sets `DOCKER_HOST` (and optionally
-   `CONTAINER_ENGINE_HOST`), `DOCKER_CERT_PATH`, and `DOCKER_TLS_VERIFY`
+   The `minikube docker-env` command sets `CONTAINER_ENGINE_HOST`, `DOCKER_CERT_PATH`, and `DOCKER_TLS_VERIFY`
    environment variables. TestcontainerEx reads all of these automatically.
 
 3. **Or use the none driver** (runs directly on the host):
@@ -775,6 +791,7 @@ TestcontainerEx resolves the container engine host by trying several strategies 
 
 | Priority | Strategy | Source | Notes |
 |----------|----------|--------|-------|
+| 0 | **Engine selection** | `CONTAINER_ENGINE` env var | If set to `docker`/`podman`/`colima`/`minikube`/`apple_container`, restricts which strategies below are tried. `auto` or unset = try all. |
 | 1 | **Properties file** | `~/.testcontainer_ex.properties` | Checks `tc.host`, then `docker.host` |
 | 2 | **Environment variable** | `CONTAINER_ENGINE_HOST` | Primary env var (shell/profile) |
 | 3 | **Fallback env var** | `DOCKER_HOST` | Backward-compatible fallback |

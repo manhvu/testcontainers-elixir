@@ -25,8 +25,14 @@ defmodule TestcontainerEx.Constants do
   @doc """
   Detects which container engine is in use.
 
-  Returns `:docker`, `:podman`, or `:minikube`.
-  Results are cached after the first call.
+  Returns `:docker`, `:podman`, `:minikube`, `:colima`, or `:apple_container`.
+
+  Resolution order:
+  1. Runtime override set via `TestcontainerEx.set_engine/1` (per-process)
+  2. `CONTAINER_ENGINE` env var
+  3. Auto-detection (cached in `:persistent_term` after first call)
+
+  See `TestcontainerEx` for details on engine selection precedence.
   """
   def container_engine do
     TestcontainerEx.Engine.detect()

@@ -199,8 +199,8 @@ defmodule TestcontainerEx.DockerHostDetectionTest do
 
   describe "container_engine/0" do
     setup do
-      :persistent_term.erase({TestcontainerEx.Engine, :engine})
-      on_exit(fn -> :persistent_term.erase({TestcontainerEx.Engine, :engine}) end)
+      :persistent_term.erase({TestcontainerEx.Engine, :cached_engine})
+      on_exit(fn -> :persistent_term.erase({TestcontainerEx.Engine, :cached_engine}) end)
       :ok
     end
 
@@ -238,6 +238,236 @@ defmodule TestcontainerEx.DockerHostDetectionTest do
       second = TestcontainerEx.Constants.container_engine()
 
       assert first == second
+    end
+  end
+
+  # ── Runtime engine override ──────────────────────────────────────
+
+  describe "set_engine/1 and clear_engine/0" do
+    setup do
+      TestcontainerEx.Engine.clear_engine()
+      on_exit(fn -> TestcontainerEx.Engine.clear_engine() end)
+      :ok
+    end
+
+    test "set_engine/1 overrides auto-detection" do
+      TestcontainerEx.Engine.set_engine(:podman)
+      assert TestcontainerEx.Engine.detect() == :podman
+    end
+
+    test "set_engine/1 works for all supported engines" do
+      for eng <- [:docker, :podman, :colima, :minikube, :apple_container] do
+        TestcontainerEx.Engine.set_engine(eng)
+        assert TestcontainerEx.Engine.detect() == eng
+      end
+    end
+
+    test "set_engine/1 returns :ok" do
+      assert TestcontainerEx.Engine.set_engine(:docker) == :ok
+    end
+
+    test "clear_engine/0 removes the override" do
+      TestcontainerEx.Engine.set_engine(:podman)
+      assert TestcontainerEx.Engine.detect() == :podman
+
+      TestcontainerEx.Engine.clear_engine()
+      assert TestcontainerEx.Engine.runtime_override() == nil
+
+      System.delete_env("CONTAINER_HOST")
+      System.delete_env("MINIKUBE_ACTIVE_DOCKERD")
+      System.delete_env("MINIKUBE_PROFILE")
+      assert TestcontainerEx.Engine.detect() == :docker
+    end
+
+    test "runtime_override/0 returns nil when no override is set" do
+      TestcontainerEx.Engine.clear_engine()
+      assert TestcontainerEx.Engine.runtime_override() == nil
+    end
+
+    test "runtime_override/0 returns the set engine" do
+      TestcontainerEx.Engine.set_engine(:apple_container)
+      assert TestcontainerEx.Engine.runtime_override() == :apple_container
+    end
+
+    test "override is per-process" do
+      TestcontainerEx.Engine.set_engine(:podman)
+      assert TestcontainerEx.Engine.detect() == :podman
+
+      result =
+        Task.async(fn ->
+          TestcontainerEx.Engine.runtime_override()
+        end)
+        |> Task.await()
+
+      assert result == nil
+    end
+
+    test "override takes precedence over CONTAINER_ENGINE env var" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+      TestcontainerEx.Engine.set_engine(:docker)
+      assert TestcontainerEx.Engine.detect() == :docker
+    after
+      System.delete_env("CONTAINER_ENGINE")
+    end
+  end
+
+  # ── CONTAINER_ENGINE env var detection ────────────────────────────
+
+  describe "engine_from_env via CONTAINER_ENGINE env var" do
+    setup do
+      original = System.get_env("CONTAINER_ENGINE")
+      :persistent_term.erase({TestcontainerEx.Engine, :cached_engine})
+
+      on_exit(fn ->
+        case original do
+          nil -> System.delete_env("CONTAINER_ENGINE")
+          val -> System.put_env("CONTAINER_ENGINE", val)
+        end
+
+        :persistent_term.erase({TestcontainerEx.Engine, :cached_engine})
+      end)
+
+      System.delete_env("CONTAINER_ENGINE")
+      :ok
+    end
+
+    test "nil CONTAINER_ENGINE falls back to auto-detection" do
+      System.delete_env("CONTAINER_HOST")
+      System.delete_env("MINIKUBE_ACTIVE_DOCKERD")
+      System.delete_env("MINIKUBE_PROFILE")
+
+      assert TestcontainerEx.Constants.container_engine() == :docker
+    end
+
+    test "empty string CONTAINER_ENGINE falls back to auto-detection" do
+      System.put_env("CONTAINER_ENGINE", "")
+      System.delete_env("CONTAINER_HOST")
+      System.delete_env("MINIKUBE_ACTIVE_DOCKERD")
+      System.delete_env("MINIKUBE_PROFILE")
+
+      assert TestcontainerEx.Constants.container_engine() == :docker
+    end
+
+    test "CONTAINER_ENGINE=docker returns :docker" do
+      System.put_env("CONTAINER_ENGINE", "docker")
+      assert TestcontainerEx.Constants.container_engine() == :docker
+    end
+
+    test "CONTAINER_ENGINE=podman returns :podman" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+      assert TestcontainerEx.Constants.container_engine() == :podman
+    end
+
+    test "CONTAINER_ENGINE=colima returns :docker (colima runs Docker)" do
+      System.put_env("CONTAINER_ENGINE", "colima")
+      assert TestcontainerEx.Constants.container_engine() == :docker
+    end
+
+    test "CONTAINER_ENGINE=minikube returns :minikube" do
+      System.put_env("CONTAINER_ENGINE", "minikube")
+      assert TestcontainerEx.Constants.container_engine() == :minikube
+    end
+
+    test "CONTAINER_ENGINE=apple_container returns :apple_container" do
+      System.put_env("CONTAINER_ENGINE", "apple_container")
+      assert TestcontainerEx.Constants.container_engine() == :apple_container
+    end
+
+    test "CONTAINER_ENGINE=auto falls back to auto-detection" do
+      System.put_env("CONTAINER_ENGINE", "auto")
+      System.delete_env("CONTAINER_HOST")
+      System.delete_env("MINIKUBE_ACTIVE_DOCKERD")
+      System.delete_env("MINIKUBE_PROFILE")
+
+      assert TestcontainerEx.Constants.container_engine() == :docker
+    end
+
+    test "invalid CONTAINER_ENGINE value falls back to auto-detection" do
+      System.put_env("CONTAINER_ENGINE", "not_a_real_engine")
+      System.delete_env("CONTAINER_HOST")
+      System.delete_env("MINIKUBE_ACTIVE_DOCKERD")
+      System.delete_env("MINIKUBE_PROFILE")
+
+      assert TestcontainerEx.Constants.container_engine() == :docker
+    end
+
+    test "CONTAINER_ENGINE is cached in persistent_term" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+      first = TestcontainerEx.Constants.container_engine()
+      assert first == :podman
+
+      # Changing env var should not affect cached result
+      System.put_env("CONTAINER_ENGINE", "docker")
+      second = TestcontainerEx.Constants.container_engine()
+      assert second == :podman
+    end
+
+    test "clear_engine clears the cache and re-reads env" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+      assert TestcontainerEx.Constants.container_engine() == :podman
+
+      TestcontainerEx.Engine.clear_engine()
+      System.put_env("CONTAINER_ENGINE", "minikube")
+      assert TestcontainerEx.Constants.container_engine() == :minikube
+    end
+  end
+
+  # ── Combined override precedence ─────────────────────────────────
+
+  describe "override precedence: set_engine > env var > auto-detect" do
+    setup do
+      TestcontainerEx.Engine.clear_engine()
+      original_env = System.get_env("CONTAINER_ENGINE")
+
+      on_exit(fn ->
+        TestcontainerEx.Engine.clear_engine()
+
+        case original_env do
+          nil -> System.delete_env("CONTAINER_ENGINE")
+          val -> System.put_env("CONTAINER_ENGINE", val)
+        end
+      end)
+
+      System.delete_env("CONTAINER_ENGINE")
+      System.delete_env("CONTAINER_HOST")
+      System.delete_env("MINIKUBE_ACTIVE_DOCKERD")
+      System.delete_env("MINIKUBE_PROFILE")
+      :ok
+    end
+
+    test "set_engine wins over CONTAINER_ENGINE env var" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+      TestcontainerEx.Engine.set_engine(:docker)
+      assert TestcontainerEx.Engine.detect() == :docker
+    end
+
+    test "set_engine wins over auto-detection" do
+      TestcontainerEx.Engine.set_engine(:apple_container)
+      assert TestcontainerEx.Engine.detect() == :apple_container
+    end
+
+    test "CONTAINER_ENGINE env var wins over auto-detection" do
+      System.put_env("CONTAINER_ENGINE", "minikube")
+      assert TestcontainerEx.Engine.detect() == :minikube
+    end
+
+    test "clear_engine falls back to CONTAINER_ENGINE env var" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+      TestcontainerEx.Engine.set_engine(:docker)
+      assert TestcontainerEx.Engine.detect() == :docker
+
+      TestcontainerEx.Engine.clear_engine()
+      # After clearing, should re-read from env var
+      assert TestcontainerEx.Engine.detect() == :podman
+    end
+
+    test "clear_engine with no env var falls back to auto-detection" do
+      System.delete_env("CONTAINER_ENGINE")
+      TestcontainerEx.Engine.set_engine(:apple_container)
+      assert TestcontainerEx.Engine.detect() == :apple_container
+
+      TestcontainerEx.Engine.clear_engine()
+      assert TestcontainerEx.Engine.detect() == :docker
     end
   end
 

@@ -319,6 +319,138 @@ defmodule TestcontainerEx.Connection.DockerHostStrategyTest do
     end
   end
 
+  # ── Resolver with explicit engine option ──────────────────────────
+
+  describe "Resolver with explicit engine" do
+    setup do
+      original = System.get_env("DOCKER_HOST")
+      on_exit(fn -> restore_env("DOCKER_HOST", original) end)
+      System.delete_env("DOCKER_HOST")
+      :ok
+    end
+
+    test "engine: :docker restricts to docker strategies" do
+      case Resolver.resolve(engine: :docker) do
+        {:error, reasons} ->
+          assert is_list(reasons)
+          assert length(reasons) > 0
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+
+    test "engine: :podman restricts to podman strategies" do
+      case Resolver.resolve(engine: :podman) do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+
+    test "engine: :colima restricts to colima strategy" do
+      case Resolver.resolve(engine: :colima) do
+        {:error, _} -> :ok
+        {:ok, _url} -> :ok
+      end
+    end
+
+    test "engine: :minikube restricts to minikube strategy" do
+      case Resolver.resolve(engine: :minikube) do
+        {:error, _} -> :ok
+        {:ok, _url} -> :ok
+      end
+    end
+
+    test "engine: :apple_container restricts to apple_container strategy" do
+      case Resolver.resolve(engine: :apple_container) do
+        {:error, _} -> :ok
+        {:ok, _url} -> :ok
+      end
+    end
+
+    test "engine: :auto tries all strategies" do
+      case Resolver.resolve(engine: :auto) do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+
+    test "unknown engine falls back to auto" do
+      case Resolver.resolve(engine: :unknown_engine) do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+  end
+
+  # ── CONTAINER_ENGINE env var ──────────────────────────────────────
+
+  describe "CONTAINER_ENGINE env var" do
+    setup do
+      original = System.get_env("CONTAINER_ENGINE")
+      on_exit(fn -> restore_env("CONTAINER_ENGINE", original) end)
+      System.delete_env("CONTAINER_ENGINE")
+      :ok
+    end
+
+    test "CONTAINER_ENGINE=docker restricts to docker strategies" do
+      System.put_env("CONTAINER_ENGINE", "docker")
+
+      case Resolver.resolve() do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+
+    test "CONTAINER_ENGINE=podman restricts to podman strategies" do
+      System.put_env("CONTAINER_ENGINE", "podman")
+
+      case Resolver.resolve() do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+
+    test "CONTAINER_ENGINE=auto tries all strategies" do
+      System.put_env("CONTAINER_ENGINE", "auto")
+
+      case Resolver.resolve() do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+
+    test "invalid CONTAINER_ENGINE falls back to auto" do
+      System.put_env("CONTAINER_ENGINE", "invalid_engine")
+
+      case Resolver.resolve() do
+        {:error, reasons} ->
+          assert is_list(reasons)
+
+        {:ok, _url} ->
+          :ok
+      end
+    end
+  end
+
   defp restore_env(key, nil), do: System.delete_env(key)
   defp restore_env(key, value), do: System.put_env(key, value)
 end

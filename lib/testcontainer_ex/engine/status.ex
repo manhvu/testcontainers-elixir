@@ -789,10 +789,6 @@ defmodule TestcontainerEx.Engine.Status do
             url = String.trim(rest) |> String.trim("\"")
             if url != "", do: url, else: nil
 
-          "DOCKER_HOST=" <> rest ->
-            url = String.trim(rest) |> String.trim("\"")
-            if url != "", do: url, else: nil
-
           _ ->
             nil
         end)
@@ -843,11 +839,10 @@ defmodule TestcontainerEx.Engine.Status do
   # ── Private — Utilities ───────────────────────────────────────────
 
   defp default_engine_url do
-    case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("DOCKER_HOST")} do
-      {nil, nil} -> "http://d"
-      {url, _} when is_binary(url) and url != "" -> Url.construct(url)
-      {_, url} when is_binary(url) and url != "" -> Url.construct(url)
-      _ -> "http://d"
+    case System.get_env("CONTAINER_ENGINE_HOST") do
+      nil -> "http://d"
+      "" -> "http://d"
+      url when is_binary(url) -> Url.construct(url)
     end
   end
 

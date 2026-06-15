@@ -185,4 +185,68 @@ defmodule TestcontainerExTest do
       System.delete_env("TESTCONTAINERS_RYUK_DISABLED")
     end
   end
+
+  # ── Engine selection ──────────────────────────────────────────────
+
+  @tag :needs_dock
+  test "get_engine/1 returns the configured engine" do
+    name = :"engine_get_test_#{:rand.uniform(1_000_000)}"
+    {:ok, _pid} = TestcontainerEx.start_link(name: name, engine: :auto)
+    assert TestcontainerEx.get_engine(name) == :auto
+    TestcontainerEx.stop(name)
+  end
+
+  @tag :needs_dock
+  test "start_link with engine option stores the engine" do
+    name = :"engine_start_test_#{:rand.uniform(1_000_000)}"
+    {:ok, _pid} = TestcontainerEx.start_link(name: name, engine: :docker)
+    assert TestcontainerEx.get_engine(name) == :docker
+    TestcontainerEx.stop(name)
+  end
+
+  @tag :needs_dock
+  test "reconnect/2 switches the engine" do
+    name = :"engine_reconnect_test_#{:rand.uniform(1_000_000)}"
+    {:ok, _pid} = TestcontainerEx.start_link(name: name, engine: :auto)
+
+    assert TestcontainerEx.get_engine(name) == :auto
+
+    # Reconnect to :docker explicitly
+    {:ok, resolved} = TestcontainerEx.reconnect(engine: :docker, name: name)
+    assert resolved == :docker
+    assert TestcontainerEx.get_engine(name) == :docker
+
+    TestcontainerEx.stop(name)
+  end
+
+  @tag :needs_dock
+  test "reconnect/2 resets tracked resources" do
+    name = :"engine_reconnect_reset_test_#{:rand.uniform(1_000_000)}"
+    {:ok, _pid} = TestcontainerEx.start_link(name: name)
+
+    # Start a container
+    config = %Config{image: "nginx:alpine"}
+    {:ok, container} = TestcontainerEx.start_container(config, name)
+
+    # Verify it's running
+    assert {conn, _url, _host} = Connection.get_connection()
+    assert {:ok, _} = Engine.Api.get_container(container.container_id, conn)
+
+    # Reconnect should stop the container and clear tracked resources
+    {:ok, _resolved} = TestcontainerEx.reconnect(engine: :auto, name: name)
+
+    TestcontainerEx.stop(name)
+  end
+
+  @tag :needs_dock
+  test "set_engine/1 affects container_engine/0" do
+    TestcontainerEx.Engine.clear_engine()
+    on_exit(fn -> TestcontainerEx.Engine.clear_engine() end)
+
+    TestcontainerEx.set_engine(:podman)
+    assert TestcontainerEx.container_engine() == :podman
+
+    TestcontainerEx.set_engine(:docker)
+    assert TestcontainerEx.container_engine() == :docker
+  end
 end

@@ -2,24 +2,40 @@ defmodule TestcontainerEx.Engine do
   @moduledoc """
   Detects which container engine is in use: Docker, Podman, minikube, or Apple Container.
 
-  Detection is cached after the first call via `:persistent_term`.
-
   ## Precedence
 
-  1. `CONTAINER_ENGINE` env var — explicit selection (`docker`, `podman`, `colima`,
+  1. Runtime override — set via `set_engine/1` (highest priority, per-process).
+  2. `CONTAINER_ENGINE` env var — explicit selection (`docker`, `podman`, `colima`,
      `minikube`, `apple_container`). When set, auto-detection is skipped entirely.
-  2. `CONTAINER_ENGINE_HOST` / `CONTAINER_HOST` env vars — if the URL contains
+  3. `CONTAINER_ENGINE_HOST` / `CONTAINER_HOST` env vars — if the URL contains
      `podman` or matches minikube subnets, the engine is inferred from the URL.
-  3. `MINIKUBE_ACTIVE_DOCKERD` / `MINIKUBE_PROFILE` env vars.
-  4. Apple Container — only when the `container` binary exists, the service reports
+  4. `MINIKUBE_ACTIVE_DOCKERD` / `MINIKUBE_PROFILE` env vars.
+  5. Apple Container — only when the `container` binary exists, the service reports
      "running", **and** the API socket exists.
-  5. Podman ping — HTTP ping to the daemon checking for a Podman header.
-  6. Default — `:docker`.
+  6. Podman ping — HTTP ping to the daemon checking for a Podman header.
+  7. Default — `:docker`.
+
+  ## Runtime engine selection
+
+  You can override the auto-detected engine at runtime:
+
+      TestcontainerEx.set_engine(:podman)
+      TestcontainerEx.container_engine() # => :podman
+
+  To reset back to auto-detection:
+
+      TestcontainerEx.clear_engine()
+
+  The override is stored per-process in the process dictionary, so it does not
+  affect other processes and is cleaned up automatically when the calling process
+  exits.
   """
 
   alias TestcontainerEx.Connection.Url
 
   @apple_container_socket "/var/run/com.apple.container.apiserver"
+
+  @engine_key {__MODULE__, :runtime_override}
 
   @doc """
   Detects the container engine type.
@@ -30,19 +46,82 @@ defmodule TestcontainerEx.Engine do
   - `:minikube` — Minikube
   - `:docker` — Docker (default)
 
-  Results are cached after the first call.
+  Resolution order:
+  1. Runtime override (set via `set_engine/1`) — per-process, highest priority
+  2. Cached auto-detection result (stored in `:persistent_term`)
+  3. Fresh auto-detection (cached for subsequent calls)
+
+  When `CONTAINER_ENGINE` env var is set to a valid engine, auto-detection
+  is skipped entirely and that value is used directly.
   """
   @spec detect() :: :docker | :podman | :minikube | :apple_container
   def detect do
-    case :persistent_term.get({__MODULE__, :engine}, nil) do
+    case Process.get(@engine_key) do
       nil ->
-        engine = do_detect()
-        :persistent_term.put({__MODULE__, :engine}, engine)
-        engine
+        case :persistent_term.get({__MODULE__, :cached_engine}, nil) do
+          nil ->
+            engine = do_detect()
+            :persistent_term.put({__MODULE__, :cached_engine}, engine)
+            engine
+
+          engine ->
+            engine
+        end
 
       engine ->
         engine
     end
+  end
+
+  @doc """
+  Overrides the auto-detected engine at runtime.
+
+  The override is stored in the calling process's dictionary, so it:
+  - Takes precedence over `CONTAINER_ENGINE` env var and auto-detection
+  - Only affects the calling process (and its children via `Process.info/1` inheritance)
+  - Is cleaned up automatically when the process exits
+
+  ## Examples
+
+      iex> TestcontainerEx.set_engine(:podman)
+      :ok
+      iex> TestcontainerEx.container_engine()
+      :podman
+
+  """
+  @spec set_engine(:docker | :podman | :colima | :minikube | :apple_container) :: :ok
+  def set_engine(engine)
+      when engine in [:docker, :podman, :colima, :minikube, :apple_container] do
+    Process.put(@engine_key, engine)
+    :ok
+  end
+
+  @doc """
+  Clears a runtime engine override, restoring auto-detection.
+
+  Also clears the `:persistent_term` cache so the next `detect/0` call
+  re-runs the full auto-detection sequence.
+
+  ## Examples
+
+      iex> TestcontainerEx.clear_engine()
+      :ok
+
+  """
+  @spec clear_engine() :: :ok
+  def clear_engine do
+    Process.delete(@engine_key)
+    :persistent_term.erase({__MODULE__, :cached_engine})
+    :ok
+  end
+
+  @doc """
+  Returns the runtime override for the calling process, or `nil` if no
+  override has been set.
+  """
+  @spec runtime_override() :: :docker | :podman | :colima | :minikube | :apple_container | nil
+  def runtime_override do
+    Process.get(@engine_key)
   end
 
   @doc """
@@ -115,11 +194,10 @@ defmodule TestcontainerEx.Engine do
   end
 
   defp minikube_docker_host? do
-    case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("DOCKER_HOST")} do
-      {nil, nil} -> false
-      {url, _} when is_binary(url) and url != "" -> minikube_subnet?(url)
-      {_, url} when is_binary(url) and url != "" -> minikube_subnet?(url)
-      _ -> false
+    case System.get_env("CONTAINER_ENGINE_HOST") do
+      nil -> false
+      "" -> false
+      url when is_binary(url) -> minikube_subnet?(url)
     end
   end
 
@@ -159,11 +237,10 @@ defmodule TestcontainerEx.Engine do
     client = Req.new()
 
     url =
-      case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("DOCKER_HOST")} do
-        {nil, nil} -> "http://d/v1.43/_ping"
-        {host, _} when is_binary(host) and host != "" -> "#{Url.construct(host)}/_ping"
-        {_, host} when is_binary(host) and host != "" -> "#{Url.construct(host)}/_ping"
-        _ -> "http://d/v1.43/_ping"
+      case System.get_env("CONTAINER_ENGINE_HOST") do
+        nil -> "http://d/v1.43/_ping"
+        "" -> "http://d/v1.43/_ping"
+        host when is_binary(host) -> "#{Url.construct(host)}/_ping"
       end
 
     case Req.get(client, url: url) do

@@ -10,10 +10,11 @@
 #   script/run_docker_tests.sh test/container/postgres_container_test.exs  # Run specific file
 #
 # Environment variables:
-#   RYUK_IMAGE    - Ryuk image to use (default: testcontainers/ryuk:0.14.0)
-#   RYUK_PORT     - Host port for Ryuk (default: auto-assigned)
+#   RYUK_IMAGE       - Ryuk image to use (default: testcontainers/ryuk:0.14.0)
+#   RYUK_PORT        - Host port for Ryuk (default: auto-assigned)
+#   CONTAINER_ENGINE - Engine to start: auto|docker|podman|colima|minikube|apple_container (default: auto)
 #   CONTAINER_ENGINE_HOST - Container engine socket (auto-detected if not set)
-#   TEST_TIMEOUT  - ExUnit timeout in ms (default: 300000)
+#   TEST_TIMEOUT     - ExUnit timeout in ms (default: 300000)
 
 set -euo pipefail
 
@@ -104,6 +105,101 @@ ensure_colima() {
   info "Starting Colima..."
   colima start
   success "Colima started"
+}
+
+# ── Engine-Specific Startup ──────────────────────────────────────────────────
+
+# When CONTAINER_ENGINE is set to a specific engine (not "auto"), only start
+# that engine. This avoids unnecessarily starting Colima when the user wants
+# Podman, Docker Desktop, etc.
+
+ensure_engine() {
+  local engine="${CONTAINER_ENGINE:-auto}"
+
+  case "$engine" in
+    auto|"")
+      # Auto mode: try Colima first (existing behaviour)
+      ensure_colima
+      ;;
+    colima)
+      info "CONTAINER_ENGINE=colima: starting Colima only"
+      ensure_colima
+      ;;
+    docker)
+      info "CONTAINER_ENGINE=docker: ensuring Docker daemon is running"
+      if command -v docker &>/dev/null; then
+        if docker info >/dev/null 2>&1; then
+          success "Docker daemon is already running"
+        else
+          info "Starting Docker..."
+          # Try common ways to start Docker on macOS
+          if command -v open &>/dev/null && [[ -e "/Applications/Docker.app" ]]; then
+            open -a Docker
+            wait_for_docker
+          else
+            warn "Cannot auto-start Docker. Please start Docker Desktop manually."
+          fi
+        fi
+      else
+        error "docker command not found. Is Docker installed?"
+        exit 1
+      fi
+      ;;
+    podman)
+      info "CONTAINER_ENGINE=podman: ensuring Podman machine is running"
+      if command -v podman &>/dev/null; then
+        local podman_status
+        podman_status=$(podman machine list --format "{{.Running}}" 2>/dev/null | head -1 || echo "false")
+        if [[ "$podman_status" == "true" ]]; then
+          success "Podman machine is already running"
+        else
+          info "Starting Podman machine..."
+          podman machine start 2>&1 || true
+          # Also ensure the socket is available
+          podman machine ssh -- systemctl --user start podman.socket 2>/dev/null || true
+        fi
+      else
+        error "podman command not found. Is Podman installed?"
+        exit 1
+      fi
+      ;;
+    minikube)
+      info "CONTAINER_ENGINE=minikube: ensuring Minikube is running"
+      if command -v minikube &>/dev/null; then
+        local mk_status
+        mk_status=$(minikube status --format="{{.Host}}" 2>/dev/null || echo "Stopped")
+        if [[ "$mk_status" == "Running" ]]; then
+          success "Minikube is already running"
+        else
+          info "Starting Minikube..."
+          minikube start 2>&1 || true
+        fi
+      else
+        error "minikube command not found. Is Minikube installed?"
+        exit 1
+      fi
+      ;;
+    apple_container)
+      info "CONTAINER_ENGINE=apple_container: ensuring Apple Container is running"
+      if command -v container &>/dev/null; then
+        local container_status
+        container_status=$(container system status 2>/dev/null || echo "")
+        if echo "$container_status" | grep -qi "running"; then
+          success "Apple Container is already running"
+        else
+          info "Starting Apple Container..."
+          container system start 2>&1 || true
+        fi
+      else
+        error "container command not found. Is Apple Container installed?"
+        exit 1
+      fi
+      ;;
+    *)
+      warn "Unknown CONTAINER_ENGINE=\"${engine}\", falling back to auto-detection"
+      ensure_colima
+      ;;
+  esac
 }
 
 # ── Ryuk Management ────────────────────────────────────────────────────────────
@@ -311,8 +407,10 @@ main() {
     exit 1
   fi
 
-  # Step 2: Ensure Colima is running (if applicable)
-  ensure_colima
+  # Step 2: Ensure the selected engine is running
+  # When CONTAINER_ENGINE is set (and not "auto"), only start that engine.
+  # In auto mode, fall back to the existing Colima-first behaviour.
+  ensure_engine
 
   # Step 3: Wait for Docker daemon
   wait_for_docker
@@ -325,6 +423,7 @@ main() {
   }
   export CONTAINER_ENGINE_HOST="$docker_socket"
   info "CONTAINER_ENGINE_HOST=${CONTAINER_ENGINE_HOST}"
+  info "CONTAINER_ENGINE=${CONTAINER_ENGINE:-auto}"
 
   # Step 5: Start Ryuk
   SETUP_ONLY="$setup_only"
