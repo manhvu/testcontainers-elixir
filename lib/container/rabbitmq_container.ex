@@ -31,6 +31,7 @@ defmodule TestcontainerEx.RabbitMQContainer do
     :virtual_host,
     :cmd,
     :wait_timeout,
+    :name,
     check_image: @default_image,
     reuse: false,
     force_reuse: false
@@ -60,6 +61,14 @@ defmodule TestcontainerEx.RabbitMQContainer do
 
   def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
     do: %__MODULE__{c | reuse: reuse}
+
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
 
   def with_force_reuse(%__MODULE__{} = c), do: %__MODULE__{c | reuse: true, force_reuse: true}
 
@@ -112,6 +121,9 @@ defmodule TestcontainerEx.RabbitMQContainer do
       |> Config.with_check_image(config.check_image)
       |> Config.with_reuse(config.reuse)
       |> then(fn c -> if config.force_reuse, do: Config.with_force_reuse(c, true), else: c end)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.valid_image!()
     end
 

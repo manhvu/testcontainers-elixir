@@ -22,7 +22,7 @@ defmodule TestcontainerEx.SeleniumContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :port1, :port2, :wait_timeout]
-  defstruct [:image, :port1, :port2, :wait_timeout, check_image: @default_image, reuse: false]
+  defstruct [:image, :port1, :port2, :wait_timeout, :name, check_image: @default_image, reuse: false]
 
   def new,
     do: %__MODULE__{
@@ -43,6 +43,14 @@ defmodule TestcontainerEx.SeleniumContainer do
   def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
     do: %__MODULE__{c | reuse: reuse}
 
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
   def default_image, do: @default_image
 
   defimpl Builder do
@@ -62,6 +70,9 @@ defmodule TestcontainerEx.SeleniumContainer do
       ])
       |> Config.with_check_image(config.check_image)
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.valid_image!()
     end
 

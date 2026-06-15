@@ -32,6 +32,7 @@ defmodule TestcontainerEx.MySqlContainer do
     :port,
     :wait_timeout,
     :persistent_volume,
+    :name,
     check_image: @default_image,
     reuse: false
   ]
@@ -66,6 +67,14 @@ defmodule TestcontainerEx.MySqlContainer do
   def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
     do: %__MODULE__{c | reuse: reuse}
 
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
   def default_port, do: @default_port
   def default_image, do: @default_image
   def default_image_with_tag, do: @default_image <> ":" <> @default_tag
@@ -98,6 +107,9 @@ defmodule TestcontainerEx.MySqlContainer do
       )
       |> Config.with_check_image(config.check_image)
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.valid_image!()
     end
 

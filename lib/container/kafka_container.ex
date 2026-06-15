@@ -65,6 +65,7 @@ defmodule TestcontainerEx.KafkaContainer do
     :node_id,
     :cluster_id,
     :wait_timeout,
+    name: nil,
     topics: [],
     reuse: false
   ]
@@ -156,6 +157,14 @@ defmodule TestcontainerEx.KafkaContainer do
   end
 
   @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
+  @doc """
   Returns the bootstrap servers string for connecting to the Kafka container.
   """
   def bootstrap_servers(%Config{} = container) do
@@ -186,6 +195,9 @@ defmodule TestcontainerEx.KafkaContainer do
           1000
         )
       )
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
     end
 
     @doc """

@@ -19,8 +19,10 @@ defmodule TestcontainerEx.ToxiproxyContainer do
   @max_retries 3
   @retry_delay_ms 500
 
+  @type t :: %__MODULE__{}
+
   @enforce_keys [:image, :wait_timeout]
-  defstruct [:image, :wait_timeout, check_image: @default_image, reuse: false]
+  defstruct [:image, :wait_timeout, :name, check_image: @default_image, reuse: false]
 
   def new, do: %__MODULE__{image: @default_image_with_tag, wait_timeout: @default_wait_timeout}
   def with_image(%__MODULE__{} = c, image) when is_binary(image), do: %{c | image: image}
@@ -28,6 +30,14 @@ defmodule TestcontainerEx.ToxiproxyContainer do
 
   def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
     do: %__MODULE__{c | reuse: reuse}
+
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
 
   def default_image, do: @default_image_with_tag
   def control_port, do: @control_port
@@ -169,6 +179,9 @@ defmodule TestcontainerEx.ToxiproxyContainer do
         )
       )
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
     end
 
     @impl true

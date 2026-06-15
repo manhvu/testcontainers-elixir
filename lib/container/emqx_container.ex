@@ -20,6 +20,8 @@ defmodule TestcontainerEx.EmqxContainer do
   @default_dashboard_port 18_083
   @default_wait_timeout 60_000
 
+  @type t :: %__MODULE__{}
+
   @enforce_keys [:image, :mqtt_port, :wait_timeout]
   defstruct [
     :image,
@@ -29,6 +31,7 @@ defmodule TestcontainerEx.EmqxContainer do
     :mqtt_over_wss_port,
     :dashboard_port,
     :wait_timeout,
+    :name,
     check_image: @default_image,
     reuse: false
   ]
@@ -95,6 +98,14 @@ defmodule TestcontainerEx.EmqxContainer do
   end
 
   @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
+  @doc """
   Retrieves the default Docker image for the Emqx container.
   """
   def default_image, do: @default_image
@@ -118,6 +129,9 @@ defmodule TestcontainerEx.EmqxContainer do
       |> Config.with_waiting_strategies(waiting_strategies(config))
       |> Config.with_check_image(config.check_image)
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.valid_image!()
     end
 

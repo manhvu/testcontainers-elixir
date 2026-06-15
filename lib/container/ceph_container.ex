@@ -30,6 +30,7 @@ defmodule TestcontainerEx.CephContainer do
     :bucket,
     :port,
     :wait_timeout,
+    :name,
     check_image: @default_image,
     reuse: false
   ]
@@ -76,6 +77,14 @@ defmodule TestcontainerEx.CephContainer do
     %__MODULE__{config | reuse: reuse}
   end
 
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
   def default_image, do: @default_image
 
   def port(%Config{} = container), do: TestcontainerEx.get_port(container, @default_port)
@@ -116,6 +125,9 @@ defmodule TestcontainerEx.CephContainer do
       )
       |> Config.with_check_image(config.check_image)
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.valid_image!()
     end
 

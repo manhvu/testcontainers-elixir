@@ -24,6 +24,7 @@ defmodule TestcontainerEx.RedisContainer do
     :image,
     :port,
     :wait_timeout,
+    :name,
     check_image: @default_image,
     reuse: false,
     password: nil
@@ -61,6 +62,14 @@ defmodule TestcontainerEx.RedisContainer do
     %__MODULE__{config | reuse: reuse}
   end
 
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
   def default_image, do: @default_image
 
   def port(%Config{} = container), do: TestcontainerEx.get_port(container, @default_port)
@@ -80,6 +89,9 @@ defmodule TestcontainerEx.RedisContainer do
         |> Config.with_exposed_port(config.port)
         |> Config.with_check_image(config.check_image)
         |> Config.with_reuse(config.reuse)
+        |> then(fn cfg ->
+          if config.name, do: Config.with_name(cfg, config.name), else: cfg
+        end)
 
       container =
         if config.password do

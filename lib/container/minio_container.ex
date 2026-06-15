@@ -20,7 +20,7 @@ defmodule TestcontainerEx.MinioContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :username, :password, :wait_timeout]
-  defstruct [:image, :username, :password, :wait_timeout, reuse: false]
+  defstruct [:image, :username, :password, :wait_timeout, :name, reuse: false]
 
   def new,
     do: %__MODULE__{
@@ -32,6 +32,14 @@ defmodule TestcontainerEx.MinioContainer do
 
   def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse),
     do: %__MODULE__{config | reuse: reuse}
+
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
 
   def get_username, do: @default_username
   def get_password, do: @default_password
@@ -66,6 +74,9 @@ defmodule TestcontainerEx.MinioContainer do
       |> Config.with_environment(:MINIO_ROOT_USER, config.username)
       |> Config.with_environment(:MINIO_ROOT_PASSWORD, config.password)
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.with_cmd([
         "server",
         "--console-address",

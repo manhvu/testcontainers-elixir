@@ -25,6 +25,7 @@ defmodule TestcontainerEx.CassandraContainer do
   defstruct [
     :image,
     :wait_timeout,
+    :name,
     check_image: @default_image,
     reuse: false
   ]
@@ -45,6 +46,14 @@ defmodule TestcontainerEx.CassandraContainer do
 
   def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
     %__MODULE__{config | reuse: reuse}
+  end
+
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
   end
 
   def default_image, do: @default_image
@@ -81,6 +90,9 @@ defmodule TestcontainerEx.CassandraContainer do
       )
       |> Config.with_check_image(config.check_image)
       |> Config.with_reuse(config.reuse)
+      |> then(fn cfg ->
+        if config.name, do: Config.with_name(cfg, config.name), else: cfg
+      end)
       |> Config.valid_image!()
     end
 

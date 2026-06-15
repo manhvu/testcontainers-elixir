@@ -93,6 +93,7 @@ defmodule TestcontainerEx.ElixirContainer do
     :env_vars,
     :cmd,
     :working_dir,
+    :name,
     check_image: @default_image,
     reuse: false
   ]
@@ -291,6 +292,14 @@ defmodule TestcontainerEx.ElixirContainer do
     %__MODULE__{config | reuse: reuse}
   end
 
+  @doc """
+  Sets the container name.
+  """
+  @spec with_name(t(), String.t()) :: t()
+  def with_name(%__MODULE__{} = config, name) when is_binary(name) do
+    %__MODULE__{config | name: name}
+  end
+
   # ── Accessors ──────────────────────────────────────────────────────
 
   @doc "Returns the default image name without tag."
@@ -471,6 +480,9 @@ defmodule TestcontainerEx.ElixirContainer do
         |> maybe_with_cmd(config)
         |> Config.with_check_image(config.check_image)
         |> Config.with_reuse(config.reuse)
+        |> then(fn cfg ->
+          if config.name, do: Config.with_name(cfg, config.name), else: cfg
+        end)
 
       # Choose wait strategy based on configuration
       container =
