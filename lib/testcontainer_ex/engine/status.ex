@@ -659,7 +659,8 @@ defmodule TestcontainerEx.Engine.Status do
     end
   end
 
-  defp parse_apple_container_version(_), do: %{running: true, version: nil, cpus: nil, memory_bytes: nil, kernel_version: nil}
+  defp parse_apple_container_version(_),
+    do: %{running: true, version: nil, cpus: nil, memory_bytes: nil, kernel_version: nil}
 
   defp from_engine(engine) do
     case engine_info() do
@@ -839,11 +840,19 @@ defmodule TestcontainerEx.Engine.Status do
   # ── Private — Utilities ───────────────────────────────────────────
 
   defp default_engine_url do
-    case System.get_env("CONTAINER_ENGINE_HOST") do
+    case env_url() do
       nil -> "http://d"
       "" -> "http://d"
       url when is_binary(url) -> Url.construct(url)
     end
+  end
+
+  # Returns the container engine URL from environment variables.
+  # Checks in priority order: CONTAINER_ENGINE_HOST > CONTAINER_HOST > DOCKER_HOST.
+  defp env_url do
+    System.get_env("CONTAINER_ENGINE_HOST") ||
+      System.get_env("CONTAINER_HOST") ||
+      System.get_env("DOCKER_HOST")
   end
 
   defp exec_cmd(bin, args) do

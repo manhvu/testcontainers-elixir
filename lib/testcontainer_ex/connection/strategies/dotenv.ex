@@ -5,8 +5,9 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
   Reads `CONTAINER_ENGINE_HOST` from `.env` (if present) so that developers can
   commit a project-local default without modifying their shell profile.
 
-  Only activates when `CONTAINER_ENGINE_HOST` is not already set in the
-  environment, making this a fallback rather than an override.
+  Only activates when neither `CONTAINER_ENGINE_HOST` nor `DOCKER_HOST` is
+  already set in the environment, making this a fallback rather than an
+  override.
 
   The `.env` file uses simple `KEY=VALUE` syntax, one per line.
   Lines starting with `#` are treated as comments.
@@ -16,21 +17,28 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
 
   @default_file ".env"
   @primary_key "CONTAINER_ENGINE_HOST"
+  @fallback_key "DOCKER_HOST"
 
   require Logger
 
   @impl true
   def resolve do
-    # Only consult .env when env var is not already set
-    case System.get_env(@primary_key) do
-      nil ->
+    # Only consult .env when neither env var is already set
+    case {System.get_env(@primary_key), System.get_env(@fallback_key)} do
+      {nil, nil} ->
         read_from_dotenv()
 
-      "" ->
+      {"", _} ->
         read_from_dotenv()
 
-      url when is_binary(url) and url != "" ->
+      {nil, ""} ->
+        read_from_dotenv()
+
+      {url, _} when is_binary(url) and url != "" ->
         {:error, {:env_already_set, @primary_key, url}}
+
+      {nil, url} when is_binary(url) and url != "" ->
+        {:error, {:env_already_set, @fallback_key, url}}
 
       _ ->
         read_from_dotenv()

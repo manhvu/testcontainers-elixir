@@ -194,7 +194,7 @@ defmodule TestcontainerEx.Engine do
   end
 
   defp minikube_docker_host? do
-    case System.get_env("CONTAINER_ENGINE_HOST") do
+    case System.get_env("CONTAINER_ENGINE_HOST") || System.get_env("DOCKER_HOST") do
       nil -> false
       "" -> false
       url when is_binary(url) -> minikube_subnet?(url)

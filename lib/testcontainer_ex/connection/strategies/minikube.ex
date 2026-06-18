@@ -21,6 +21,9 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
       System.get_env("MINIKUBE_ACTIVE_DOCKERD") && System.get_env("CONTAINER_ENGINE_HOST") ->
         probe(System.get_env("CONTAINER_ENGINE_HOST"))
 
+      System.get_env("MINIKUBE_ACTIVE_DOCKERD") && System.get_env("DOCKER_HOST") ->
+        probe(System.get_env("DOCKER_HOST"))
+
       minikube_available?() ->
         eval_docker_env()
 

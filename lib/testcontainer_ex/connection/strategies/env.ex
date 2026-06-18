@@ -1,23 +1,32 @@
 defmodule TestcontainerEx.Connection.Strategies.Env do
   @moduledoc """
-  Resolves the container engine host from the `CONTAINER_ENGINE_HOST`
-  environment variable.
+  Resolves the container engine host from environment variables.
+
+  Checks `CONTAINER_ENGINE_HOST` first, then `DOCKER_HOST` for backward
+  compatibility.
   """
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
   @primary_key "CONTAINER_ENGINE_HOST"
+  @fallback_key "DOCKER_HOST"
 
   @impl true
   def resolve do
-    case System.get_env(@primary_key) do
-      nil ->
+    case {System.get_env(@primary_key), System.get_env(@fallback_key)} do
+      {nil, nil} ->
         {:error, {:not_found, @primary_key}}
 
-      "" ->
+      {"", _} ->
         {:error, {:empty, @primary_key}}
 
-      url when is_binary(url) and url != "" ->
+      {nil, ""} ->
+        {:error, {:empty, @fallback_key}}
+
+      {url, _} when is_binary(url) and url != "" ->
+        probe(url)
+
+      {nil, url} when is_binary(url) and url != "" ->
         probe(url)
 
       _ ->

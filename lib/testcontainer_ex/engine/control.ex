@@ -85,7 +85,10 @@ defmodule TestcontainerEx.Engine.Control do
     url = base_url || default_url()
     client = Req.new()
 
-    case Req.post(client, url: "#{url}/containers/#{container_id}/kill?signal=#{signal}", body: "") do
+    case Req.post(client,
+           url: "#{url}/containers/#{container_id}/kill?signal=#{signal}",
+           body: ""
+         ) do
       {:ok, %{status: status}} when status in [200, 204] -> :ok
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
       {:ok, %{status: status}} -> {:error, {:http_error, status}}
@@ -152,7 +155,10 @@ defmodule TestcontainerEx.Engine.Control do
     url = base_url || default_url()
     client = Req.new()
 
-    case Req.post(client, url: "#{url}/containers/#{container_id}/rename?name=#{new_name}", body: "") do
+    case Req.post(client,
+           url: "#{url}/containers/#{container_id}/rename?name=#{new_name}",
+           body: ""
+         ) do
       {:ok, %{status: status}} when status in [200, 204] -> :ok
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
       {:ok, %{status: status}} -> {:error, {:http_error, status}}
@@ -209,7 +215,11 @@ defmodule TestcontainerEx.Engine.Control do
 
     body = Jason.encode!(config)
 
-    case Req.post(client, url: "#{url}/containers/create", body: body, headers: [{"content-type", "application/json"}]) do
+    case Req.post(client,
+           url: "#{url}/containers/create",
+           body: body,
+           headers: [{"content-type", "application/json"}]
+         ) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
         case Jason.decode(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
@@ -236,7 +246,11 @@ defmodule TestcontainerEx.Engine.Control do
 
     body = Jason.encode!(config)
 
-    case Req.post(client, url: "#{url}/containers/create?name=#{name}", body: body, headers: [{"content-type", "application/json"}]) do
+    case Req.post(client,
+           url: "#{url}/containers/create?name=#{name}",
+           body: body,
+           headers: [{"content-type", "application/json"}]
+         ) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
         case Jason.decode(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
@@ -309,7 +323,11 @@ defmodule TestcontainerEx.Engine.Control do
     url = base_url || default_url()
     client = Req.new()
 
-    case Req.post(client, url: "#{url}/containers/#{container_id}/wait", body: "", receive_timeout: :infinity) do
+    case Req.post(client,
+           url: "#{url}/containers/#{container_id}/wait",
+           body: "",
+           receive_timeout: :infinity
+         ) do
       {:ok, %{status: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"StatusCode" => code}} -> {:ok, code}
@@ -392,7 +410,11 @@ defmodule TestcontainerEx.Engine.Control do
       |> Map.new()
       |> Jason.encode!()
 
-    case Req.post(client, url: "#{url}/containers/#{container_id}/exec", body: body, headers: [{"content-type", "application/json"}]) do
+    case Req.post(client,
+           url: "#{url}/containers/#{container_id}/exec",
+           body: body,
+           headers: [{"content-type", "application/json"}]
+         ) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
         case Jason.decode(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
@@ -425,7 +447,11 @@ defmodule TestcontainerEx.Engine.Control do
       }
       |> Jason.encode!()
 
-    case Req.post(client, url: "#{url}/exec/#{exec_id}/start", body: body, headers: [{"content-type", "application/json"}]) do
+    case Req.post(client,
+           url: "#{url}/exec/#{exec_id}/start",
+           body: body,
+           headers: [{"content-type", "application/json"}]
+         ) do
       {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
       {:ok, %{status: 200, body: body}} when is_reference(body) -> {:ok, body}
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
@@ -564,7 +590,11 @@ defmodule TestcontainerEx.Engine.Control do
           {create_tar_from_binary(filename, binary), container_path}
       end
 
-    case Req.put(client, url: "#{url}/containers/#{container_id}/archive?path=#{upload_path}", body: tar_data, headers: [{"content-type", "application/x-tar"}]) do
+    case Req.put(client,
+           url: "#{url}/containers/#{container_id}/archive?path=#{upload_path}",
+           body: tar_data,
+           headers: [{"content-type", "application/x-tar"}]
+         ) do
       {:ok, %{status: status}} when status in [200, 201] -> :ok
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
       {:ok, %{status: status}} -> {:error, {:http_error, status}}
@@ -660,7 +690,11 @@ defmodule TestcontainerEx.Engine.Control do
     [repo, tag] = String.split(repo_tag, ":", parts: 2)
     query = "repo=#{repo}&tag=#{tag || "latest"}"
 
-    case Req.post(client, url: "#{url}/commit?#{query}#{container_id}", body: body, headers: [{"content-type", "application/json"}]) do
+    case Req.post(client,
+           url: "#{url}/commit?#{query}#{container_id}",
+           body: body,
+           headers: [{"content-type", "application/json"}]
+         ) do
       {:ok, %{status: 201, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
@@ -701,7 +735,10 @@ defmodule TestcontainerEx.Engine.Control do
     url = base_url || default_url()
     client = Req.new()
 
-    case Req.post(client, url: "#{url}/containers/#{container_id}/resize?h=#{height}&w=#{width}", body: "") do
+    case Req.post(client,
+           url: "#{url}/containers/#{container_id}/resize?h=#{height}&w=#{width}",
+           body: ""
+         ) do
       {:ok, %{status: status}} when status in [200, 201] -> :ok
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
       {:ok, %{status: status}} -> {:error, {:http_error, status}}
@@ -732,7 +769,10 @@ defmodule TestcontainerEx.Engine.Control do
       ]
       |> URI.encode_query()
 
-    case Req.get(client, url: "#{url}/containers/#{container_id}/attach?#{query}", receive_timeout: :infinity) do
+    case Req.get(client,
+           url: "#{url}/containers/#{container_id}/attach?#{query}",
+           receive_timeout: :infinity
+         ) do
       {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
       {:ok, %{status: 200, body: body}} when is_reference(body) -> {:ok, body}
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
@@ -744,10 +784,18 @@ defmodule TestcontainerEx.Engine.Control do
   # ── Private ───────────────────────────────────────────────────────
 
   defp default_url do
-    case System.get_env("CONTAINER_ENGINE_HOST") do
+    case env_url() do
       nil -> "http://d"
       "" -> "http://d"
       url when is_binary(url) -> Url.construct(url)
     end
+  end
+
+  # Returns the container engine URL from environment variables.
+  # Checks in priority order: CONTAINER_ENGINE_HOST > CONTAINER_HOST > DOCKER_HOST.
+  defp env_url do
+    System.get_env("CONTAINER_ENGINE_HOST") ||
+      System.get_env("CONTAINER_HOST") ||
+      System.get_env("DOCKER_HOST")
   end
 end
