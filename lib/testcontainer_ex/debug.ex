@@ -110,11 +110,7 @@ defmodule TestcontainerEx.Debug do
   """
   @spec summarize(Config.t()) :: String.t()
   def summarize(%Config{} = container) do
-    port_info =
-      Enum.map_join(container.exposed_ports, ", ", fn
-        {p, nil} -> "#{p}->auto"
-        {p, h} -> "#{p}->#{h}"
-      end)
+    port_info = Config.format_ports(container.exposed_ports)
 
     "#{container.image} [#{container.container_id}] ports: #{port_info} ip: #{container.ip_address || "n/a"}"
   end

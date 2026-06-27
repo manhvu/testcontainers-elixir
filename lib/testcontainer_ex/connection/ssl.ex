@@ -6,6 +6,8 @@ defmodule TestcontainerEx.Connection.Ssl do
   (falling back to `~/.docker`). Missing files are skipped.
   """
 
+  alias TestcontainerEx.Connection.Url
+
   @doc """
   Builds the `:ssl_options` keyword list for a TLS-secured connection.
   """
@@ -38,7 +40,7 @@ defmodule TestcontainerEx.Connection.Ssl do
   """
   @spec verify_mode() :: :verify_peer | :verify_none
   def verify_mode do
-    if TestcontainerEx.Connection.Url.tls_verify?() do
+    if Url.tls_verify?() do
       :verify_peer
     else
       require Logger

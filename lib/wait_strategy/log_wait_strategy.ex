@@ -32,21 +32,42 @@ defmodule TestcontainerEx.LogWaitStrategy do
     # Main loop for waiting strategy
     defp wait_for_log_message(wait_strategy, container_id, conn, start_time) do
       if reached_timeout?(start_time, wait_strategy.timeout) do
-        {:error, strategy_timed_out(wait_strategy.timeout, start_time), wait_strategy}
+        {:error, fail_with_logs(wait_strategy, container_id, conn, start_time), wait_strategy}
       else
         process_log(wait_strategy, container_id, conn, start_time)
       end
     end
 
     defp process_log(wait_strategy, container_id, conn, start_time) do
+      attempt = 0
+      do_process_log(wait_strategy, container_id, conn, start_time, attempt)
+    end
+
+    defp do_process_log(wait_strategy, container_id, conn, start_time, attempt) do
       case log_matches?(container_id, wait_strategy.log_regex, conn) do
         true ->
+          elapsed_ms = get_current_time_millis() - start_time
+
+          :telemetry.execute(
+            [:testcontainer_ex, :wait_strategy, :poll],
+            %{attempt: attempt + 1, elapsed_ms: elapsed_ms},
+            %{strategy: :log_wait, container_id: container_id, result: :ok}
+          )
+
           :ok
 
         false ->
+          elapsed_ms = get_current_time_millis() - start_time
+
+          :telemetry.execute(
+            [:testcontainer_ex, :wait_strategy, :poll],
+            %{attempt: attempt + 1, elapsed_ms: elapsed_ms},
+            %{strategy: :log_wait, container_id: container_id, result: {:error, :log_not_matched}}
+          )
+
           log_retry_message(container_id, wait_strategy.log_regex, wait_strategy.retry_delay)
           :timer.sleep(wait_strategy.retry_delay)
-          wait_for_log_message(wait_strategy, container_id, conn, start_time)
+          do_process_log(wait_strategy, container_id, conn, start_time, attempt + 1)
       end
     end
 
@@ -66,9 +87,16 @@ defmodule TestcontainerEx.LogWaitStrategy do
     defp reached_timeout?(start_time, timeout),
       do: get_current_time_millis() - start_time > timeout
 
-    defp strategy_timed_out(timeout, start_time) do
-      {:log_wait_strategy, :timeout, timeout,
-       elapsed_time: get_current_time_millis() - start_time}
+    defp fail_with_logs(_wait_strategy, container_id, conn, start_time) do
+      elapsed_ms = get_current_time_millis() - start_time
+
+      last_logs =
+        case Engine.Api.stdout_logs(container_id, conn) do
+          {:ok, log_output} -> String.split(log_output, "\n", trim: true) |> Enum.take(-50)
+          _ -> []
+        end
+
+      TestcontainerEx.Error.wait_strategy_failed(:log_wait, elapsed_ms, last_logs)
     end
 
     defp log_retry_message(container_id, log_regex, delay) do

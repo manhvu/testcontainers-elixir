@@ -8,6 +8,8 @@ defmodule TestcontainerEx.Connection.Strategies.Env do
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
+  alias TestcontainerEx.Connection.Url
+
   @primary_key "CONTAINER_ENGINE_HOST"
   @fallback_key "DOCKER_HOST"
 
@@ -46,7 +48,7 @@ defmodule TestcontainerEx.Connection.Strategies.Env do
         end
 
       _ ->
-        case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+        case Req.get("#{Url.construct(url)}/_ping") do
           {:ok, %{status: 200}} -> {:ok, url}
           {:error, reason} -> {:error, {:ping_failed, url, reason}}
         end

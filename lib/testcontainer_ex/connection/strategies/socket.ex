@@ -85,33 +85,40 @@ defmodule TestcontainerEx.Connection.Strategies.Socket do
       bin ->
         # Try to get the socket path from the active Docker context.
         # We enumerate all contexts and check each one for a docker endpoint.
-        case System.cmd(bin, ["context", "ls", "--format", "{{.Name}}"], stderr_to_stdout: true) do
-          {output, 0} ->
-            output
-            |> String.split("\n")
-            |> Enum.map(&String.trim/1)
-            |> Enum.reject(&(&1 == ""))
-            |> Enum.flat_map(fn context ->
-              case System.cmd(
-                     bin,
-                     [
-                       "context",
-                       "inspect",
-                       context,
-                       "--format",
-                       "{{.Endpoints.docker.Host}}"
-                     ],
-                     stderr_to_stdout: true
-                   ) do
-                {"unix://" <> path, 0} -> [path]
-                {path, 0} when is_binary(path) and path != "" -> [path]
-                _ -> []
-              end
-            end)
+        bin
+        |> list_contexts()
+        |> Enum.flat_map(&inspect_context_endpoint(&1, bin))
+    end
+  end
 
-          _ ->
-            []
-        end
+  defp list_contexts(bin) do
+    case System.cmd(bin, ["context", "ls", "--format", "{{.Name}}"], stderr_to_stdout: true) do
+      {output, 0} ->
+        output
+        |> String.split("\n")
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+
+      _ ->
+        []
+    end
+  end
+
+  defp inspect_context_endpoint(context, bin) do
+    case System.cmd(
+           bin,
+           [
+             "context",
+             "inspect",
+             context,
+             "--format",
+             "{{.Endpoints.docker.Host}}"
+           ],
+           stderr_to_stdout: true
+         ) do
+      {"unix://" <> path, 0} -> [path]
+      {path, 0} when is_binary(path) and path != "" -> [path]
+      _ -> []
     end
   end
 end

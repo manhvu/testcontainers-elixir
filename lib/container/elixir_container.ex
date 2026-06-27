@@ -62,13 +62,13 @@ defmodule TestcontainerEx.ElixirContainer do
   alias TestcontainerEx.{
     Container.Builder,
     Container.Config,
-    Engine,
     ElixirContainer,
+    Engine,
     LogWaitStrategy,
     PortWaitStrategy
   }
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "elixir"
   @default_tag "latest"
@@ -277,22 +277,6 @@ defmodule TestcontainerEx.ElixirContainer do
   end
 
   @doc """
-  Sets the check image regex used to validate the image name.
-  """
-  @spec with_check_image(t(), String.t() | Regex.t()) :: t()
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  @doc """
-  Enables or disables container reuse.
-  """
-  @spec with_reuse(t(), boolean()) :: t()
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
-  end
-
-  @doc """
   Sets the container name.
   """
   @spec with_name(t(), String.t()) :: t()
@@ -326,7 +310,7 @@ defmodule TestcontainerEx.ElixirContainer do
   """
   @spec mapped_dist_port(Config.t()) :: integer() | nil
   def mapped_dist_port(%Config{} = container) do
-    dist_port = container.environment["ELIXIR_DIST_PORT"] || "#{@default_dist_port}"
+    dist_port = container.environment[:ELIXIR_DIST_PORT] || "#{@default_dist_port}"
     TestcontainerEx.get_port(container, String.to_integer(dist_port))
   end
 

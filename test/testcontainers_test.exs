@@ -98,7 +98,7 @@ defmodule TestcontainerExTest do
     assert {:ok, _} = Engine.Api.get_container(container.container_id, conn)
 
     # Stop the container explicitly and wait for it
-    :ok = TestcontainerEx.stop_container(container.container_id, :cleanup_test1)
+    {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id, :cleanup_test1)
 
     TestHelper.wait_for_lambda(
       fn ->

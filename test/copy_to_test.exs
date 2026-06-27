@@ -21,6 +21,6 @@ defmodule CopyToTest do
     {:ok, %{body: body}} = Req.get("http://#{host}:#{mapped_port}/hello.txt")
 
     assert contents == body
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 end

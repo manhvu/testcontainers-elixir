@@ -11,6 +11,7 @@ defmodule TestcontainerEx.Ryuk do
 
   alias TestcontainerEx.{
     Container.Config,
+    Container.Lifecycle,
     Engine.Api,
     Util.Constants
   }
@@ -198,7 +199,7 @@ defmodule TestcontainerEx.Ryuk do
       |> Config.with_auto_remove(true)
       |> Config.with_privileged(ryuk_privileged)
 
-    config = TestcontainerEx.Container.Lifecycle.resolve_pull_policy(config, properties)
+    config = Lifecycle.resolve_pull_policy(config, properties)
 
     # Retry starting Ryuk up to 3 times with exponential backoff.
     # Transient connection errors (e.g. Docker daemon still starting) are common

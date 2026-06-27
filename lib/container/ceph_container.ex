@@ -9,7 +9,7 @@ defmodule TestcontainerEx.CephContainer do
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.LogWaitStrategy
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "quay.io/ceph/demo"
   @default_tag "latest-quincy"
@@ -67,14 +67,6 @@ defmodule TestcontainerEx.CephContainer do
 
   def with_wait_timeout(%__MODULE__{} = config, wait_timeout) when is_integer(wait_timeout) do
     %{config | wait_timeout: wait_timeout}
-  end
-
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
   end
 
   @doc """

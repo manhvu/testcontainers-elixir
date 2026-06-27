@@ -86,11 +86,11 @@ defmodule TestcontainerEx.HttpWaitStrategy do
 
       raw_response =
         Req.request(client,
-            url: wait_strategy.endpoint,
-            method: wait_strategy.method,
-            headers: wait_strategy.headers,
-            receive_timeout: 5_000
-          )
+          url: wait_strategy.endpoint,
+          method: wait_strategy.method,
+          headers: wait_strategy.headers,
+          receive_timeout: 5_000
+        )
 
       with {:ok, response} <- validate_response(raw_response),
            :ok <- verify_status_code(wait_strategy, response),
@@ -98,8 +98,17 @@ defmodule TestcontainerEx.HttpWaitStrategy do
         :ok
       else
         {:error, reason} ->
+          elapsed_ms = get_current_time_millis() - started_at
+
+          :telemetry.execute(
+            [:testcontainer_ex, :wait_strategy, :poll],
+            %{attempt: 0, elapsed_ms: elapsed_ms},
+            %{strategy: :http_wait, result: {:error, reason}}
+          )
+
           if timed_out?(started_at, wait_strategy.timeout) do
-            {:error, reason, wait_strategy}
+            {:error, TestcontainerEx.Error.wait_strategy_failed(:http_wait, elapsed_ms),
+             wait_strategy}
           else
             :timer.sleep(500)
             do_wait(wait_strategy, container, started_at)

@@ -8,6 +8,8 @@ defmodule TestcontainerEx.Connection.Strategies.ContainerEnv do
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
+  alias TestcontainerEx.Connection.Url
+
   @impl true
   def resolve do
     case {System.get_env("CONTAINER_ENGINE_HOST"), System.get_env("CONTAINER_HOST")} do
@@ -41,7 +43,7 @@ defmodule TestcontainerEx.Connection.Strategies.ContainerEnv do
         end
 
       _ ->
-        case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+        case Req.get("#{Url.construct(url)}/_ping") do
           {:ok, %{status: 200}} -> {:ok, url}
           {:error, reason} -> {:error, {:ping_failed, url, reason}}
         end

@@ -184,7 +184,7 @@ defmodule TestcontainerEx.CustomContainer do
     %{cc | config: Config.with_network(cc.config, network)}
   end
 
-  @doc "Sets the network mode (e.g. \"host\", \"bridge\", \"none\")."
+  @doc "Sets the network mode (e.g. 'host', 'bridge', 'none')."
   @spec with_network_mode(t(), String.t()) :: t()
   def with_network_mode(%__MODULE__{} = cc, mode) when is_binary(mode) do
     %{cc | config: Config.with_network_mode(cc.config, mode)}
@@ -268,7 +268,7 @@ defmodule TestcontainerEx.CustomContainer do
     %{cc | config: Config.with_label(cc.config, "cpu.limit", to_string(cpus))}
   end
 
-  @doc "Sets the restart policy (e.g. \"always\", \"unless-stopped\", \"on-failure:5\")."
+  @doc "Sets the restart policy (e.g. 'always', 'unless-stopped', 'on-failure:5')."
   @spec with_restart_policy(t(), String.t()) :: t()
   def with_restart_policy(%__MODULE__{} = cc, policy) when is_binary(policy) do
     %{cc | config: Config.with_label(cc.config, "restart.policy", policy)}
@@ -280,7 +280,7 @@ defmodule TestcontainerEx.CustomContainer do
     %{cc | config: Config.with_label(cc.config, "stop.timeout", to_string(seconds))}
   end
 
-  @doc "Sets the stop signal (e.g. \"SIGTERM\", \"SIGKILL\")."
+  @doc "Sets the stop signal (e.g. 'SIGTERM', 'SIGKILL')."
   @spec with_stop_signal(t(), String.t()) :: t()
   def with_stop_signal(%__MODULE__{} = cc, signal) when is_binary(signal) do
     %{cc | config: %{cc.config | cmd: cc.config.cmd}}

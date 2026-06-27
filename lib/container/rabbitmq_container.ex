@@ -8,7 +8,7 @@ defmodule TestcontainerEx.RabbitMQContainer do
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.RabbitMQContainer
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "rabbitmq"
   @default_tag "3-alpine"
@@ -56,12 +56,6 @@ defmodule TestcontainerEx.RabbitMQContainer do
   def with_virtual_host(%__MODULE__{} = c, v) when is_binary(v), do: %{c | virtual_host: v}
   def with_cmd(%__MODULE__{} = c, cmd) when is_list(cmd), do: %{c | cmd: cmd}
 
-  def with_check_image(%__MODULE__{} = c, ci) when is_valid_image(ci),
-    do: %__MODULE__{c | check_image: ci}
-
-  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
-    do: %__MODULE__{c | reuse: reuse}
-
   @doc """
   Sets the container name.
   """
@@ -87,7 +81,15 @@ defmodule TestcontainerEx.RabbitMQContainer do
   end
 
   def connection_url(%Config{} = container) do
-    "amqp://#{container.environment[:RABBITMQ_DEFAULT_USER]}:#{container.environment[:RABBITMQ_DEFAULT_PASS]}@#{TestcontainerEx.get_host(container)}:#{port(container)}#{virtual_host_segment(container)}"
+    port_number =
+      case container.environment[:RABBITMQ_NODE_PORT] do
+        nil -> @default_port
+        port_str -> String.to_integer(port_str)
+      end
+
+    mapped_port = Config.mapped_port(container, port_number)
+
+    "amqp://#{container.environment[:RABBITMQ_DEFAULT_USER]}:#{container.environment[:RABBITMQ_DEFAULT_PASS]}@#{TestcontainerEx.get_host(container)}:#{mapped_port}#{virtual_host_segment(container)}"
   end
 
   def connection_parameters(%Config{} = container) do

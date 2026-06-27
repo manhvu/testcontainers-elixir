@@ -215,10 +215,7 @@ defmodule TestcontainerEx.Engine.Status do
       {:ok, %{status: 200}} ->
         case Req.get(client, url: "#{url}/info") do
           {:ok, %{status: 200, body: body}} when is_binary(body) ->
-            case Jason.decode(body) do
-              {:ok, parsed} -> {:ok, parsed}
-              {:error, reason} -> {:error, {:json_decode, reason}}
-            end
+            decode_json(body)
 
           {:ok, %{status: status}} ->
             {:error, {:http_error, status}}
@@ -242,10 +239,7 @@ defmodule TestcontainerEx.Engine.Status do
 
     case Req.get(client, url: "#{url}/version") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -279,10 +273,7 @@ defmodule TestcontainerEx.Engine.Status do
 
     case Req.get(client, url: "#{url}/containers/json?#{query}") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -314,10 +305,7 @@ defmodule TestcontainerEx.Engine.Status do
 
     case Req.get(client, url: "#{url}/images/json?#{query}") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -337,10 +325,7 @@ defmodule TestcontainerEx.Engine.Status do
 
     case Req.get(client, url: "#{url}/networks") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -360,10 +345,7 @@ defmodule TestcontainerEx.Engine.Status do
 
     case Req.get(client, url: "#{url}/volumes") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -383,10 +365,7 @@ defmodule TestcontainerEx.Engine.Status do
 
     case Req.get(client, url: "#{url}/system/df") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
@@ -868,6 +847,13 @@ defmodule TestcontainerEx.Engine.Status do
     end
   rescue
     ErlangError -> {:error, :exec_failed}
+  end
+
+  defp decode_json(body) do
+    case Jason.decode(body) do
+      {:ok, parsed} -> {:ok, parsed}
+      {:error, reason} -> {:error, {:json_decode, reason}}
+    end
   end
 
   defp encode_filters(filters) when map_size(filters) == 0, do: ""

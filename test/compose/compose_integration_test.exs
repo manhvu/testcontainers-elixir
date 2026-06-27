@@ -4,7 +4,7 @@ defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
   @moduletag :needs_dock
   @moduletag :integration
 
-  alias TestcontainerEx.DockerCompose
+  alias TestcontainerEx.{Compose.Cli, DockerCompose}
 
   @fixtures_path Path.expand("../fixtures", __DIR__)
 
@@ -18,7 +18,7 @@ defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
       Process.sleep(2_000)
 
       # Verify redis is running by checking docker compose ps
-      {:ok, services} = TestcontainerEx.Compose.Cli.ps(compose)
+      {:ok, services} = Cli.ps(compose)
 
       redis_service =
         Enum.find(services, fn s ->
@@ -30,7 +30,7 @@ defmodule TestcontainerEx.Compose.ComposeIntegrationTest do
 
       # Get port mapping
       publishers = Map.get(redis_service, "Publishers", [])
-      port = TestcontainerEx.Compose.Cli.parse_publishers(publishers) |> List.first()
+      port = Cli.parse_publishers(publishers) |> List.first()
       assert port != nil, "Expected port mapping for redis"
       {container_port, host_port} = port
       assert container_port == 6379

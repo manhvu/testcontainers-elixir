@@ -17,8 +17,11 @@ defmodule TestcontainerEx.Server do
     Engine,
     Network,
     Ryuk,
+    TaskSupervisor,
     Util.PropertiesParser
   }
+
+  alias TestcontainerEx.Compose.Cli
 
   # ── Public API ────────────────────────────────────────────────────
 
@@ -60,7 +63,9 @@ defmodule TestcontainerEx.Server do
       TestcontainerEx.reconnect(engine: :auto)
 
   """
-  def reconnect(options, name \\ __MODULE__) do
+  def reconnect(options) when is_list(options) do
+    name = Keyword.get(options, :name, __MODULE__)
+    options = Keyword.delete(options, :name)
     GenServer.call(name, {:reconnect, options})
   end
 
@@ -102,7 +107,7 @@ defmodule TestcontainerEx.Server do
 
     # Stop tracked containers before switching
     Enum.each(state.containers, &Lifecycle.stop_container(&1, state.conn))
-    Enum.each(state.compose_envs, &TestcontainerEx.Compose.Cli.down(&1.compose))
+    Enum.each(state.compose_envs, &Cli.down(&1.compose))
     Enum.each(state.networks, &Network.remove(&1, state.conn))
 
     # Clear the persistent-term cache so auto-detection re-runs
@@ -163,12 +168,12 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:start_container, _builder}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
   def handle_call({:start_container, builder}, from, state) do
-    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
       result = Lifecycle.start_container(builder, state.conn, state)
       GenServer.reply(from, result)
     end)
@@ -178,7 +183,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:start_containers, builders}, from, state) when is_list(builders) do
-    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
       result = Lifecycle.start_containers(builders, state.conn, state)
       GenServer.reply(from, result)
     end)
@@ -198,7 +203,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:stop_container, _container_id}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -210,7 +215,7 @@ defmodule TestcontainerEx.Server do
   @impl true
   def handle_call({:stop_containers, container_ids}, _from, %{conn: nil} = state)
       when is_list(container_ids) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -231,7 +236,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:inspect_container, _container_id}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -242,7 +247,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:container_logs, _container_id, _opts}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -253,7 +258,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:exec, _container_id, _command}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -268,12 +273,12 @@ defmodule TestcontainerEx.Server do
         _from,
         %{conn: nil} = state
       ) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
   def handle_call({:monitor_container, container_id, predicate, opts}, from, state) do
-    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
       result = Lifecycle.monitor_container(container_id, predicate, state.conn, opts)
       GenServer.reply(from, result)
     end)
@@ -283,7 +288,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:create_network, _network_name}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -294,7 +299,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:remove_network, _network_name}, _from, %{conn: nil} = state) do
-    {:reply, {:error, :not_connected}, state}
+    {:reply, {:error, TestcontainerEx.Error.not_connected()}, state}
   end
 
   @impl true
@@ -305,8 +310,8 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:start_compose, compose}, from, state) do
-    Task.Supervisor.start_child(TestcontainerEx.TaskSupervisor, fn ->
-      result = TestcontainerEx.Compose.Cli.up(compose)
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      result = Cli.up(compose)
       GenServer.reply(from, result)
     end)
 
@@ -315,7 +320,7 @@ defmodule TestcontainerEx.Server do
 
   @impl true
   def handle_call({:stop_compose, compose_env}, _from, state) do
-    result = TestcontainerEx.Compose.Cli.down(compose_env.compose)
+    result = Cli.down(compose_env.compose)
     {:reply, result, state}
   end
 
@@ -390,7 +395,7 @@ defmodule TestcontainerEx.Server do
   @impl true
   def terminate(_reason, state) do
     Enum.each(state.containers, &Lifecycle.stop_container(&1, state.conn))
-    Enum.each(state.compose_envs, &TestcontainerEx.Compose.Cli.down(&1.compose))
+    Enum.each(state.compose_envs, &Cli.down(&1.compose))
     Enum.each(state.networks, &Network.remove(&1, state.conn))
     :ok
   end

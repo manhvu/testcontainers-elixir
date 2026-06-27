@@ -18,7 +18,7 @@ defmodule TestcontainerEx.ScyllaContainer do
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.ScyllaContainer
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "scylladb/scylla"
   @default_tag "latest"
@@ -66,22 +66,6 @@ defmodule TestcontainerEx.ScyllaContainer do
   def with_wait_timeout(%__MODULE__{} = config, timeout)
       when is_integer(timeout) and timeout > 0 do
     %{config | wait_timeout: timeout}
-  end
-
-  @doc """
-  Sets the check image regex used to validate the image name.
-  """
-  @spec with_check_image(t(), String.t() | Regex.t()) :: t()
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  @doc """
-  Enables or disables container reuse.
-  """
-  @spec with_reuse(t(), boolean()) :: t()
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
   end
 
   @doc """

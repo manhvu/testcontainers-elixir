@@ -1,6 +1,8 @@
 defmodule TestcontainerEx.PullPolicyTest do
   use ExUnit.Case, async: true
 
+  doctest TestcontainerEx.PullPolicy
+
   alias TestcontainerEx.Connection
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.Engine.Api
@@ -16,7 +18,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     }
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "never_pull/0 does not fetch image from remote repository" do
@@ -30,7 +32,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     }
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "pull_condition/1 fetches image if expression evaluates to true" do
@@ -43,7 +45,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     }
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "pull_condition/1 does not fetch image if expression evaluates to a falsey value" do
@@ -60,7 +62,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     }
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "pull_if_missing/0 starts a container when image already exists locally" do
@@ -74,7 +76,7 @@ defmodule TestcontainerEx.PullPolicyTest do
     }
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "pull_if_missing/0 fetches image when not present locally" do
@@ -87,6 +89,6 @@ defmodule TestcontainerEx.PullPolicyTest do
     }
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 end

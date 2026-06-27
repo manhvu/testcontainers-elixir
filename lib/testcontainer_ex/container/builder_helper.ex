@@ -32,15 +32,19 @@ defmodule TestcontainerEx.Container.BuilderHelper do
       config
       |> Config.with_label(container_reuse(), "true")
       |> Config.with_label(container_reuse_hash_label(), hash)
-      |> Config.with_label(container_session_id_label(), state.session_id)
-      |> Config.with_label(container_version_label(), library_version())
+      |> apply_common_labels(state)
       |> Kernel.then(&{:reuse, &1, hash})
     else
       config
       |> Config.with_label(container_reuse(), "false")
-      |> Config.with_label(container_session_id_label(), state.session_id)
-      |> Config.with_label(container_version_label(), library_version())
+      |> apply_common_labels(state)
       |> Kernel.then(&{:noreuse, &1, nil})
     end
+  end
+
+  defp apply_common_labels(config, state) do
+    config
+    |> Config.with_label(container_session_id_label(), state.session_id)
+    |> Config.with_label(container_version_label(), library_version())
   end
 end

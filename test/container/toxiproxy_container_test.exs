@@ -3,8 +3,8 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
   use ExUnit.Case, async: true
   import TestcontainerEx.ExUnit
 
-  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.Container.Builder
+  alias TestcontainerEx.Container.Config
   alias TestcontainerEx.ToxiproxyContainer
 
   describe "new/0" do
@@ -29,7 +29,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ToxiproxyContainer, :with_image, [config, 123])
+        ToxiproxyContainer.with_image(config, 123)
       end
     end
   end
@@ -46,7 +46,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ToxiproxyContainer, :with_wait_timeout, [config, "30000"])
+        ToxiproxyContainer.with_wait_timeout(config, "30000")
       end
     end
   end
@@ -72,7 +72,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ToxiproxyContainer, :with_reuse, [config, "true"])
+        ToxiproxyContainer.with_reuse(config, "true")
       end
     end
   end

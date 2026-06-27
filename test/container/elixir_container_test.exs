@@ -43,7 +43,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_image, [config, 123])
+        ElixirContainer.with_image(config, 123)
       end
     end
   end
@@ -64,7 +64,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_wait_timeout, [config, "120000"])
+        ElixirContainer.with_wait_timeout(config, "120000")
       end
     end
   end
@@ -81,7 +81,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_cookie, [config, :atom])
+        ElixirContainer.with_cookie(config, :atom)
       end
     end
   end
@@ -105,7 +105,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_node_name, [config, 123])
+        ElixirContainer.with_node_name(config, 123)
       end
     end
   end
@@ -126,7 +126,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_distribution_port, [config, "9100"])
+        ElixirContainer.with_distribution_port(config, "9100")
       end
     end
   end
@@ -144,7 +144,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_project, [config, 123])
+        ElixirContainer.with_project(config, 123)
       end
     end
   end
@@ -161,7 +161,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_release, [config, :my_app])
+        ElixirContainer.with_release(config, :my_app)
       end
     end
   end
@@ -178,7 +178,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_release_args, [config, "start"])
+        ElixirContainer.with_release_args(config, "start")
       end
     end
   end
@@ -203,7 +203,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_vm_args, [config, "-kernel foo"])
+        ElixirContainer.with_vm_args(config, "-kernel foo")
       end
     end
   end
@@ -236,7 +236,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_env_vars, [config, "MIX_ENV=prod"])
+        ElixirContainer.with_env_vars(config, "MIX_ENV=prod")
       end
     end
   end
@@ -253,7 +253,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ElixirContainer, :with_cmd, [config, "mix test"])
+        ElixirContainer.with_cmd(config, "mix test")
       end
     end
   end
@@ -483,7 +483,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
         container_id: "abc123",
         image: "elixir:latest",
         environment: %{},
-        exposed_ports: [{9100, 19100}]
+        exposed_ports: [{9100, 19_100}]
       }
 
       assert ElixirContainer.connection_node(container) == nil
@@ -495,10 +495,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       container = %Config{
         container_id: "abc123",
         image: "elixir:latest",
-        exposed_ports: [{4369, 14369}]
+        exposed_ports: [{4369, 14_369}]
       }
 
-      assert ElixirContainer.mapped_epmd_port(container) == 14369
+      assert ElixirContainer.mapped_epmd_port(container) == 14_369
     end
 
     test "returns nil when EPMD port is not mapped" do
@@ -518,10 +518,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
         container_id: "abc123",
         image: "elixir:latest",
         environment: %{"ELIXIR_DIST_PORT" => "9100"},
-        exposed_ports: [{9100, 19100}]
+        exposed_ports: [{9100, 19_100}]
       }
 
-      assert ElixirContainer.mapped_dist_port(container) == 19100
+      assert ElixirContainer.mapped_dist_port(container) == 19_100
     end
 
     test "uses default port when env is not set" do
@@ -529,10 +529,10 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
         container_id: "abc123",
         image: "elixir:latest",
         environment: %{},
-        exposed_ports: [{9100, 19100}]
+        exposed_ports: [{9100, 19_100}]
       }
 
-      assert ElixirContainer.mapped_dist_port(container) == 19100
+      assert ElixirContainer.mapped_dist_port(container) == 19_100
     end
   end
 

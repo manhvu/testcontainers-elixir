@@ -5,5 +5,7 @@ defmodule TestcontainerEx.ContainerBuilder do
   Delegates to the `TestcontainerEx.Container.Builder` protocol.
   """
 
-  def build(builder), do: TestcontainerEx.Container.Builder.build(builder)
+  alias TestcontainerEx.Container.Builder
+
+  def build(builder), do: Builder.build(builder)
 end

@@ -8,7 +8,62 @@ defmodule TestcontainerEx.Container.Config do
 
   require Logger
 
-  @type t :: %__MODULE__{}
+  @typedoc """
+  Container configuration.
+
+  Fields:
+
+  - `:image` — Docker image reference (e.g. `"postgres:15-alpine"`).
+  - `:cmd` — override the image's default command.
+  - `:environment` — map of environment variables.
+  - `:auth` — optional Base64-encoded auth token for private registries.
+  - `:exposed_ports` — list of `{container_port, host_port | nil}` tuples.
+  - `:ip_address` — resolved IP address of the running container.
+  - `:wait_strategies` — list of strategies determining when the container is ready.
+  - `:privileged` — run the container in privileged mode.
+  - `:bind_mounts` — list of bind mount specifications.
+  - `:bind_volumes` — list of named volume mount specifications.
+  - `:copy_to` — list of files to copy into the container at startup.
+  - `:labels` — map of Docker labels to attach to the container.
+  - `:auto_remove` — automatically remove the container when it stops.
+  - `:container_id` — ID of the running container (set after start).
+  - `:check_image` — optional regex to validate the image name.
+  - `:network_mode` — Docker network mode (e.g. `"host"`, `"bridge"`).
+  - `:network` — network name to connect the container to.
+  - `:hostname` — container hostname.
+  - `:name` — optional stable container name.
+  - `:reuse` — when `true`, an existing container with the same config may be reused.
+  - `:force_reuse` — force reuse even if the container is stale.
+  - `:pull_policy` — controls when the image is pulled; see `TestcontainerEx.PullPolicy`.
+  - `:log_consumer` — optional Logger level to stream container logs to (`:debug`, `:info`, etc.).
+  - `:request_id` — correlation ID for tracing a `start_container` call.
+  """
+  @type t :: %__MODULE__{
+          image: String.t(),
+          cmd: [String.t()] | nil,
+          environment: %{(atom() | String.t()) => String.t()},
+          auth: String.t() | nil,
+          exposed_ports: [{integer(), integer() | nil}],
+          ip_address: String.t() | nil,
+          wait_strategies: [struct()],
+          privileged: boolean(),
+          bind_mounts: [map()],
+          bind_volumes: [map()],
+          copy_to: [map()],
+          labels: %{String.t() => String.t()},
+          auto_remove: boolean(),
+          container_id: String.t() | nil,
+          check_image: Regex.t() | nil,
+          network_mode: String.t() | nil,
+          network: String.t() | nil,
+          hostname: String.t() | nil,
+          name: String.t() | nil,
+          reuse: boolean(),
+          force_reuse: boolean(),
+          pull_policy: TestcontainerEx.PullPolicy.t() | nil,
+          log_consumer: Logger.level() | nil,
+          request_id: String.t() | nil
+        }
 
   @enforce_keys [:image]
   defstruct [
@@ -33,7 +88,9 @@ defmodule TestcontainerEx.Container.Config do
     name: nil,
     reuse: false,
     force_reuse: false,
-    pull_policy: nil
+    pull_policy: nil,
+    log_consumer: nil,
+    request_id: nil
   ]
 
   # ── Guards ────────────────────────────────────────────────────────
@@ -236,13 +293,39 @@ defmodule TestcontainerEx.Container.Config do
     end)
   end
 
-  @spec valid_image(t()) :: {:ok, t()} | {:error, String.t()}
+  @doc """
+  Sets the log consumer level for streaming container logs to Logger.
+
+  When set, container stdout/stderr will be piped through `Logger` at the
+  specified level after the container starts.
+  """
+  @spec with_log_consumer(t(), Logger.level()) :: t()
+  def with_log_consumer(%__MODULE__{} = config, level) when is_atom(level) do
+    %__MODULE__{config | log_consumer: level}
+  end
+
+  @doc """
+  Sets a correlation / request ID for tracing this container start.
+
+  If not set, one will be generated automatically by `start_container/1`.
+  """
+  @spec with_request_id(t(), String.t()) :: t()
+  def with_request_id(%__MODULE__{} = config, request_id) when is_binary(request_id) do
+    %__MODULE__{config | request_id: request_id}
+  end
+
+  @spec valid_image(t()) :: {:ok, t()} | {:error, TestcontainerEx.Error.t()}
   def valid_image(%__MODULE__{image: image, check_image: check_image} = config) do
     if Regex.match?(check_image || ~r/.*/, image) do
       {:ok, config}
     else
       {:error,
-       "Unexpected image #{image}. If this is a valid image, provide a broader `check_image` regex to the container configuration."}
+       %TestcontainerEx.Error{
+         code: :image_not_found,
+         message:
+           "Unexpected image #{image}. If this is a valid image, provide a broader `check_image` regex to the container configuration.",
+         context: %{image: image}
+       }}
     end
   end
 
@@ -250,7 +333,7 @@ defmodule TestcontainerEx.Container.Config do
   def valid_image!(%__MODULE__{} = config) do
     case valid_image(config) do
       {:ok, config} -> config
-      {:error, message} -> raise ArgumentError, message: message
+      {:error, %TestcontainerEx.Error{} = error} -> raise ArgumentError, message: error.message
     end
   end
 
@@ -289,6 +372,22 @@ defmodule TestcontainerEx.Container.Config do
         end
     end
   end
+
+  @doc """
+  Formats a list of exposed ports into a human-readable string.
+
+  ## Examples
+
+      iex> format_ports([{8080, 32768}, {9090, nil}])
+      "8080->32768, 9090->auto"
+  """
+  @spec format_ports([{integer() | String.t(), integer() | nil}]) :: String.t()
+  def format_ports(exposed_ports) do
+    Enum.map_join(exposed_ports, ", ", fn
+      {p, nil} -> "#{p}->auto"
+      {p, h} -> "#{p}->#{h}"
+    end)
+  end
 end
 
 # Builder protocol implementation for Config (identity — already built)
@@ -302,13 +401,10 @@ end
 
 defimpl Inspect, for: TestcontainerEx.Container.Config do
   import Inspect.Algebra
+  alias TestcontainerEx.Container.Config
 
   def inspect(config, opts) do
-    port_info =
-      Enum.map_join(config.exposed_ports, ", ", fn
-        {p, nil} -> "#{p}->auto"
-        {p, h} -> "#{p}->#{h}"
-      end)
+    port_info = Config.format_ports(config.exposed_ports)
 
     fields = [
       image: config.image,

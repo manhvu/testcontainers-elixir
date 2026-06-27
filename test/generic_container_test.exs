@@ -10,7 +10,7 @@ defmodule TestcontainerEx.GenericContainerTest do
   test "can start and stop generic container" do
     config = %TestcontainerEx.Container.Config{image: "redis:latest"}
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   @tag :needs_dock
@@ -22,7 +22,7 @@ defmodule TestcontainerEx.GenericContainerTest do
       assert {:ok, container} = TestcontainerEx.start_container(config)
       Process.sleep(5000)
       assert :ok = port_open?("127.0.0.1", 6379)
-      assert :ok = TestcontainerEx.stop_container(container.container_id)
+      assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
     else
       Logger.warning("Host is not Linux, therefore not running network_mode test")
     end

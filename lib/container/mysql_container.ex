@@ -10,7 +10,7 @@ defmodule TestcontainerEx.MySqlContainer do
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.MySqlContainer
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "mysql"
   @default_tag "8"
@@ -60,12 +60,6 @@ defmodule TestcontainerEx.MySqlContainer do
     do: %{c | persistent_volume: vol}
 
   def with_wait_timeout(%__MODULE__{} = c, t) when is_integer(t), do: %{c | wait_timeout: t}
-
-  def with_check_image(%__MODULE__{} = c, ci) when is_valid_image(ci),
-    do: %__MODULE__{c | check_image: ci}
-
-  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
-    do: %__MODULE__{c | reuse: reuse}
 
   @doc """
   Sets the container name.

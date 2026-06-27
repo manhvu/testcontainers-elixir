@@ -4,8 +4,8 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
 
   import TestcontainerEx.ExUnit
 
-  alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.ScyllaContainer
 
@@ -32,7 +32,7 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       config = ScyllaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ScyllaContainer, :with_image, [config, 123])
+        ScyllaContainer.with_image(config, 123)
       end
     end
   end
@@ -53,7 +53,7 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        apply(ScyllaContainer, :with_wait_timeout, [config, "120000"])
+        ScyllaContainer.with_wait_timeout(config, "120000")
       end
     end
   end
@@ -95,7 +95,7 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       config = ScyllaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(ScyllaContainer, :with_reuse, [config, "true"])
+        ScyllaContainer.with_reuse(config, "true")
       end
     end
   end
@@ -196,10 +196,10 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       container = %Config{
         container_id: "abc123",
         image: "scylladb/scylla:latest",
-        exposed_ports: [{9042, 19042}]
+        exposed_ports: [{9042, 19_042}]
       }
 
-      assert ScyllaContainer.port(container) == 19042
+      assert ScyllaContainer.port(container) == 19_042
     end
 
     test "returns nil when port is not mapped" do
@@ -218,11 +218,11 @@ defmodule TestcontainerEx.Container.ScyllaContainerTest do
       container = %Config{
         container_id: "abc123",
         image: "scylladb/scylla:latest",
-        exposed_ports: [{9042, 19042}]
+        exposed_ports: [{9042, 19_042}]
       }
 
       uri = ScyllaContainer.connection_uri(container)
-      assert uri =~ ":#{19042}"
+      assert uri =~ ":#{19_042}"
     end
   end
 

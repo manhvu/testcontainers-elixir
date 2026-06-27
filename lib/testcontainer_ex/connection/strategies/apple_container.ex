@@ -85,6 +85,7 @@ defmodule TestcontainerEx.Connection.Strategies.AppleContainer do
         case System.cmd("sw_vers", ["-productVersion"], stderr_to_stdout: true) do
           {version, 0} ->
             version = String.trim(version)
+
             if version_gte?(version, @min_macos_version) do
               :ok
             else

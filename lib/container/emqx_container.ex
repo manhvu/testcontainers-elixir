@@ -8,7 +8,7 @@ defmodule TestcontainerEx.EmqxContainer do
   alias TestcontainerEx.EmqxContainer
   alias TestcontainerEx.PortWaitStrategy
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "emqx"
   @default_tag "5.6.0"
@@ -81,20 +81,6 @@ defmodule TestcontainerEx.EmqxContainer do
         mqtt_over_wss_port: mqtt_over_wss_port,
         dashboard_port: dashboard_port
     }
-  end
-
-  @doc """
-  Set the regular expression to check the image validity.
-  """
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
   end
 
   @doc """

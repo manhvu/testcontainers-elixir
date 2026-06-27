@@ -37,6 +37,8 @@ defmodule TestcontainerEx.KafkaContainer do
   alias TestcontainerEx.KafkaContainer
   alias TestcontainerEx.LogWaitStrategy
 
+  use TestcontainerEx.ContainerConfig
+
   @default_image "apache/kafka"
   @default_tag "3.9.0"
   @default_image_with_tag "#{@default_image}:#{@default_tag}"
@@ -67,6 +69,7 @@ defmodule TestcontainerEx.KafkaContainer do
     :wait_timeout,
     name: nil,
     topics: [],
+    check_image: @default_image,
     reuse: false
   ]
 
@@ -147,13 +150,6 @@ defmodule TestcontainerEx.KafkaContainer do
   """
   def with_topics(%__MODULE__{} = config, topics) when is_list(topics) do
     %{config | topics: topics}
-  end
-
-  @doc """
-  Set the reuse flag to reuse the container if it is already running.
-  """
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
   end
 
   @doc """

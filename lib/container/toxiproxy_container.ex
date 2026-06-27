@@ -9,6 +9,8 @@ defmodule TestcontainerEx.ToxiproxyContainer do
   alias TestcontainerEx.HttpWaitStrategy
   alias TestcontainerEx.ToxiproxyContainer
 
+  use TestcontainerEx.ContainerConfig
+
   @default_image "ghcr.io/shopify/toxiproxy"
   @default_tag "2.9.0"
   @default_image_with_tag "#{@default_image}:#{@default_tag}"
@@ -27,9 +29,6 @@ defmodule TestcontainerEx.ToxiproxyContainer do
   def new, do: %__MODULE__{image: @default_image_with_tag, wait_timeout: @default_wait_timeout}
   def with_image(%__MODULE__{} = c, image) when is_binary(image), do: %{c | image: image}
   def with_wait_timeout(%__MODULE__{} = c, t) when is_integer(t), do: %{c | wait_timeout: t}
-
-  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
-    do: %__MODULE__{c | reuse: reuse}
 
   @doc """
   Sets the container name.

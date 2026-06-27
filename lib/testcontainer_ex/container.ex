@@ -31,6 +31,8 @@ defmodule TestcontainerEx.Container do
   defdelegate with_name(config, name), to: Config
   defdelegate with_copy_to(config, target, source), to: Config
   defdelegate with_pull_policy(config, policy), to: Config
+  defdelegate with_log_consumer(config, level), to: Config
+  defdelegate with_request_id(config, request_id), to: Config
   defdelegate mapped_port(container, port), to: Config
   defdelegate valid_image(config), to: Config
   defdelegate valid_image!(config), to: Config

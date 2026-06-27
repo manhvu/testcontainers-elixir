@@ -2,7 +2,6 @@ defmodule TestcontainerEx.ConnectionTest do
   use ExUnit.Case, async: false
 
   alias TestcontainerEx.Connection
-  alias TestcontainerEx.Connection.Resolver
 
   describe "build_client/1" do
     test "builds a Req client with default options" do
@@ -46,12 +45,14 @@ defmodule TestcontainerEx.ConnectionTest do
   describe "get_connection/1 with engine option" do
     setup do
       original = System.get_env("CONTAINER_ENGINE")
+
       on_exit(fn ->
         case original do
           nil -> System.delete_env("CONTAINER_ENGINE")
           val -> System.put_env("CONTAINER_ENGINE", val)
         end
       end)
+
       System.delete_env("CONTAINER_ENGINE")
       :ok
     end
@@ -122,12 +123,14 @@ defmodule TestcontainerEx.ConnectionTest do
   describe "get_connection/1 with CONTAINER_ENGINE env var" do
     setup do
       original = System.get_env("CONTAINER_ENGINE")
+
       on_exit(fn ->
         case original do
           nil -> System.delete_env("CONTAINER_ENGINE")
           val -> System.put_env("CONTAINER_ENGINE", val)
         end
       end)
+
       System.delete_env("CONTAINER_ENGINE")
       :ok
     end

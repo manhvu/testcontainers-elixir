@@ -4,6 +4,8 @@ The `TestcontainerEx.Engine.Control` module provides low-level container operati
 
 All functions accept an optional `base_url` parameter. When omitted, it's derived from `CONTAINER_ENGINE_HOST` (or `DOCKER_HOST` as fallback), or defaults to `http://d`.
 
+> **Tip:** For a higher-level, developer-friendly API that accepts `Config.t()` structs and provides convenient wrappers for common tasks, see the [DevTools guide](dev_tools.md).
+
 ## Lifecycle Operations
 
 ```elixir

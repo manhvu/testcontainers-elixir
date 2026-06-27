@@ -18,6 +18,7 @@ TestcontainerEx is an Elixir library that supports ExUnit tests, providing light
 - [Structured Logging](#structured-logging)
 - [Telemetry & Observability](#telemetry--observability)
 - [Debugging](#debugging)
+- [DevTools — Runtime Container Interaction](#devtools--runtime-container-interaction)
 - [Podman Support](#podman-support)
 - [Minikube Support](#minikube-support)
 - [Colima Support](#colima-support)
@@ -589,6 +590,50 @@ iex> container
 
 Instead of the raw struct dump, you get a focused summary with image, ID, ports, and network info.
 
+## DevTools — Runtime Container Interaction
+
+The `TestcontainerEx.DevTools` module provides a high-level API for interacting with running containers at runtime. See the [DevTools guide](guides/dev_tools.md) for full documentation.
+
+### Quick examples
+
+```elixir
+# Execute a command
+{:ok, output} = TestcontainerEx.DevTools.exec(container, ["ls", "/app"])
+
+# Write a file to the container
+:ok = TestcontainerEx.DevTools.write_file(container, "/tmp/hello.txt", "world")
+
+# Read a file from the container
+{:ok, contents} = TestcontainerEx.DevTools.read_file(container, "/tmp/hello.txt")
+
+# Delete a file
+:ok = TestcontainerEx.DevTools.delete_file(container, "/tmp/hello.txt")
+
+# Copy files
+:ok = TestcontainerEx.DevTools.copy_to(container, "/app/config.yml", "/host/path/config.yml")
+:ok = TestcontainerEx.DevTools.copy_from(container, "/app/logs", "/tmp/logs")
+
+# List directory contents
+{:ok, entries} = TestcontainerEx.DevTools.list_dir(container, "/app")
+
+# Process management
+:ok = TestcontainerEx.DevTools.kill_process(container, 123, signal: "SIGTERM")
+:ok = TestcontainerEx.DevTools.kill_process_name(container, "nginx")
+{:ok, pids} = TestcontainerEx.DevTools.find_pids(container, "nginx")
+
+# Container info
+{:ok, stats} = TestcontainerEx.DevTools.stats(container)
+true = TestcontainerEx.DevTools.running?(container)
+```
+
+All functions are also available through the main `TestcontainerEx` module with a `dev_` prefix:
+
+```elixir
+TestcontainerEx.dev_exec(container, ["ls", "/app"])
+TestcontainerEx.dev_write_file(container, "/tmp/test.txt", "hello")
+TestcontainerEx.dev_kill_process(container, 123)
+```
+
 ## Podman Support
 
 TestcontainerEx Elixir supports [Podman](https://podman.io/) as a drop-in replacement for Docker. Podman is daemonless, rootless by default, and compatible with the Docker Engine API.
@@ -952,6 +997,7 @@ Step-by-step guides for common tasks:
 | [Getting Started](guides/getting_started.md) | Installation, setup, and your first container |
 | [Custom Containers](guides/custom_containers.md) | Build and manage your own container configurations |
 | [Container Control](guides/container_control.md) | Pause, restart, stats, file operations, and more |
+| [DevTools](guides/dev_tools.md) | Runtime container interaction: exec, copy, delete, processes |
 | [Engine Status](guides/engine_status.md) | Query Docker/Podman/Minikube/Colima status via API |
 | [Wait Strategies](guides/wait_strategies.md) | Wait for containers to be ready |
 | [Connection Helpers](guides/connection_helpers.md) | Extract connection URLs and parameters |

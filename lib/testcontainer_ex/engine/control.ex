@@ -221,10 +221,10 @@ defmodule TestcontainerEx.Engine.Control do
            headers: [{"content-type", "application/json"}]
          ) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
-        case Jason.decode(body) do
+        case decode_json(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
           {:ok, _} -> {:error, {:no_container_id, body}}
-          {:error, reason} -> {:error, {:json_decode, reason}}
+          error -> error
         end
 
       {:ok, %{body: %{"message" => msg}}} ->
@@ -252,10 +252,10 @@ defmodule TestcontainerEx.Engine.Control do
            headers: [{"content-type", "application/json"}]
          ) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
-        case Jason.decode(body) do
+        case decode_json(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
           {:ok, _} -> {:error, {:no_container_id, body}}
-          {:error, reason} -> {:error, {:json_decode, reason}}
+          error -> error
         end
 
       {:ok, %{body: %{"message" => msg}}} ->
@@ -277,10 +277,7 @@ defmodule TestcontainerEx.Engine.Control do
 
     case Req.get(client, url: "#{url}/containers/#{container_id}/json") do
       {:ok, %{status: 200, body: body}} ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{body: %{"message" => msg}}} ->
         {:error, msg}
@@ -329,10 +326,10 @@ defmodule TestcontainerEx.Engine.Control do
            receive_timeout: :infinity
          ) do
       {:ok, %{status: 200, body: body}} ->
-        case Jason.decode(body) do
+        case decode_json(body) do
           {:ok, %{"StatusCode" => code}} -> {:ok, code}
           {:ok, _} -> {:error, {:unexpected_response, body}}
-          {:error, reason} -> {:error, {:json_decode, reason}}
+          error -> error
         end
 
       {:ok, %{body: %{"message" => msg}}} ->
@@ -416,10 +413,10 @@ defmodule TestcontainerEx.Engine.Control do
            headers: [{"content-type", "application/json"}]
          ) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
-        case Jason.decode(body) do
+        case decode_json(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
           {:ok, _} -> {:error, {:no_exec_id, body}}
-          {:error, reason} -> {:error, {:json_decode, reason}}
+          error -> error
         end
 
       {:ok, %{body: %{"message" => msg}}} ->
@@ -468,10 +465,7 @@ defmodule TestcontainerEx.Engine.Control do
 
     case Req.get(client, url: "#{url}/exec/#{exec_id}/json") do
       {:ok, %{status: 200, body: body}} ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{body: %{"message" => msg}}} ->
         {:error, msg}
@@ -516,10 +510,7 @@ defmodule TestcontainerEx.Engine.Control do
 
     case Req.get(client, url: "#{url}/containers/#{container_id}/stats?#{query}") do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{body: %{"message" => msg}}} ->
         {:error, msg}
@@ -540,10 +531,7 @@ defmodule TestcontainerEx.Engine.Control do
 
     case Req.get(client, url: "#{url}/containers/#{container_id}/top?ps_args=#{ps_args}") do
       {:ok, %{status: 200, body: body}} ->
-        case Jason.decode(body) do
-          {:ok, parsed} -> {:ok, parsed}
-          {:error, reason} -> {:error, {:json_decode, reason}}
-        end
+        decode_json(body)
 
       {:ok, %{body: %{"message" => msg}}} ->
         {:error, msg}
@@ -696,10 +684,10 @@ defmodule TestcontainerEx.Engine.Control do
            headers: [{"content-type", "application/json"}]
          ) do
       {:ok, %{status: 201, body: body}} ->
-        case Jason.decode(body) do
+        case decode_json(body) do
           {:ok, %{"Id" => id}} -> {:ok, id}
           {:ok, _} -> {:error, {:no_image_id, body}}
-          {:error, reason} -> {:error, {:json_decode, reason}}
+          error -> error
         end
 
       {:ok, %{body: %{"message" => msg}}} ->
@@ -782,6 +770,13 @@ defmodule TestcontainerEx.Engine.Control do
   end
 
   # ── Private ───────────────────────────────────────────────────────
+
+  defp decode_json(body) do
+    case Jason.decode(body) do
+      {:ok, parsed} -> {:ok, parsed}
+      {:error, reason} -> {:error, {:json_decode, reason}}
+    end
+  end
 
   defp default_url do
     case env_url() do

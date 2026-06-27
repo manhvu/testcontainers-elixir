@@ -10,7 +10,7 @@ defmodule TestcontainerEx.MongoContainer do
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.MongoContainer
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "mongo"
   @default_tag "latest"
@@ -70,12 +70,6 @@ defmodule TestcontainerEx.MongoContainer do
 
   def with_wait_timeout(%__MODULE__{} = config, timeout) when is_integer(timeout),
     do: %{config | wait_timeout: timeout}
-
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image),
-    do: %__MODULE__{config | check_image: check_image}
-
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse),
-    do: %__MODULE__{config | reuse: reuse}
 
   @doc """
   Sets the container name.

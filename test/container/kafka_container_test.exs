@@ -31,7 +31,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_image, [config, 6.2])
+        KafkaContainer.with_image(config, 6.2)
       end
     end
   end
@@ -48,7 +48,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_kafka_port, [config, "9094"])
+        KafkaContainer.with_kafka_port(config, "9094")
       end
     end
   end
@@ -65,7 +65,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_controller_port, [config, "9095"])
+        KafkaContainer.with_controller_port(config, "9095")
       end
     end
   end
@@ -82,7 +82,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_node_id, [config, "2"])
+        KafkaContainer.with_node_id(config, "2")
       end
     end
   end
@@ -99,7 +99,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_cluster_id, [config, 123])
+        KafkaContainer.with_cluster_id(config, 123)
       end
     end
   end
@@ -116,7 +116,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_wait_timeout, [config, "60_001"])
+        KafkaContainer.with_wait_timeout(config, "60_001")
       end
     end
   end
@@ -133,7 +133,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        apply(KafkaContainer, :with_topics, [config, "topic1"])
+        KafkaContainer.with_topics(config, "topic1")
       end
     end
   end
@@ -156,7 +156,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
 
       {:ok, _} = produce_with_retry(topic_name, "hey", worker_name, 5)
       {:ok, fetch_result} = KafkaEx.API.fetch(worker_name, topic_name, 0, 0)
-      assert length(fetch_result.records) > 0
+      assert fetch_result.records != []
       record = hd(fetch_result.records)
       assert record.value == "hey"
     end
@@ -185,7 +185,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       {:ok, _} = produce_with_retry(topic_name, "auto_message", worker_name, 5)
 
       {:ok, fetch_result} = KafkaEx.API.fetch(worker_name, topic_name, 0, 0)
-      assert length(fetch_result.records) > 0
+      assert fetch_result.records != []
       record = hd(fetch_result.records)
       assert record.value == "auto_message"
     end

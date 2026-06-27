@@ -7,15 +7,16 @@ defmodule TestcontainerEx.Telemetry do
 
   ## Events
 
-  | Event                                  | Measurements        | Metadata                  |
-  |----------------------------------------|---------------------|---------------------------|
-  | `[:testcontainer_ex, :container, :start]`  | `duration`, `monotonic_time` | `container_id`, `image`  |
-  | `[:testcontainer_ex, :container, :stop]`   | `duration`, `monotonic_time` | `container_id`           |
-  | `[:testcontainer_ex, :image, :pull]`       | `duration`, `monotonic_time` | `image`                  |
-  | `[:testcontainer_ex, :network, :create]`   | `duration`, `monotonic_time` | `network_name`           |
-  | `[:testcontainer_ex, :network, :remove]`   | `duration`, `monotonic_time` | `network_name`           |
-  | `[:testcontainer_ex, :ryuk, :start]`       | `duration`, `monotonic_time` | `session_id`             |
-  | `[:testcontainer_ex, :wait, :strategy]`    | `duration`, `monotonic_time` | `strategy`, `container_id` |
+  | Event                                              | Measurements                  | Metadata                        |
+  |----------------------------------------------------|-------------------------------|---------------------------------|
+  | `[:testcontainer_ex, :container, :start]`           | `duration`, `monotonic_time`  | `container_id`, `image`, `request_id` |
+  | `[:testcontainer_ex, :container, :stop]`            | `duration`, `monotonic_time`  | `container_id`                  |
+  | `[:testcontainer_ex, :image, :pull]`                | `duration`, `monotonic_time`  | `image`                         |
+  | `[:testcontainer_ex, :network, :create]`            | `duration`, `monotonic_time`  | `network_name`                  |
+  | `[:testcontainer_ex, :network, :remove]`            | `duration`, `monotonic_time`  | `network_name`                  |
+  | `[:testcontainer_ex, :ryuk, :start]`                | `duration`, `monotonic_time`  | `session_id`                    |
+  | `[:testcontainer_ex, :wait, :strategy]`             | `duration`, `monotonic_time`  | `strategy`, `container_id`      |
+  | `[:testcontainer_ex, :wait_strategy, :poll]`        | `attempt`, `elapsed_ms`       | `strategy`, `container_id`, `result` |
 
   ## Usage
 

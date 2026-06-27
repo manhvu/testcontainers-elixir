@@ -21,6 +21,8 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
 
   require Logger
 
+  alias TestcontainerEx.Connection.Url
+
   @impl true
   def resolve do
     # Only consult .env when neither env var is already set
@@ -100,7 +102,7 @@ defmodule TestcontainerEx.Connection.Strategies.Dotenv do
         end
 
       _ ->
-        case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+        case Req.get("#{Url.construct(url)}/_ping") do
           {:ok, %{status: 200}} -> {:ok, url}
           {:error, reason} -> {:error, {:ping_failed, url, reason}}
         end

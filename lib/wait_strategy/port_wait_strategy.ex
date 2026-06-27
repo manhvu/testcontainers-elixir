@@ -27,15 +27,19 @@ defmodule TestcontainerEx.PortWaitStrategy do
       host_port = TestcontainerEx.get_port(container, wait_strategy.port)
 
       case {host, host_port} do
-        {_, nil} -> {:error, :port_not_mapped, wait_strategy}
-        _ -> perform_port_check(%{wait_strategy | ip: host}, host_port)
+        {_, nil} ->
+          {:error, TestcontainerEx.Error.port_not_mapped(wait_strategy.port), wait_strategy}
+
+        _ ->
+          perform_port_check(%{wait_strategy | ip: host}, host_port)
       end
     end
 
     defp perform_port_check(wait_strategy, host_port) do
       started_at = current_time_millis()
+      attempt = 0
 
-      case wait_for_open_port(wait_strategy, host_port, started_at) do
+      case wait_for_open_port(wait_strategy, host_port, started_at, attempt) do
         :port_is_open ->
           :ok
 
@@ -44,21 +48,35 @@ defmodule TestcontainerEx.PortWaitStrategy do
       end
     end
 
-    defp wait_for_open_port(wait_strategy, host_port, start_time) do
+    defp wait_for_open_port(wait_strategy, host_port, start_time, attempt) do
       if reached_timeout?(wait_strategy.timeout, start_time) do
-        {:error, strategy_timed_out(wait_strategy.timeout, start_time)}
+        {:error, fail_with_logs(wait_strategy, host_port, start_time, attempt)}
       else
-        check_port_status(wait_strategy, host_port, start_time)
+        check_port_status(wait_strategy, host_port, start_time, attempt)
       end
     end
 
-    defp check_port_status(wait_strategy, host_port, start_time) do
-      if port_open?(wait_strategy.ip, host_port) do
+    defp check_port_status(wait_strategy, host_port, start_time, attempt) do
+      poll_result = port_open?(wait_strategy.ip, host_port)
+
+      elapsed_ms = current_time_millis() - start_time
+
+      :telemetry.execute(
+        [:testcontainer_ex, :wait_strategy, :poll],
+        %{attempt: attempt + 1, elapsed_ms: elapsed_ms},
+        %{
+          strategy: :port_wait,
+          container_id: nil,
+          result: if(poll_result, do: :ok, else: {:error, :port_not_open})
+        }
+      )
+
+      if poll_result do
         :port_is_open
       else
         log_retry_message(wait_strategy, host_port)
         :timer.sleep(wait_strategy.retry_delay)
-        wait_for_open_port(wait_strategy, host_port, start_time)
+        wait_for_open_port(wait_strategy, host_port, start_time, attempt + 1)
       end
     end
 
@@ -77,8 +95,9 @@ defmodule TestcontainerEx.PortWaitStrategy do
 
     defp reached_timeout?(timeout, start_time), do: current_time_millis() - start_time > timeout
 
-    defp strategy_timed_out(timeout, start_time) do
-      {:port_wait_strategy, :timeout, timeout, elapsed_time: current_time_millis() - start_time}
+    defp fail_with_logs(_wait_strategy, _host_port, start_time, _attempt) do
+      elapsed_ms = current_time_millis() - start_time
+      TestcontainerEx.Error.wait_strategy_failed(:port_wait, elapsed_ms)
     end
 
     defp log_retry_message(wait_strategy, host_port) do

@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.7.2"
+  @version "0.8.0"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -77,7 +77,8 @@ defmodule TestcontainerEx.MixProject do
           TestcontainerEx.Container.Lifecycle,
           TestcontainerEx.Container.CustomContainer,
           TestcontainerEx.Container.Builder,
-          TestcontainerEx.Container.BuilderHelper
+          TestcontainerEx.Container.BuilderHelper,
+          TestcontainerEx.Container.Behaviour
         ],
         "Pre-built Containers": [
           TestcontainerEx.CassandraContainer,
@@ -148,7 +149,10 @@ defmodule TestcontainerEx.MixProject do
           TestcontainerEx.Constants,
           TestcontainerEx.Log,
           TestcontainerEx.PullPolicy,
-          TestcontainerEx.CopyTo
+          TestcontainerEx.CopyTo,
+          TestcontainerEx.Error,
+          TestcontainerEx.Retry,
+          TestcontainerEx.LogConsumer
         ],
         "Testing & Observability": [
           TestcontainerEx.ExUnit,

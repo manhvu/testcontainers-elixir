@@ -8,6 +8,8 @@ defmodule TestcontainerEx.MinioContainer do
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.MinioContainer
 
+  use TestcontainerEx.ContainerConfig
+
   @default_image "minio/minio"
   @default_tag "RELEASE.2023-11-11T08-14-41Z"
   @default_image_with_tag "#{@default_image}:#{@default_tag}"
@@ -20,7 +22,15 @@ defmodule TestcontainerEx.MinioContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :username, :password, :wait_timeout]
-  defstruct [:image, :username, :password, :wait_timeout, :name, reuse: false]
+  defstruct [
+    :image,
+    :username,
+    :password,
+    :wait_timeout,
+    :name,
+    check_image: @default_image,
+    reuse: false
+  ]
 
   def new,
     do: %__MODULE__{
@@ -29,9 +39,6 @@ defmodule TestcontainerEx.MinioContainer do
       password: @default_password,
       wait_timeout: @default_wait_timeout
     }
-
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse),
-    do: %__MODULE__{config | reuse: reuse}
 
   @doc """
   Sets the container name.

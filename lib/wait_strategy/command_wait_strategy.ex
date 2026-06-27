@@ -128,9 +128,9 @@ defmodule TestcontainerEx.CommandWaitStrategy do
 
     defp timed_out?(started_at, timeout), do: get_current_time_millis() - started_at > timeout
 
-    defp strategy_timed_out(timeout, started_at) do
-      {:command_wait_strategy, :timeout, timeout,
-       elapsed_time: get_current_time_millis() - started_at}
+    defp strategy_timed_out(_timeout, started_at) do
+      elapsed_ms = get_current_time_millis() - started_at
+      TestcontainerEx.Error.wait_strategy_failed(:command_wait, elapsed_ms)
     end
 
     defp log_retry_message(container_id, exit_code, delay) do

@@ -49,6 +49,7 @@ defmodule TestcontainerEx do
   alias TestcontainerEx.{
     Container.Config,
     Engine,
+    Error,
     Server
   }
 
@@ -154,6 +155,36 @@ defmodule TestcontainerEx do
     GenServer.call(name, {:monitor_container, container_id, predicate, options}, @timeout)
   end
 
+  @doc """
+  Starts a container asynchronously. Returns a `Task` that resolves to
+  `{:ok, container}` or `{:error, TestcontainerEx.Error.t()}`.
+
+  Useful for starting multiple containers in parallel during test setup.
+
+  ## Example
+
+      task_a = TestcontainerEx.start_container_async(RedisContainer.new())
+      task_b = TestcontainerEx.start_container_async(PostgresContainer.new())
+
+      {:ok, redis}    = TestcontainerEx.await_container(task_a, 60_000)
+      {:ok, postgres} = TestcontainerEx.await_container(task_b, 60_000)
+  """
+  @spec start_container_async(struct()) :: Task.t()
+  def start_container_async(config_builder) do
+    Task.async(fn -> start_container(config_builder) end)
+  end
+
+  @doc """
+  Awaits the result of `start_container_async/1`.
+
+  Returns `{:ok, container}` on success or `{:error, TestcontainerEx.Error.t()}`
+  on failure. Raises if the task does not complete within `timeout_ms`.
+  """
+  @spec await_container(Task.t(), integer()) :: {:ok, Config.t()} | {:error, Error.t()}
+  def await_container(%Task{} = task, timeout_ms \\ 120_000) do
+    Task.await(task, timeout_ms)
+  end
+
   # ── Host/port resolution ──────────────────────────────────────────
 
   def get_host, do: GenServer.call(__MODULE__, :get_host, @timeout)
@@ -220,7 +251,7 @@ defmodule TestcontainerEx do
   defdelegate set_engine(engine), to: Engine, as: :set_engine
   defdelegate clear_engine(), to: Engine, as: :clear_engine
   defdelegate get_engine(name), to: Server, as: :get_engine
-  defdelegate reconnect(options, name), to: Server, as: :reconnect
+  defdelegate reconnect(options), to: Server, as: :reconnect
 
   # ── Custom container ──────────────────────────────────────────────
 
@@ -635,6 +666,63 @@ defmodule TestcontainerEx do
   defdelegate debug_summarize(container), to: TestcontainerEx.Debug, as: :summarize
   defdelegate debug_list_containers, to: TestcontainerEx.Debug, as: :list_containers
   defdelegate debug_list_networks, to: TestcontainerEx.Debug, as: :list_networks
+
+  # ── DevTools (runtime container interaction) ──────────────────────
+
+  defdelegate dev_exec(container, command, opts), to: TestcontainerEx.DevTools, as: :exec
+
+  defdelegate dev_exec_lines(container, command, opts),
+    to: TestcontainerEx.DevTools,
+    as: :exec_lines
+
+  defdelegate dev_copy_to(container, dest_path, source, opts),
+    to: TestcontainerEx.DevTools,
+    as: :copy_to
+
+  defdelegate dev_write_file(container, dest_path, contents, opts),
+    to: TestcontainerEx.DevTools,
+    as: :write_file
+
+  defdelegate dev_copy_from(container, container_path, host_path, opts),
+    to: TestcontainerEx.DevTools,
+    as: :copy_from
+
+  defdelegate dev_read_file(container, container_path, opts),
+    to: TestcontainerEx.DevTools,
+    as: :read_file
+
+  defdelegate dev_read_lines(container, container_path, opts),
+    to: TestcontainerEx.DevTools,
+    as: :read_lines
+
+  defdelegate dev_delete_file(container, container_path, opts),
+    to: TestcontainerEx.DevTools,
+    as: :delete_file
+
+  defdelegate dev_exists?(container, path, opts), to: TestcontainerEx.DevTools, as: :exists?
+
+  defdelegate dev_list_dir(container, container_path, opts),
+    to: TestcontainerEx.DevTools,
+    as: :list_dir
+
+  defdelegate dev_list_dir_long(container, container_path, opts),
+    to: TestcontainerEx.DevTools,
+    as: :list_dir_long
+
+  defdelegate dev_processes(container, opts), to: TestcontainerEx.DevTools, as: :processes
+  defdelegate dev_stats(container, opts), to: TestcontainerEx.DevTools, as: :stats
+  defdelegate dev_state(container, opts), to: TestcontainerEx.DevTools, as: :state
+  defdelegate dev_running?(container, opts), to: TestcontainerEx.DevTools, as: :running?
+
+  defdelegate dev_kill_process(container, pid, opts),
+    to: TestcontainerEx.DevTools,
+    as: :kill_process
+
+  defdelegate dev_kill_process_name(container, name, opts),
+    to: TestcontainerEx.DevTools,
+    as: :kill_process_name
+
+  defdelegate dev_find_pids(container, name, opts), to: TestcontainerEx.DevTools, as: :find_pids
 
   # ── Ryuk ──────────────────────────────────────────────────────────
 

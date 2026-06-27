@@ -11,6 +11,8 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
 
   @behaviour TestcontainerEx.Connection.Strategies.Behaviour
 
+  alias TestcontainerEx.Connection.Url
+
   @minikube_bin "minikube"
 
   require Logger
@@ -70,7 +72,7 @@ defmodule TestcontainerEx.Connection.Strategies.Minikube do
   end
 
   defp probe(url) do
-    case Req.get("#{TestcontainerEx.Connection.Url.construct(url)}/_ping") do
+    case Req.get("#{Url.construct(url)}/_ping") do
       {:ok, %{status: 200}} -> {:ok, url}
       {:error, reason} -> {:error, {:ping_failed, url, reason}}
     end

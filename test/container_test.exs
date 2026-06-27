@@ -194,9 +194,7 @@ defmodule TestcontainerEx.ContainerTest do
         Container.new("invalid-image")
         |> Container.with_check_image("validated")
 
-      assert {:error,
-              "Unexpected image invalid-image. If this is a valid image, provide a broader `check_image` regex to the container configuration."} ==
-               Container.valid_image(container)
+      assert {:error, %TestcontainerEx.Error{}} = Container.valid_image(container)
     end
   end
 
@@ -206,11 +204,9 @@ defmodule TestcontainerEx.ContainerTest do
         Container.new("invalid-image")
         |> Container.with_check_image("validated")
 
-      assert_raise ArgumentError,
-                   "Unexpected image invalid-image. If this is a valid image, provide a broader `check_image` regex to the container configuration.",
-                   fn ->
-                     Container.valid_image!(container)
-                   end
+      assert_raise ArgumentError, fn ->
+        Container.valid_image!(container)
+      end
     end
   end
 

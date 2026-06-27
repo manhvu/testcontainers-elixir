@@ -10,7 +10,7 @@ defmodule TestcontainerEx.SeleniumContainer do
   alias TestcontainerEx.PortWaitStrategy
   alias TestcontainerEx.SeleniumContainer
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "selenium/standalone-chrome"
   @default_tag "118.0"
@@ -22,7 +22,15 @@ defmodule TestcontainerEx.SeleniumContainer do
   @type t :: %__MODULE__{}
 
   @enforce_keys [:image, :port1, :port2, :wait_timeout]
-  defstruct [:image, :port1, :port2, :wait_timeout, :name, check_image: @default_image, reuse: false]
+  defstruct [
+    :image,
+    :port1,
+    :port2,
+    :wait_timeout,
+    :name,
+    check_image: @default_image,
+    reuse: false
+  ]
 
   def new,
     do: %__MODULE__{
@@ -36,12 +44,6 @@ defmodule TestcontainerEx.SeleniumContainer do
   def with_port1(%__MODULE__{} = c, p) when is_integer(p), do: %{c | port1: p}
   def with_port2(%__MODULE__{} = c, p) when is_integer(p), do: %{c | port2: p}
   def with_wait_timeout(%__MODULE__{} = c, t) when is_integer(t), do: %{c | wait_timeout: t}
-
-  def with_check_image(%__MODULE__{} = c, ci) when is_valid_image(ci),
-    do: %__MODULE__{c | check_image: ci}
-
-  def with_reuse(%__MODULE__{} = c, reuse) when is_boolean(reuse),
-    do: %__MODULE__{c | reuse: reuse}
 
   @doc """
   Sets the container name.

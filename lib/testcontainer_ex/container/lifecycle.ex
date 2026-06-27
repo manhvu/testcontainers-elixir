@@ -12,9 +12,11 @@ defmodule TestcontainerEx.Container.Lifecycle do
     Container.Builder,
     Container.BuilderHelper,
     Container.Config,
+    CopyTo,
     Engine.Api,
     Engine.Auth,
-    CopyTo,
+    Error,
+    LogConsumer,
     PullPolicy,
     Telemetry,
     WaitStrategy
@@ -33,17 +35,31 @@ defmodule TestcontainerEx.Container.Lifecycle do
   7. Call after_start hook
   """
   @spec start_container(struct(), Req.Request.t(), map()) ::
-          {:ok, Config.t()} | {:error, term()}
+          {:ok, Config.t()} | {:error, Error.t()}
   def start_container(builder, conn, state) do
+    request_id = extract_request_id(builder) || generate_request_id()
+
+    Logger.metadata(request_id: request_id, image: extract_image(builder))
+
     Telemetry.with_telemetry(
       [:testcontainer_ex, :container, :start],
-      %{image: extract_image(builder)},
+      %{image: extract_image(builder), request_id: request_id},
       fn -> do_start_container(builder, conn, state) end
     )
   end
 
   defp extract_image(%{image: image}) when is_binary(image), do: image
+  defp extract_image(%{config: %{image: image}}) when is_binary(image), do: image
   defp extract_image(_), do: "unknown"
+
+  defp extract_request_id(%Config{request_id: id}) when is_binary(id), do: id
+  defp extract_request_id(%{request_id: id}) when is_binary(id), do: id
+  defp extract_request_id(%{config: %{request_id: id}}) when is_binary(id), do: id
+  defp extract_request_id(_), do: nil
+
+  defp generate_request_id do
+    :crypto.strong_rand_bytes(6) |> Base.encode16(case: :lower)
+  end
 
   defp do_start_container(builder, conn, state) do
     case BuilderHelper.build(builder, state) do
@@ -86,13 +102,28 @@ defmodule TestcontainerEx.Container.Lifecycle do
 
   @doc """
   Stops a container by ID.
+
+  Returns `{:ok, :stopped}` on success, `{:ok, :already_stopped}` if the
+  container is not running, or `{:error, TestcontainerEx.Error.t()}` on failure.
   """
-  @spec stop_container(String.t(), Req.Request.t()) :: :ok | {:error, term()}
+  @spec stop_container(String.t(), Req.Request.t()) ::
+          {:ok, :stopped} | {:ok, :already_stopped} | {:error, Error.t()}
   def stop_container(container_id, conn) do
     Telemetry.with_telemetry(
       [:testcontainer_ex, :container, :stop],
       %{container_id: container_id},
-      fn -> Api.stop_container(container_id, conn) end
+      fn ->
+        case Api.stop_container(container_id, conn) do
+          :ok ->
+            {:ok, :stopped}
+
+          {:error, :not_found} ->
+            {:ok, :already_stopped}
+
+          {:error, reason} ->
+            {:error, Error.docker_api_error("Failed to stop container #{container_id}", reason)}
+        end
+      end
     )
   end
 
@@ -172,6 +203,8 @@ defmodule TestcontainerEx.Container.Lifecycle do
          {:ok, id} <- create_container_with_retry(config, conn),
          :ok <- copy_to_container(id, config, conn) do
       start_and_wait(id, config, builder, conn)
+    else
+      {:error, reason} -> {:error, Error.wrap(reason)}
     end
   end
 
@@ -215,22 +248,20 @@ defmodule TestcontainerEx.Container.Lifecycle do
   end
 
   defp do_wait_for_exec(exec_id, conn, timeout, retry_delay, started_at) do
-    cond do
-      System.monotonic_time(:millisecond) - started_at > timeout ->
-        {:error, {:exec_timeout, timeout}}
+    if System.monotonic_time(:millisecond) - started_at > timeout do
+      {:error, {:exec_timeout, timeout}}
+    else
+      case Api.inspect_exec(exec_id, conn) do
+        {:ok, %{running: true}} ->
+          Process.sleep(retry_delay)
+          do_wait_for_exec(exec_id, conn, timeout, retry_delay, started_at)
 
-      true ->
-        case Api.inspect_exec(exec_id, conn) do
-          {:ok, %{running: true}} ->
-            Process.sleep(retry_delay)
-            do_wait_for_exec(exec_id, conn, timeout, retry_delay, started_at)
+        {:ok, status} ->
+          {:ok, status}
 
-          {:ok, status} ->
-            {:ok, status}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -307,19 +338,65 @@ defmodule TestcontainerEx.Container.Lifecycle do
 
   def resolve_pull_policy(config, _properties), do: config
 
-  defp start_and_wait(id, config, builder, conn) do
+  # Retry the full start sequence on transient Docker daemon errors.
+  # Covers: HTTP 500 from create/start, econnrefused during start,
+  # and wait strategy failures from daemon hiccups.
+  defp start_and_wait(id, config, builder, conn, retries_left \\ 2)
+
+  defp start_and_wait(id, config, builder, conn, 0) do
+    do_start_and_wait(id, config, builder, conn)
+  end
+
+  defp start_and_wait(id, config, builder, conn, retries_left) do
+    case do_start_and_wait(id, config, builder, conn) do
+      {:error, %Error{code: :docker_api_error, cause: {:http_error, 500}}} ->
+        Logger.warning(
+          "Container start got HTTP 500, retrying in 2000ms, #{retries_left} retries left"
+        )
+
+        :timer.sleep(2000)
+        start_and_wait(id, config, builder, conn, retries_left - 1)
+
+      {:error, %Error{code: :docker_api_error, cause: :econnrefused}} ->
+        Logger.warning(
+          "Container start got econnrefused, retrying in 1000ms, #{retries_left} retries left"
+        )
+
+        :timer.sleep(1000)
+        start_and_wait(id, config, builder, conn, retries_left - 1)
+
+      other ->
+        other
+    end
+  end
+
+  defp do_start_and_wait(id, config, builder, conn) do
     with :ok <- start_container_with_retry(id, conn),
          {:ok, container} <- Api.get_container(id, conn),
          :ok <- Builder.after_start(builder, container, conn),
          :ok <- wait_for_container(container, config.wait_strategies, conn) do
+      maybe_start_log_consumer(container, conn, config)
       {:ok, container}
     else
-      error ->
+      {:error, reason} ->
         Logger.info("Cleaning up container #{id} after failed start")
         Api.stop_container(id, conn)
-        error
+        {:error, Error.wrap(reason)}
     end
   end
+
+  defp maybe_start_log_consumer(%Config{} = _container, _conn, %Config{log_consumer: nil}) do
+    :ok
+  end
+
+  defp maybe_start_log_consumer(%Config{container_id: id}, conn, %Config{log_consumer: level})
+       when is_binary(id) and is_atom(level) do
+    case LogConsumer.start_link(id, conn, level) do
+      {:ok, _pid} -> :ok
+    end
+  end
+
+  defp maybe_start_log_consumer(_, _, _), do: :ok
 
   # Retry container start up to 3 times on transient errors.
   defp start_container_with_retry(id, conn, retries_left \\ 2)
@@ -386,7 +463,29 @@ defmodule TestcontainerEx.Container.Lifecycle do
 
   defp maybe_pull_image(_config, _conn), do: :ok
 
-  defp pull_with_fallback(config, conn) do
+  # Retry image pull up to 3 times on transient HTTP 500 errors from the daemon.
+  defp pull_with_fallback(config, conn, retries_left \\ 3)
+
+  defp pull_with_fallback(config, conn, 0) do
+    do_pull_with_fallback(config, conn)
+  end
+
+  defp pull_with_fallback(config, conn, retries_left) do
+    case do_pull_with_fallback(config, conn) do
+      {:error, {:http_error, 500}} ->
+        Logger.warning(
+          "Image pull got HTTP 500, retrying in 2000ms, #{retries_left} retries left"
+        )
+
+        :timer.sleep(2000)
+        pull_with_fallback(config, conn, retries_left - 1)
+
+      other ->
+        other
+    end
+  end
+
+  defp do_pull_with_fallback(config, conn) do
     case resolve_auth(config) do
       {:explicit, auth} ->
         Api.pull_image(config.image, conn, auth: auth)

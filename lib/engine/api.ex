@@ -388,17 +388,8 @@ defmodule TestcontainerEx.Engine.Api do
     }
 
     case post(conn, "/networks/create", body) do
-      {:ok, %{status: 201, body: body}} ->
-        case parse_body(body) do
-          %{"Id" => id} -> {:ok, id}
-          _ -> {:error, {:failed_to_create_network, body}}
-        end
-
-      {:ok, %{status: 200, body: body}} ->
-        case parse_body(body) do
-          %{"Id" => id} -> {:ok, id}
-          _ -> {:error, {:failed_to_create_network, body}}
-        end
+      {:ok, %{status: status, body: body}} when status in [200, 201] ->
+        extract_network_id(body)
 
       {:ok, %{status: 409}} ->
         {:ok, :already_exists}
@@ -417,6 +408,13 @@ defmodule TestcontainerEx.Engine.Api do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp extract_network_id(body) do
+    case parse_body(body) do
+      %{"Id" => id} -> {:ok, id}
+      _ -> {:error, {:failed_to_create_network, body}}
     end
   end
 

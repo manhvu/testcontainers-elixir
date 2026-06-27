@@ -4,8 +4,8 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
 
   import TestcontainerEx.ExUnit
 
-  alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.CommandWaitStrategy
+  alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.RabbitMQContainer
 
@@ -190,10 +190,10 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
         container_id: "abc123",
         image: "rabbitmq:3-alpine",
         environment: %{RABBITMQ_NODE_PORT: "5672"},
-        exposed_ports: [{5672, 15672}]
+        exposed_ports: [{5672, 15_672}]
       }
 
-      assert RabbitMQContainer.port(container) == 15672
+      assert RabbitMQContainer.port(container) == 15_672
     end
 
     test "returns nil when port is not mapped" do
@@ -218,8 +218,7 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
           RABBITMQ_DEFAULT_PASS: "guest",
           RABBITMQ_DEFAULT_VHOST: "/"
         },
-        exposed_ports: [{5672, 15672}],
-        ip_address: "localhost"
+        exposed_ports: [{5672, 15_672}]
       }
 
       url = RabbitMQContainer.connection_url(container)
@@ -235,8 +234,7 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
           RABBITMQ_DEFAULT_PASS: "secret",
           RABBITMQ_DEFAULT_VHOST: "/myapp"
         },
-        exposed_ports: [{5672, 15672}],
-        ip_address: "localhost"
+        exposed_ports: [{5672, 15_672}]
       }
 
       url = RabbitMQContainer.connection_url(container)
@@ -254,7 +252,7 @@ defmodule TestcontainerEx.Container.RabbitMQContainerTest do
           RABBITMQ_DEFAULT_PASS: "secret",
           RABBITMQ_DEFAULT_VHOST: "/myapp"
         },
-        exposed_ports: [{5672, 15672}]
+        exposed_ports: [{5672, 15_672}]
       }
 
       params = RabbitMQContainer.connection_parameters(container)

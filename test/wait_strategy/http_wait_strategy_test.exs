@@ -21,7 +21,7 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
     {:ok, {_status, _headers, body}} = :httpc.request(:get, {url, []}, [], [])
     assert to_string(body) =~ "Welcome to nginx!"
 
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "can wait for a specific status code" do
@@ -33,7 +33,7 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
       |> Config.with_waiting_strategy(HttpWaitStrategy.new("/", port, status_code: 200))
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "fails when status code does not match" do
@@ -62,7 +62,7 @@ defmodule TestcontainerEx.HttpWaitStrategyTest do
       )
 
     assert {:ok, container} = TestcontainerEx.start_container(config)
-    assert :ok = TestcontainerEx.stop_container(container.container_id)
+    assert {:ok, :stopped} = TestcontainerEx.stop_container(container.container_id)
   end
 
   test "fails when custom match function returns false" do

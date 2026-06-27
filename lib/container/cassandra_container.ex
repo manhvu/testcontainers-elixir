@@ -9,7 +9,7 @@ defmodule TestcontainerEx.CassandraContainer do
   alias TestcontainerEx.Container.Builder
   alias TestcontainerEx.Container.Config
 
-  import TestcontainerEx.Container.Config, only: [is_valid_image: 1]
+  use TestcontainerEx.ContainerConfig
 
   @default_image "cassandra"
   @default_tag "3.11.2"
@@ -38,14 +38,6 @@ defmodule TestcontainerEx.CassandraContainer do
 
   def with_image(%__MODULE__{} = config, image) when is_binary(image) do
     %{config | image: image}
-  end
-
-  def with_check_image(%__MODULE__{} = config, check_image) when is_valid_image(check_image) do
-    %__MODULE__{config | check_image: check_image}
-  end
-
-  def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-    %__MODULE__{config | reuse: reuse}
   end
 
   @doc """
