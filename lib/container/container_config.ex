@@ -36,17 +36,16 @@ defmodule TestcontainerEx.ContainerConfig do
       image name before starting.
       """
       @spec with_check_image(t(), String.t() | Regex.t()) :: t()
-      def with_check_image(%__MODULE__{} = config, check_image)
-          when is_valid_image(check_image) do
-        %__MODULE__{config | check_image: check_image}
+      def with_check_image(config, check_image) when is_valid_image(check_image) do
+        struct!(config, check_image: check_image)
       end
 
       @doc """
       Enables or disables container reuse.
       """
       @spec with_reuse(t(), boolean()) :: t()
-      def with_reuse(%__MODULE__{} = config, reuse) when is_boolean(reuse) do
-        %__MODULE__{config | reuse: reuse}
+      def with_reuse(config, reuse) when is_boolean(reuse) do
+        struct!(config, reuse: reuse)
       end
     end
   end
