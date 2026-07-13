@@ -87,15 +87,14 @@ defmodule TestcontainerEx.Ryuk do
     # Spawn a linked process that will die when the parent dies.
     # On exit, it cleans up all containers labeled with our session.
     parent = self()
-    ref = make_ref()
 
     pid =
       spawn_link(fn ->
         # Wait for parent to exit
-        Process.monitor(parent)
+        monitor_ref = Process.monitor(parent)
 
         receive do
-          {:DOWN, ^ref, :process, ^parent, _reason} ->
+          {:DOWN, ^monitor_ref, :process, ^parent, _reason} ->
             Logger.info("Host reaper: parent process exited, cleaning up session #{session_id}")
             cleanup_labeled_containers(conn, session_id)
         end

@@ -10,6 +10,11 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
   alias TestcontainerEx.LogWaitStrategy
   alias TestcontainerEx.PortWaitStrategy
 
+  # Returns a value typed as `term()` so the static type checker does not flag
+  # the "raises if ..." tests below, while still being an invalid runtime value
+  # that triggers a FunctionClauseError.
+  defp bad_value, do: :bad
+
   describe "new/0" do
     test "creates an ElixirContainer with default configuration" do
       config = ElixirContainer.new()
@@ -43,7 +48,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_image(config, 123)
+        apply(ElixirContainer, :with_image, [config, 123])
       end
     end
   end
@@ -64,7 +69,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_wait_timeout(config, "120000")
+        ElixirContainer.with_wait_timeout(config, -120_000)
       end
     end
   end
@@ -81,7 +86,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_cookie(config, :atom)
+        apply(ElixirContainer, :with_cookie, [config, bad_value()])
       end
     end
   end
@@ -105,7 +110,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_node_name(config, 123)
+        apply(ElixirContainer, :with_node_name, [config, bad_value()])
       end
     end
   end
@@ -126,7 +131,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_distribution_port(config, "9100")
+        apply(ElixirContainer, :with_distribution_port, [config, bad_value()])
       end
     end
   end
@@ -144,7 +149,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_project(config, 123)
+        apply(ElixirContainer, :with_project, [config, bad_value()])
       end
     end
   end
@@ -161,7 +166,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_release(config, :my_app)
+        apply(ElixirContainer, :with_release, [config, bad_value()])
       end
     end
   end
@@ -178,7 +183,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_release_args(config, "start")
+        apply(ElixirContainer, :with_release_args, [config, bad_value()])
       end
     end
   end
@@ -203,7 +208,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_vm_args(config, "-kernel foo")
+        apply(ElixirContainer, :with_vm_args, [config, bad_value()])
       end
     end
   end
@@ -236,7 +241,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_env_vars(config, "MIX_ENV=prod")
+        apply(ElixirContainer, :with_env_vars, [config, bad_value()])
       end
     end
   end
@@ -253,7 +258,7 @@ defmodule TestcontainerEx.Container.ElixirContainerTest do
       config = ElixirContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ElixirContainer.with_cmd(config, "mix test")
+        apply(ElixirContainer, :with_cmd, [config, bad_value()])
       end
     end
   end

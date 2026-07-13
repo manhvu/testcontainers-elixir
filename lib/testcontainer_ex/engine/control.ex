@@ -579,7 +579,8 @@ defmodule TestcontainerEx.Engine.Control do
       end
 
     case Req.put(client,
-           url: "#{url}/containers/#{container_id}/archive?path=#{upload_path}",
+           url:
+             "#{url}/containers/#{container_id}/archive?path=#{URI.encode_www_form(upload_path)}",
            body: tar_data,
            headers: [{"content-type", "application/x-tar"}]
          ) do
@@ -596,7 +597,10 @@ defmodule TestcontainerEx.Engine.Control do
     url = base_url || default_url()
     client = Req.new()
 
-    case Req.get(client, url: "#{url}/containers/#{container_id}/archive?path=#{container_path}") do
+    case Req.get(client,
+           url:
+             "#{url}/containers/#{container_id}/archive?path=#{URI.encode_www_form(container_path)}"
+         ) do
       {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
       {:ok, %{body: %{"message" => msg}}} -> {:error, msg}
       {:ok, %{status: status}} -> {:error, {:http_error, status}}
@@ -676,10 +680,16 @@ defmodule TestcontainerEx.Engine.Control do
       |> Jason.encode!()
 
     [repo, tag] = String.split(repo_tag, ":", parts: 2)
-    query = "repo=#{repo}&tag=#{tag || "latest"}"
+
+    query =
+      URI.encode_query(%{
+        "container" => container_id,
+        "repo" => repo,
+        "tag" => tag || "latest"
+      })
 
     case Req.post(client,
-           url: "#{url}/commit?#{query}#{container_id}",
+           url: "#{url}/commit?#{query}",
            body: body,
            headers: [{"content-type", "application/json"}]
          ) do

@@ -214,6 +214,7 @@ exclude =
 # A quick docker info call ensures the daemon is responsive and any
 # lazy-initialized subsystems (network, registry connections) are ready.
 IO.puts("==> Warming up Docker daemon...")
+
 case System.cmd("docker", ["info"], stderr_to_stdout: true) do
   {_, 0} -> IO.puts("==> Docker daemon is ready")
   {output, _} -> IO.puts("==> WARNING: Docker daemon info returned:\n#{output}")

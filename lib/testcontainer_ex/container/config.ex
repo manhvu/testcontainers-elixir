@@ -37,6 +37,16 @@ defmodule TestcontainerEx.Container.Config do
   - `:pull_policy` — controls when the image is pulled; see `TestcontainerEx.PullPolicy`.
   - `:log_consumer` — optional Logger level to stream container logs to (`:debug`, `:info`, etc.).
   - `:request_id` — correlation ID for tracing a `start_container` call.
+  - `:memory` — memory limit in bytes (Docker `HostConfig.Memory`).
+  - `:nano_cpus` — CPU limit in nano CPUs (Docker `HostConfig.NanoCpus`).
+  - `:restart_policy` — restart policy name (e.g. `"always"`, `"on-failure:5"`).
+  - `:dns` — list of DNS servers (Docker `HostConfig.Dns`).
+  - `:extra_hosts` — list of `{hostname, ip}` extra host entries (Docker `HostConfig.ExtraHosts`).
+  - `:user` — user (UID or `user:group`) to run the container as (Docker `User`).
+  - `:working_dir` — working directory inside the container (Docker `WorkingDir`).
+  - `:stop_signal` — stop signal sent to the container (Docker `StopSignal`).
+  - `:stop_timeout` — stop timeout in seconds (Docker `HostConfig.StopTimeout`).
+  - `:domainname` — DNS domain name for the container (Docker `Domainname`).
   """
   @type t :: %__MODULE__{
           image: String.t(),
@@ -62,7 +72,17 @@ defmodule TestcontainerEx.Container.Config do
           force_reuse: boolean(),
           pull_policy: TestcontainerEx.PullPolicy.t() | nil,
           log_consumer: Logger.level() | nil,
-          request_id: String.t() | nil
+          request_id: String.t() | nil,
+          memory: integer() | nil,
+          nano_cpus: integer() | nil,
+          restart_policy: String.t() | nil,
+          dns: [String.t()],
+          extra_hosts: [{String.t(), String.t()}],
+          user: String.t() | nil,
+          working_dir: String.t() | nil,
+          stop_signal: String.t() | nil,
+          stop_timeout: integer() | nil,
+          domainname: String.t() | nil
         }
 
   @enforce_keys [:image]
@@ -90,7 +110,17 @@ defmodule TestcontainerEx.Container.Config do
     force_reuse: false,
     pull_policy: nil,
     log_consumer: nil,
-    request_id: nil
+    request_id: nil,
+    memory: nil,
+    nano_cpus: nil,
+    restart_policy: nil,
+    dns: [],
+    extra_hosts: [],
+    user: nil,
+    working_dir: nil,
+    stop_signal: nil,
+    stop_timeout: nil,
+    domainname: nil
   ]
 
   # ── Guards ────────────────────────────────────────────────────────
@@ -281,6 +311,57 @@ defmodule TestcontainerEx.Container.Config do
   @spec with_pull_policy(t(), struct()) :: t()
   def with_pull_policy(%__MODULE__{} = config, %TestcontainerEx.PullPolicy{} = policy) do
     %__MODULE__{config | pull_policy: policy}
+  end
+
+  @spec with_memory_limit(t(), pos_integer()) :: t()
+  def with_memory_limit(%__MODULE__{} = config, bytes) when is_integer(bytes) and bytes > 0 do
+    %__MODULE__{config | memory: bytes}
+  end
+
+  @spec with_cpu_limit(t(), float()) :: t()
+  def with_cpu_limit(%__MODULE__{} = config, cpus) when is_float(cpus) and cpus > 0 do
+    %__MODULE__{config | nano_cpus: round(cpus * 1_000_000_000)}
+  end
+
+  @spec with_restart_policy(t(), String.t()) :: t()
+  def with_restart_policy(%__MODULE__{} = config, policy) when is_binary(policy) do
+    %__MODULE__{config | restart_policy: policy}
+  end
+
+  @spec with_dns(t(), [String.t()]) :: t()
+  def with_dns(%__MODULE__{} = config, servers) when is_list(servers) do
+    %__MODULE__{config | dns: servers}
+  end
+
+  @spec with_extra_host(t(), String.t(), String.t()) :: t()
+  def with_extra_host(%__MODULE__{} = config, hostname, ip)
+      when is_binary(hostname) and is_binary(ip) do
+    %__MODULE__{config | extra_hosts: [{hostname, ip} | config.extra_hosts]}
+  end
+
+  @spec with_user(t(), String.t()) :: t()
+  def with_user(%__MODULE__{} = config, user) when is_binary(user) do
+    %__MODULE__{config | user: user}
+  end
+
+  @spec with_working_dir(t(), String.t()) :: t()
+  def with_working_dir(%__MODULE__{} = config, dir) when is_binary(dir) do
+    %__MODULE__{config | working_dir: dir}
+  end
+
+  @spec with_stop_signal(t(), String.t()) :: t()
+  def with_stop_signal(%__MODULE__{} = config, signal) when is_binary(signal) do
+    %__MODULE__{config | stop_signal: signal}
+  end
+
+  @spec with_stop_timeout(t(), non_neg_integer()) :: t()
+  def with_stop_timeout(%__MODULE__{} = config, seconds) when is_integer(seconds) do
+    %__MODULE__{config | stop_timeout: seconds}
+  end
+
+  @spec with_domainname(t(), String.t()) :: t()
+  def with_domainname(%__MODULE__{} = config, domain) when is_binary(domain) do
+    %__MODULE__{config | domainname: domain}
   end
 
   # ── Query functions ──────────────────────────────────────────────

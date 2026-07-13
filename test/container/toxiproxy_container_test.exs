@@ -7,6 +7,11 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
   alias TestcontainerEx.Container.Config
   alias TestcontainerEx.ToxiproxyContainer
 
+  # Returns a value typed as `term()` so the static type checker does not flag
+  # the "raises if ..." tests below, while still being an invalid runtime value
+  # that triggers a FunctionClauseError.
+  defp bad_value, do: :bad
+
   describe "new/0" do
     test "creates a new ToxiproxyContainer struct with default configurations" do
       config = ToxiproxyContainer.new()
@@ -46,7 +51,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ToxiproxyContainer.with_wait_timeout(config, "30000")
+        apply(ToxiproxyContainer, :with_wait_timeout, [config, "30000"])
       end
     end
   end
@@ -72,7 +77,7 @@ defmodule TestcontainerEx.Container.ToxiproxyContainerTest do
       config = ToxiproxyContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        ToxiproxyContainer.with_reuse(config, "true")
+        apply(ToxiproxyContainer, :with_reuse, [config, bad_value()])
       end
     end
   end

@@ -91,6 +91,8 @@ defmodule TestcontainerEx.MinistackContainer do
           1000
         )
       )
+      |> Config.with_check_image(config.check_image)
+      |> Config.valid_image!()
     end
 
     @impl true

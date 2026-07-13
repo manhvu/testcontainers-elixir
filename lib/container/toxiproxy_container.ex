@@ -9,8 +9,6 @@ defmodule TestcontainerEx.ToxiproxyContainer do
   alias TestcontainerEx.HttpWaitStrategy
   alias TestcontainerEx.ToxiproxyContainer
 
-  use TestcontainerEx.ContainerConfig
-
   @default_image "ghcr.io/shopify/toxiproxy"
   @default_tag "2.9.0"
   @default_image_with_tag "#{@default_image}:#{@default_tag}"
@@ -25,6 +23,8 @@ defmodule TestcontainerEx.ToxiproxyContainer do
 
   @enforce_keys [:image, :wait_timeout]
   defstruct [:image, :wait_timeout, :name, check_image: @default_image, reuse: false]
+
+  use TestcontainerEx.ContainerConfig
 
   def new, do: %__MODULE__{image: @default_image_with_tag, wait_timeout: @default_wait_timeout}
   def with_image(%__MODULE__{} = c, image) when is_binary(image), do: %{c | image: image}
@@ -97,7 +97,7 @@ defmodule TestcontainerEx.ToxiproxyContainer do
     host = TestcontainerEx.get_host(container)
     api_port = mapped_control_port(container)
     :inets.start()
-    url = ~c"http://#{host}:#{api_port}/proxies/#{name}"
+    url = ~c"http://#{host}:#{api_port}/proxies/#{URI.encode_www_form(name)}"
 
     case httpc_request_with_retry(:delete, {url, []}) do
       {:ok, {{_, 204, _}, _, _}} -> :ok

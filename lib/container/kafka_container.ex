@@ -79,8 +79,9 @@ defmodule TestcontainerEx.KafkaContainer do
   A random port between 29000-29999 is selected for the Kafka listener.
   """
   def new do
-    # Select a random port in a high range to minimize conflicts
-    kafka_port = Enum.random(29_000..29_999)
+    # Select a random port in a high range to minimize conflicts, retrying if
+    # the chosen port is already in use to avoid collisions in parallel suites.
+    kafka_port = random_free_port(29_000..29_999)
 
     %__MODULE__{
       image: @default_image_with_tag,
@@ -92,6 +93,29 @@ defmodule TestcontainerEx.KafkaContainer do
       wait_timeout: @default_wait_timeout,
       topics: []
     }
+  end
+
+  defp random_free_port(range, attempts \\ 20) do
+    Enum.reduce_while(1..attempts, nil, fn _attempt, _acc ->
+      candidate = Enum.random(range)
+
+      if port_available?(candidate) do
+        {:halt, candidate}
+      else
+        {:cont, nil}
+      end
+    end) || Enum.random(range)
+  end
+
+  defp port_available?(port) do
+    case :gen_tcp.listen(port, [:binary, active: false, reuseaddr: true]) do
+      {:ok, socket} ->
+        :gen_tcp.close(socket)
+        true
+
+      {:error, _} ->
+        false
+    end
   end
 
   @doc """

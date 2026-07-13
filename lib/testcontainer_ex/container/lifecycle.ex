@@ -204,6 +204,7 @@ defmodule TestcontainerEx.Container.Lifecycle do
          :ok <- copy_to_container(id, config, conn) do
       start_and_wait(id, config, builder, conn)
     else
+      {:error, _reason, _strategy} = triple -> triple
       {:error, reason} -> {:error, Error.wrap(reason)}
     end
   end
@@ -378,6 +379,11 @@ defmodule TestcontainerEx.Container.Lifecycle do
       maybe_start_log_consumer(container, conn, config)
       {:ok, container}
     else
+      {:error, _reason, _strategy} = triple ->
+        Logger.info("Cleaning up container #{id} after failed start")
+        Api.stop_container(id, conn)
+        triple
+
       {:error, reason} ->
         Logger.info("Cleaning up container #{id} after failed start")
         Api.stop_container(id, conn)

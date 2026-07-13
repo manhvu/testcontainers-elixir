@@ -93,6 +93,8 @@ defmodule TestcontainerEx.MinioContainer do
       |> Config.with_waiting_strategy(
         LogWaitStrategy.new(~r/.*Status:         1 Online, 0 Offline..*/, config.wait_timeout)
       )
+      |> Config.with_check_image(config.check_image)
+      |> Config.valid_image!()
     end
 
     @impl true

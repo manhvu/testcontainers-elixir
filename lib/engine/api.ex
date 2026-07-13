@@ -615,8 +615,14 @@ defmodule TestcontainerEx.Engine.Api do
       "Env" => map_env(cfg.environment),
       "Labels" => cfg.labels,
       "Hostname" => cfg.hostname,
+      "Domainname" => cfg.domainname,
+      "User" => cfg.user,
+      "WorkingDir" => cfg.working_dir,
+      "StopSignal" => cfg.stop_signal,
       "HostConfig" => host_config(cfg)
     }
+    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+    |> Map.new()
   end
 
   defp host_config(%Config{} = cfg) do
@@ -626,9 +632,23 @@ defmodule TestcontainerEx.Engine.Api do
       "Privileged" => cfg.privileged,
       "Binds" => map_binds(cfg),
       "Mounts" => map_volumes(cfg),
-      "NetworkMode" => cfg.network_mode || cfg.network
+      "NetworkMode" => cfg.network_mode || cfg.network,
+      "Memory" => cfg.memory,
+      "NanoCpus" => cfg.nano_cpus,
+      "RestartPolicy" => format_restart_policy(cfg.restart_policy),
+      "Dns" => if(cfg.dns == [], do: nil, else: cfg.dns),
+      "ExtraHosts" => format_extra_hosts(cfg.extra_hosts),
+      "StopTimeout" => cfg.stop_timeout
     }
+    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+    |> Map.new()
   end
+
+  defp format_restart_policy(nil), do: nil
+  defp format_restart_policy(policy) when is_binary(policy), do: %{"Name" => policy}
+
+  defp format_extra_hosts([]), do: nil
+  defp format_extra_hosts(hosts), do: Enum.map(hosts, fn {h, ip} -> "#{h}:#{ip}" end)
 
   defp map_exposed_ports(%Config{exposed_ports: ports}) do
     Enum.map(ports, fn {port, _} -> {to_string(port), %{}} end) |> Enum.into(%{})

@@ -4,7 +4,7 @@
 
 > **Status:** Early development & unstable. Not yet ready for production use.
 
-Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), rework and add support for Podman, Minikube, and Colima, a `.env` file for project-local Docker host configuration, a hand-written Docker Engine API client replacing the auto-generated one, third-party registry support (quay.io, ghcr.io, gcr.io, and more), and a clean architecture refactor.
+Forked from [testcontainers-elixir](https://github.com/testcontainers/testcontainers-elixir), rework and add support for Podman, Minikube, and Colima, a `.env` file for project-local Docker host configuration, third-party registry support (quay.io, ghcr.io, gcr.io, and more), and a clean architecture refactor.
 
 TestcontainerEx is an Elixir library that supports ExUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker or Podman container.
 

@@ -2,7 +2,7 @@ defmodule TestcontainerEx.MixProject do
   use Mix.Project
 
   @app :testcontainer_ex
-  @version "0.8.0"
+  @version "0.9.0"
   @source_url "https://github.com/manhvu/testcontainers-elixir"
 
   def project do
@@ -83,6 +83,7 @@ defmodule TestcontainerEx.MixProject do
         "Pre-built Containers": [
           TestcontainerEx.CassandraContainer,
           TestcontainerEx.CephContainer,
+          TestcontainerEx.ClickHouseContainer,
           TestcontainerEx.ElixirContainer,
           TestcontainerEx.EmqxContainer,
           TestcontainerEx.KafkaContainer,
@@ -232,6 +233,7 @@ defmodule TestcontainerEx.MixProject do
       #        mix test.mysql             → MySQL container tests only
       #        mix test.mongo             → Mongo container tests only
       #        mix test.cassandra         → Cassandra container tests only
+      #        mix test.clickhouse        → ClickHouse container tests only
       #        mix test.scylla            → Scylla container tests only
       #        mix test.kafka             → Kafka container tests only
       #        mix test.rabbitmq          → RabbitMQ container tests only
@@ -260,6 +262,9 @@ defmodule TestcontainerEx.MixProject do
       ],
       "test.cassandra": [
         "test test/container/cassandra_container_test.exs --include needs_dock --exclude dood_limitation"
+      ],
+      "test.clickhouse": [
+        "test test/container/clickhouse_container_test.exs --include needs_dock --exclude dood_limitation"
       ],
       "test.scylla": [
         "test test/container/scylla_container_test.exs --include needs_dock --exclude dood_limitation"

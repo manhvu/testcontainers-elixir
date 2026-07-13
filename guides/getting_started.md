@@ -76,6 +76,26 @@ opts = TestcontainerEx.Container.Info.pg_connect_opts(container)
 {:ok, conn} = Postgrex.start_link(opts)
 ```
 
+### Using the ClickHouse container
+
+ClickHouse exposes both an HTTP interface (port `8123`) and a native TCP interface
+(port `9000`). The HTTP interface is the default for the connection helpers:
+
+```elixir
+{:ok, container} = TestcontainerEx.start_container(TestcontainerEx.ClickHouseContainer.new())
+
+# HTTP connection URL (default interface)
+url = TestcontainerEx.ClickHouseContainer.connection_url(container)
+# => "http://default:default@localhost:55123/?database=default"
+
+# Query via the HTTP interface
+{:ok, %{status: 200, body: "1\n"}} =
+  Req.get(url, params: [query: "SELECT 1"])
+
+# Native TCP port (for drivers such as Clickhousex)
+port = TestcontainerEx.ClickHouseContainer.native_port(container)
+```
+
 ### Using a generic container
 
 For any Docker image, use the generic container API:

@@ -121,6 +121,21 @@ defmodule TestcontainerEx.Container.Info do
   end
 
   @doc """
+  Returns a ClickHouse connection URL.
+
+  Uses `:CLICKHOUSE_USER`, `:CLICKHOUSE_PASSWORD`, and `:CLICKHOUSE_DB` from the
+  container environment. The HTTP interface (port 8123) is used by default.
+  """
+  @spec clickhouse_url(Config.t()) :: String.t()
+  def clickhouse_url(%Config{} = container) do
+    user = container.environment[:CLICKHOUSE_USER]
+    pass = container.environment[:CLICKHOUSE_PASSWORD]
+    database = container.environment[:CLICKHOUSE_DB]
+    auth_part = if user, do: "#{user}:#{pass}@", else: ""
+    "http://#{auth_part}#{host(container)}:#{port(container, 8123)}/?database=#{database}"
+  end
+
+  @doc """
   Returns an AMQP connection URL for RabbitMQ.
 
   Uses `:RABBITMQ_DEFAULT_USER`, `:RABBITMQ_DEFAULT_PASS`,

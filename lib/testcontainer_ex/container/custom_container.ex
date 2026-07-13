@@ -163,7 +163,7 @@ defmodule TestcontainerEx.CustomContainer do
   @doc "Sets the working directory inside the container."
   @spec with_workdir(t(), String.t()) :: t()
   def with_workdir(%__MODULE__{} = cc, workdir) when is_binary(workdir) do
-    %{cc | config: Config.with_environment(cc.config, "WORKDIR", workdir)}
+    %{cc | config: Config.with_working_dir(cc.config, workdir)}
   end
 
   @doc "Sets the container name."
@@ -210,6 +210,17 @@ defmodule TestcontainerEx.CustomContainer do
     %{cc | auto_remove: auto_remove, config: Config.with_auto_remove(cc.config, auto_remove)}
   end
 
+  @doc """
+  Enables or disables container reuse.
+
+  Raises if the container is set to auto-remove; call `with_auto_remove(false)`
+  first to enable reuse.
+  """
+  @spec with_reuse(t(), boolean()) :: t()
+  def with_reuse(%__MODULE__{} = cc, reuse) when is_boolean(reuse) do
+    %{cc | config: Config.with_reuse(cc.config, reuse)}
+  end
+
   @doc "Sets privileged mode."
   @spec with_privileged(t(), boolean()) :: t()
   def with_privileged(%__MODULE__{} = cc, privileged) when is_boolean(privileged) do
@@ -253,56 +264,56 @@ defmodule TestcontainerEx.CustomContainer do
   @doc "Sets the user (UID or user:group) for the container."
   @spec with_user(t(), String.t()) :: t()
   def with_user(%__MODULE__{} = cc, user) when is_binary(user) do
-    %{cc | config: Config.with_environment(cc.config, "USER", user)}
+    %{cc | config: Config.with_user(cc.config, user)}
   end
 
   @doc "Sets memory limit in bytes."
   @spec with_memory_limit(t(), integer()) :: t()
   def with_memory_limit(%__MODULE__{} = cc, bytes) when is_integer(bytes) do
-    %{cc | config: Config.with_label(cc.config, "memory.limit", to_string(bytes))}
+    %{cc | config: Config.with_memory_limit(cc.config, bytes)}
   end
 
   @doc "Sets CPU limit (fraction of a CPU core, e.g. 0.5 for half a core)."
   @spec with_cpu_limit(t(), float()) :: t()
   def with_cpu_limit(%__MODULE__{} = cc, cpus) when is_float(cpus) do
-    %{cc | config: Config.with_label(cc.config, "cpu.limit", to_string(cpus))}
+    %{cc | config: Config.with_cpu_limit(cc.config, cpus)}
   end
 
   @doc "Sets the restart policy (e.g. 'always', 'unless-stopped', 'on-failure:5')."
   @spec with_restart_policy(t(), String.t()) :: t()
   def with_restart_policy(%__MODULE__{} = cc, policy) when is_binary(policy) do
-    %{cc | config: Config.with_label(cc.config, "restart.policy", policy)}
+    %{cc | config: Config.with_restart_policy(cc.config, policy)}
   end
 
   @doc "Sets the stop timeout in seconds."
   @spec with_stop_timeout(t(), integer()) :: t()
   def with_stop_timeout(%__MODULE__{} = cc, seconds) when is_integer(seconds) do
-    %{cc | config: Config.with_label(cc.config, "stop.timeout", to_string(seconds))}
+    %{cc | config: Config.with_stop_timeout(cc.config, seconds)}
   end
 
   @doc "Sets the stop signal (e.g. 'SIGTERM', 'SIGKILL')."
   @spec with_stop_signal(t(), String.t()) :: t()
   def with_stop_signal(%__MODULE__{} = cc, signal) when is_binary(signal) do
-    %{cc | config: %{cc.config | cmd: cc.config.cmd}}
+    %{cc | config: Config.with_stop_signal(cc.config, signal)}
   end
 
   @doc "Adds an extra host entry (hostname -> ip)."
   @spec with_extra_host(t(), String.t(), String.t()) :: t()
   def with_extra_host(%__MODULE__{} = cc, hostname, ip)
       when is_binary(hostname) and is_binary(ip) do
-    %{cc | config: Config.with_label(cc.config, "extra_host.#{hostname}", ip)}
+    %{cc | config: Config.with_extra_host(cc.config, hostname, ip)}
   end
 
   @doc "Sets DNS servers."
   @spec with_dns(t(), [String.t()]) :: t()
   def with_dns(%__MODULE__{} = cc, dns_servers) when is_list(dns_servers) do
-    %{cc | config: Config.with_label(cc.config, "dns", Enum.join(dns_servers, ","))}
+    %{cc | config: Config.with_dns(cc.config, dns_servers)}
   end
 
   @doc "Sets the domain name."
   @spec with_domainname(t(), String.t()) :: t()
   def with_domainname(%__MODULE__{} = cc, domain) when is_binary(domain) do
-    %{cc | config: %{cc.config | hostname: cc.config.hostname || domain}}
+    %{cc | config: %{cc.config | domainname: domain}}
   end
 
   # ── Runtime info ─────────────────────────────────────────────────

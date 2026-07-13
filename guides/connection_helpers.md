@@ -64,6 +64,14 @@ TestcontainerEx.Container.Info.amqp_url(container)
 # => "amqp://guest:guest@localhost:55127/"
 ```
 
+### ClickHouse
+
+```elixir
+# Returns a ClickHouse connection URL (HTTP interface, port 8123)
+TestcontainerEx.Container.Info.clickhouse_url(container)
+# => "http://default:default@localhost:55123/?database=default"
+```
+
 ### Generic URL Builder
 
 ```elixir
@@ -167,6 +175,7 @@ Connection helpers automatically extract credentials from container environment 
 | `redis_url/1` | `REDIS_PASSWORD` (optional) |
 | `mongo_url/1` | `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`, `MONGO_INITDB_DATABASE` |
 | `amqp_url/1` | `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, `RABBITMQ_DEFAULT_VHOST` |
+| `clickhouse_url/1` | `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DB` |
 
 ## Custom Connection URLs
 

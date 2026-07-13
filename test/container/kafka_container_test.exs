@@ -4,6 +4,11 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
 
   alias TestcontainerEx.KafkaContainer
 
+  # Returns a value typed as `term()` so the static type checker does not flag
+  # the "raises if ..." tests below, while still being an invalid runtime value
+  # that triggers a FunctionClauseError.
+  defp bad_value, do: :bad
+
   describe "new/0" do
     test "creates a new KafkaContainer struct with default configurations" do
       config = KafkaContainer.new()
@@ -31,7 +36,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_image(config, 6.2)
+        apply(KafkaContainer, :with_image, [config, 6.2])
       end
     end
   end
@@ -48,7 +53,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_kafka_port(config, "9094")
+        apply(KafkaContainer, :with_kafka_port, [config, "9094"])
       end
     end
   end
@@ -65,7 +70,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_controller_port(config, "9095")
+        apply(KafkaContainer, :with_controller_port, [config, "9095"])
       end
     end
   end
@@ -82,7 +87,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_node_id(config, "2")
+        apply(KafkaContainer, :with_node_id, [config, "2"])
       end
     end
   end
@@ -99,7 +104,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_cluster_id(config, 123)
+        apply(KafkaContainer, :with_cluster_id, [config, bad_value()])
       end
     end
   end
@@ -116,7 +121,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_wait_timeout(config, "60_001")
+        apply(KafkaContainer, :with_wait_timeout, [config, bad_value()])
       end
     end
   end
@@ -133,7 +138,7 @@ defmodule TestcontainerEx.Container.KafkaContainerTest do
       config = KafkaContainer.new()
 
       assert_raise FunctionClauseError, fn ->
-        KafkaContainer.with_topics(config, "topic1")
+        apply(KafkaContainer, :with_topics, [config, bad_value()])
       end
     end
   end
